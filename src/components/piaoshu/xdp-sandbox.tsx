@@ -46,6 +46,39 @@ const Sandbox3DViewport = dynamic(
 )
 
 // ---------------------------------------------------------------------------
+// Lazy 3D Viewport (click to load, prevents heavy chunk on page load)
+// ---------------------------------------------------------------------------
+
+function LazyThreeViewport({ projectName }: { projectName?: string }) {
+  const [load3D, setLoad3D] = useState(false)
+
+  if (!load3D) {
+    return (
+      <div
+        className="relative overflow-hidden rounded-xl border border-emerald-700/30 cursor-pointer group"
+        style={{ background: '#0a0f1a', minHeight: 420 }}
+        onClick={() => setLoad3D(true)}
+      >
+        <div className="flex flex-col items-center justify-center h-full min-h-[420px] gap-4">
+          <div className="relative">
+            <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 group-hover:border-emerald-500/40 transition-colors">
+              <Box className="h-8 w-8 text-emerald-400" />
+            </div>
+            <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 animate-pulse" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-emerald-400">点击加载3D视口</p>
+            <p className="text-xs text-emerald-400/50 mt-1">WebGL渲染 · 可拖拽旋转缩放</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return <Sandbox3DViewport projectName={projectName} />
+}
+
+// ---------------------------------------------------------------------------
 // Error Boundary for 3D viewport
 // ---------------------------------------------------------------------------
 
@@ -542,7 +575,7 @@ export function XDPSandboxView() {
         </div>
 
         <ViewportErrorBoundary>
-          <Sandbox3DViewport projectName={projects[0]?.name} />
+          <LazyThreeViewport projectName={projects[0]?.name} />
         </ViewportErrorBoundary>
       </section>
 

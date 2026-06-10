@@ -372,3 +372,31 @@ export function useCloneOutputs() {
     queryFn: () => apiFetch<{ outputs: unknown[] }>('/api/avatar/outputs'),
   })
 }
+
+// ===== Shared Knowledge =====
+export function useSharedKnowledge(domain?: string) {
+  return useQuery({
+    queryKey: ['sharedKnowledge', domain],
+    queryFn: () => apiFetch<{ success: boolean; data: { knowledge: unknown[]; total: number; domainDistribution: { domain: string; count: number; avgConfidence: number }[] } }>(
+      domain ? `/api/avatar/knowledge?domain=${domain}` : '/api/avatar/knowledge'
+    ),
+  })
+}
+
+export function useAddSharedKnowledge() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { domain: string; insight: string; sourceType: string; confidence?: number }) =>
+      apiFetch('/api/avatar/knowledge', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sharedKnowledge'] }),
+  })
+}
+
+export function useApplySharedKnowledge() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string }) =>
+      apiFetch('/api/avatar/knowledge', { method: 'PATCH', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sharedKnowledge'] }),
+  })
+}

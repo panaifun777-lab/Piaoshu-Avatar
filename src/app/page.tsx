@@ -29,15 +29,51 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
+import dynamic from 'next/dynamic'
 import { DashboardView } from '@/components/piaoshu/dashboard'
-import { AvatarCloneView } from '@/components/piaoshu/avatar-clone'
-import { CognitiveEngineView } from '@/components/piaoshu/cognitive-engine'
-import { EvidenceChainView } from '@/components/piaoshu/evidence-chain'
-import { CollaborationRouterView } from '@/components/piaoshu/collaboration-router'
-import { XDPSandboxView } from '@/components/piaoshu/xdp-sandbox'
-import { RoadmapTrackerView } from '@/components/piaoshu/roadmap-tracker'
 import { AIChatWidget } from '@/components/piaoshu/ai-chat-widget'
 import { AuthModal } from '@/components/piaoshu/auth-modal'
+
+// Lazy-load heavy module views to reduce initial bundle size
+const AvatarCloneView = dynamic(
+  () => import('@/components/piaoshu/avatar-clone').then(m => ({ default: m.AvatarCloneView })),
+  { loading: () => <ModuleSkeleton /> }
+)
+const CognitiveEngineView = dynamic(
+  () => import('@/components/piaoshu/cognitive-engine').then(m => ({ default: m.CognitiveEngineView })),
+  { loading: () => <ModuleSkeleton /> }
+)
+const EvidenceChainView = dynamic(
+  () => import('@/components/piaoshu/evidence-chain').then(m => ({ default: m.EvidenceChainView })),
+  { loading: () => <ModuleSkeleton /> }
+)
+const CollaborationRouterView = dynamic(
+  () => import('@/components/piaoshu/collaboration-router').then(m => ({ default: m.CollaborationRouterView })),
+  { loading: () => <ModuleSkeleton /> }
+)
+const XDPSandboxView = dynamic(
+  () => import('@/components/piaoshu/xdp-sandbox').then(m => ({ default: m.XDPSandboxView })),
+  { loading: () => <ModuleSkeleton /> }
+)
+const RoadmapTrackerView = dynamic(
+  () => import('@/components/piaoshu/roadmap-tracker').then(m => ({ default: m.RoadmapTrackerView })),
+  { loading: () => <ModuleSkeleton /> }
+)
+
+function ModuleSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-8 w-48 bg-muted rounded-lg" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-28 bg-muted rounded-lg" />
+        ))}
+      </div>
+      <div className="h-64 bg-muted rounded-lg" />
+      <div className="h-48 bg-muted rounded-lg" />
+    </div>
+  )
+}
 
 type ActiveModule = 'dashboard' | 'avatar' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap'
 
@@ -64,12 +100,13 @@ interface SidebarContentProps {
   activeModule: ActiveModule
   sidebarCollapsed: boolean
   theme: string | undefined
+  mounted: boolean
   onNavigate: (module: ActiveModule) => void
   onToggleTheme: () => void
   onMobileClose?: () => void
 }
 
-function SidebarContent({ activeModule, sidebarCollapsed, theme, onNavigate, onToggleTheme, onMobileClose }: SidebarContentProps) {
+function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavigate, onToggleTheme, onMobileClose }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Logo & Brand */}
@@ -179,16 +216,14 @@ function SidebarContent({ activeModule, sidebarCollapsed, theme, onNavigate, onT
           className="w-full justify-center"
           onClick={onToggleTheme}
         >
-          {theme === undefined ? (
-            <Sun className="h-4 w-4" />
-          ) : theme === 'dark' ? (
-            <Sun className="h-4 w-4" />
+          {mounted ? (
+            theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
           ) : (
-            <Moon className="h-4 w-4" />
+            <Sun className="h-4 w-4 opacity-0" />
           )}
           {!sidebarCollapsed && (
             <span className="ml-2 text-xs">
-              {theme === undefined ? '' : theme === 'dark' ? '浅色' : '深色'}
+              {mounted ? (theme === 'dark' ? '浅色' : '深色') : '\u00A0'}
             </span>
           )}
         </Button>
@@ -221,10 +256,13 @@ export default function Home() {
   const lastToastRef = useRef<string | null>(null)
   const { data: session } = useSession()
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  const mountedRef = useRef(false)
 
   // Only render theme-dependent UI after mount to avoid hydration mismatch
+  // This is a standard pattern for next-themes - setState in effect is intentional
   useEffect(() => {
-    setMounted(true)
+    mountedRef.current = true
+    setMounted(true) // eslint-disable-line react-hooks/set-state-in-effect
   }, [])
 
   const toggleTheme = () => {
@@ -280,7 +318,8 @@ export default function Home() {
         <SidebarContent
           activeModule={activeModule}
           sidebarCollapsed={sidebarCollapsed}
-          theme={mounted ? resolvedTheme : undefined}
+          theme={resolvedTheme}
+          mounted={mounted}
           onNavigate={setActiveModule}
           onToggleTheme={toggleTheme}
         />
@@ -321,7 +360,8 @@ export default function Home() {
         <SidebarContent
           activeModule={activeModule}
           sidebarCollapsed={false}
-          theme={mounted ? resolvedTheme : undefined}
+          theme={resolvedTheme}
+          mounted={mounted}
           onNavigate={setActiveModule}
           onToggleTheme={toggleTheme}
           onMobileClose={() => setMobileMenuOpen(false)}

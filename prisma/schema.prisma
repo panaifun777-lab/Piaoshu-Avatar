@@ -417,6 +417,17 @@ model CloneActivity {
   clone AvatarClone @relation(fields: [cloneId], references: [id])
 }
 
+// ===== 跨分身共享知识 =====
+model SharedKnowledge {
+  id           String   @id @default(cuid())
+  domain       String   // e.g., "marketing", "code", "growth", "strategy", "engineering"
+  insight      String   // The anonymized insight/learning
+  sourceType   String   // e.g., "agent_cycle", "simulation", "task"
+  confidence   Float    @default(0.5)
+  appliedCount Int      @default(0)  // How many clones have applied this
+  createdAt    DateTime @default(now())
+}
+
 // ===== 日程安排 =====
 model DailySchedule {
   id        String   @id @default(cuid())

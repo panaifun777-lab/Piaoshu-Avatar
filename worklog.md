@@ -433,3 +433,38 @@ Stage Summary:
 - Avatar Clone view auto-refreshes in real-time on agent:status, agent:cycle, agent:output, clone:activity events
 - All new WS event types have Chinese labels in header toast notifications
 - Zero lint errors, all existing functionality preserved
+
+---
+Task ID: 6
+Agent: Knowledge Sharing Developer
+Task: Enhance Avatar Clone with Polsia-inspired autonomous capabilities - Cross-Clone Knowledge Sharing
+
+Work Log:
+- Added SharedKnowledge Prisma model: id, domain, insight, sourceType, confidence, appliedCount, createdAt
+- Ran db:push to sync schema and regenerate Prisma Client
+- Created /api/avatar/knowledge API route:
+  - GET: List shared knowledge with optional domain filter, limit/offset pagination, domain distribution stats (groupBy with count + avg confidence)
+  - POST: Add new shared knowledge with validation and audit logging
+  - PATCH: Apply knowledge (increment appliedCount for cross-clone tracking)
+- Enhanced agent cycle route (/api/avatar/agents/[id]/cycle/route.ts):
+  - Knowledge Injection: Fetches top 5 relevant shared knowledge entries based on agent role mapping (CEO→strategy/growth/operations, CTO→engineering/code/architecture, Growth→marketing/growth/analytics, Engineer→engineering/code/devops)
+  - Insight Extraction: After cycle completes, uses LLM to extract 1-3 anonymized key insights from the report and stores as SharedKnowledge entries
+  - Prompt Enhancement: Added knowledge context injection into LLM planning prompt with `applied_knowledge` output field
+- Added 3 API hooks to api-hooks.ts: useSharedKnowledge(domain?), useAddSharedKnowledge(), useApplySharedKnowledge()
+- Added KnowledgeSharingNetwork component to avatar-clone.tsx:
+  - Stats row: Total insights, domain coverage, average confidence
+  - Recharts PieChart (donut) showing domain distribution with color legend
+  - Scrollable recent insights with domain badges, confidence scores, applied count, "Apply" button
+  - 6 fallback demo entries for engineering, growth, strategy, code, marketing domains
+  - Violet/purple theme consistent with avatar module
+- Layout change: SkillMatrix + KnowledgeSharingNetwork now in 2-column grid (lg:grid-cols-2)
+- Added Lucide icon imports: Brain, Lightbulb, Network, ThumbsUp
+- Added Recharts imports: PieChart, Pie, Cell
+
+Stage Summary:
+- SharedKnowledge model stores cross-clone anonymized insights from agent cycles
+- Agent cycles now inject relevant shared knowledge into planning prompts AND extract insights after completion
+- Knowledge Sharing Network UI with PieChart, stats, and insight cards
+- Full knowledge flow: cycle completes → LLM extracts insights → stored in SharedKnowledge → injected into next cycle
+- Only pre-existing lint error (page.tsx setMounted in useEffect)
+- All existing functionality preserved

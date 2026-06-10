@@ -63,6 +63,10 @@ import {
   Plus,
   Filter,
   ArrowRight,
+  Brain,
+  Lightbulb,
+  Network,
+  ThumbsUp,
 } from 'lucide-react'
 import {
   RadarChart,
@@ -70,6 +74,9 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
+  PieChart,
+  Pie,
+  Cell,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
 } from 'recharts'
@@ -83,6 +90,8 @@ import {
   useCloneSchedule,
   useGenerateSchedule,
   useCloneOutputs,
+  useSharedKnowledge,
+  useApplySharedKnowledge,
 } from '@/lib/api-hooks'
 import { useToast } from '@/hooks/use-toast'
 import { useWebSocket, type WSEvent } from '@/lib/use-websocket'
@@ -1049,6 +1058,230 @@ function SkillMatrix({ skills }: { skills: SkillData[] }) {
   )
 }
 
+// Knowledge Sharing Network Section
+function KnowledgeSharingNetwork() {
+  const { data: knowledgeData, isLoading: knowledgeLoading } = useSharedKnowledge()
+  const applyMutation = useApplySharedKnowledge()
+  const { toast } = useToast()
+
+  const knowledge = useMemo(() => {
+    const rawData = knowledgeData as { success?: boolean; data?: { knowledge: { id: string; domain: string; insight: string; sourceType: string; confidence: number; appliedCount: number; createdAt: string }[]; total: number; domainDistribution: { domain: string; count: number; avgConfidence: number }[] } } | undefined
+    if (rawData?.data?.knowledge && Array.isArray(rawData.data.knowledge)) {
+      return rawData.data.knowledge
+    }
+    // Fallback demo data
+    return [
+      { id: 'k1', domain: 'engineering', insight: '微服务拆分时应优先考虑团队边界而非技术边界，减少跨团队依赖', sourceType: 'agent_cycle', confidence: 0.85, appliedCount: 3, createdAt: new Date(Date.now() - 3600000).toISOString() },
+      { id: 'k2', domain: 'growth', insight: 'A/B测试显示：简化注册流程可提升转化率35%，移除非必要字段是关键', sourceType: 'agent_cycle', confidence: 0.92, appliedCount: 5, createdAt: new Date(Date.now() - 7200000).toISOString() },
+      { id: 'k3', domain: 'strategy', insight: '早期创业公司应聚焦单一市场做到极致，而非同时拓展多个垂直领域', sourceType: 'simulation', confidence: 0.78, appliedCount: 2, createdAt: new Date(Date.now() - 14400000).toISOString() },
+      { id: 'k4', domain: 'code', insight: '使用依赖注入模式可显著提高代码可测试性，测试覆盖率平均提升40%', sourceType: 'agent_cycle', confidence: 0.88, appliedCount: 7, createdAt: new Date(Date.now() - 28800000).toISOString() },
+      { id: 'k5', domain: 'marketing', insight: '内容营销中，深度技术文章比浅层介绍文带来的高质量线索多3倍', sourceType: 'task', confidence: 0.75, appliedCount: 1, createdAt: new Date(Date.now() - 43200000).toISOString() },
+      { id: 'k6', domain: 'engineering', insight: 'CI/CD流水线中加入安全扫描步骤可提前发现80%的常见漏洞', sourceType: 'agent_cycle', confidence: 0.9, appliedCount: 4, createdAt: new Date(Date.now() - 86400000).toISOString() },
+    ]
+  }, [knowledgeData])
+
+  const domainDistribution = useMemo(() => {
+    const rawData = knowledgeData as { success?: boolean; data?: { domainDistribution: { domain: string; count: number; avgConfidence: number }[] } } | undefined
+    if (rawData?.data?.domainDistribution && Array.isArray(rawData.data.domainDistribution) && rawData.data.domainDistribution.length > 0) {
+      return rawData.data.domainDistribution
+    }
+    // Compute from fallback data
+    const domainMap: Record<string, { count: number; confSum: number }> = {}
+    for (const k of knowledge) {
+      if (!domainMap[k.domain]) domainMap[k.domain] = { count: 0, confSum: 0 }
+      domainMap[k.domain].count++
+      domainMap[k.domain].confSum += k.confidence
+    }
+    return Object.entries(domainMap).map(([domain, { count, confSum }]) => ({
+      domain,
+      count,
+      avgConfidence: confSum / count,
+    }))
+  }, [knowledgeData, knowledge])
+
+  const totalInsights = knowledge.length
+
+  const domainColorMap: Record<string, string> = {
+    engineering: '#06b6d4',
+    code: '#14b8a6',
+    growth: '#10b981',
+    marketing: '#8b5cf6',
+    strategy: '#f59e0b',
+    operations: '#ef4444',
+    analytics: '#3b82f6',
+    devops: '#6366f1',
+    architecture: '#0891b2',
+  }
+
+  const domainLabelMap: Record<string, string> = {
+    engineering: '工程',
+    code: '代码',
+    growth: '增长',
+    marketing: '营销',
+    strategy: '战略',
+    operations: '运营',
+    analytics: '分析',
+    devops: '运维',
+    architecture: '架构',
+  }
+
+  const pieData = domainDistribution.map(d => ({
+    name: domainLabelMap[d.domain] || d.domain,
+    value: d.count,
+    color: domainColorMap[d.domain] || '#64748b',
+    avgConfidence: d.avgConfidence,
+  }))
+
+  const handleApply = (id: string) => {
+    applyMutation.mutate({ id }, {
+      onSuccess: () => {
+        toast({ title: '知识已应用', description: '洞察已注入下次周期执行上下文' })
+      },
+    })
+  }
+
+  return (
+    <Card className="border-border/60">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Brain className="h-4 w-4 text-violet-600" />
+            <CardTitle className="text-sm">知识共享网络</CardTitle>
+            <Badge variant="secondary" className="text-[10px]">{totalInsights} 条洞察</Badge>
+          </div>
+          <Badge variant="outline" className="gap-1 text-[10px] border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400">
+            <Network className="h-3 w-3" />
+            跨分身共享
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-center">
+            <div className="text-lg font-bold text-violet-600 dark:text-violet-400">{totalInsights}</div>
+            <div className="text-[10px] text-muted-foreground">总洞察</div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-center">
+            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{domainDistribution.length}</div>
+            <div className="text-[10px] text-muted-foreground">领域覆盖</div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-center">
+            <div className="text-lg font-bold text-amber-600 dark:text-amber-400">
+              {knowledge.length > 0 ? Math.round(knowledge.reduce((s, k) => s + k.confidence, 0) / knowledge.length * 100) : 0}%
+            </div>
+            <div className="text-[10px] text-muted-foreground">平均置信</div>
+          </div>
+        </div>
+
+        {/* Domain distribution PieChart */}
+        {pieData.length > 0 && (
+          <div className="h-44 flex items-center">
+            <div className="w-1/2 h-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={35}
+                    outerRadius={60}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                    }}
+                    formatter={(value: number, name: string) => [`${value} 条`, name]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="w-1/2 space-y-1.5">
+              {pieData.map(d => (
+                <div key={d.name} className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
+                  <span className="text-[10px] text-muted-foreground flex-1">{d.name}</span>
+                  <span className="text-[10px] font-semibold" style={{ color: d.color }}>{d.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <Separator />
+
+        {/* Recent insights */}
+        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+          {knowledgeLoading ? (
+            <>
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </>
+          ) : knowledge.length > 0 ? knowledge.slice(0, 6).map((item) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2 }}
+              className="rounded-lg border border-border/60 p-3 space-y-1.5 hover:border-violet-500/30 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Lightbulb className="h-3.5 w-3.5 shrink-0" style={{ color: domainColorMap[item.domain] || '#64748b' }} />
+                  <Badge variant="outline" className="text-[8px] px-1 py-0" style={{ color: domainColorMap[item.domain] || '#64748b', borderColor: `${domainColorMap[item.domain] || '#64748b'}30` }}>
+                    {domainLabelMap[item.domain] || item.domain}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[9px] text-muted-foreground font-mono">
+                    置信 {(item.confidence * 100).toFixed(0)}%
+                  </span>
+                  {item.appliedCount > 0 && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 gap-0.5 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
+                      <ThumbsUp className="h-2.5 w-2.5" />
+                      {item.appliedCount}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">{item.insight}</p>
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-muted-foreground font-mono">{formatTime(item.createdAt)}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 text-[9px] gap-0.5 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+                  onClick={() => handleApply(item.id)}
+                  disabled={applyMutation.isPending}
+                >
+                  <Zap className="h-2.5 w-2.5" />
+                  应用
+                </Button>
+              </div>
+            </motion.div>
+          )) : (
+            <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+              <Brain className="h-6 w-6 mb-2 opacity-40" />
+              <p className="text-xs">暂无共享知识</p>
+              <p className="text-[9px] opacity-60">启动代理周期将自动提取洞察</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // Activity Stream
 function ActivityStream({ activities }: { activities: ActivityData[] }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -1723,27 +1956,30 @@ export function AvatarCloneView() {
           </div>
         </div>
 
-        {/* ── Section E: Skill Matrix ────────────────────────────────── */}
-        {skillsLoading ? (
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-48 w-full rounded-lg" />
-              <div className="mt-4 space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <SkillMatrix skills={skills} />
-        )}
+        {/* ── Section E: Skill Matrix + Knowledge Sharing ────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {skillsLoading ? (
+            <Card className="border-border/60">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-48 w-full rounded-lg" />
+                <div className="mt-4 space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <SkillMatrix skills={skills} />
+          )}
+          <KnowledgeSharingNetwork />
+        </div>
       </div>
 
       {/* ── Section G: Clone Onboarding Modal ─────────────────────────── */}

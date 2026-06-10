@@ -51,6 +51,23 @@ export async function POST(
       ? `\n\n你的分身核心人格：\n${clonePersona.substring(0, 1500)}`
       : ''
 
+    // Fetch relevant shared knowledge for this agent's domain
+    const agentDomainMap: Record<string, string[]> = {
+      CEO: ['strategy', 'growth', 'operations'],
+      CTO: ['engineering', 'code', 'architecture'],
+      Growth: ['marketing', 'growth', 'analytics'],
+      Engineer: ['engineering', 'code', 'devops'],
+    }
+    const relevantDomains = agentDomainMap[agent.role] || ['strategy']
+    const sharedKnowledge = await db.sharedKnowledge.findMany({
+      where: { domain: { in: relevantDomains } },
+      orderBy: { confidence: 'desc' },
+      take: 5,
+    })
+    const knowledgeContext = sharedKnowledge.length > 0
+      ? `\n\n【跨分身共享知识库】以下来自其他分身的匿名洞察，请参考融入你的计划：\n${sharedKnowledge.map((k, i) => `${i + 1}. [${k.domain}] ${k.insight} (置信度:${(k.confidence * 100).toFixed(0)}%)`).join('\n')}`
+      : ''
+
     // Create a new cycle
     const cycle = await db.agentCycle.create({
       data: {
@@ -61,13 +78,14 @@ export async function POST(
 
     // === Phase 1: Planning ===
     const planPrompt = `你是${agent.name}代理，角色类型: ${agent.role}。
-你的人格描述: ${agent.persona}${personalityContext}
+你的人格描述: ${agent.persona}${personalityContext}${knowledgeContext}
 
 作为Polsia自主代理，请基于你的角色制定本周期工作计划。你需要：
 1. 评估当前状态和优先事项
 2. 制定3-5个可执行的行动项
 3. 为每个行动项设定预期成果和输出类型
 4. 评估风险和依赖
+${sharedKnowledge.length > 0 ? '5. 在适当的地方融入共享知识库中的洞察' : ''}
 
 输出格式（严格JSON）：
 {
@@ -77,7 +95,8 @@ export async function POST(
   ],
   "focus_area": "聚焦领域",
   "risk_assessment": "风险评估",
-  "dependencies": ["依赖项列表"]
+  "dependencies": ["依赖项列表"],
+  "applied_knowledge": ["引用的共享知识ID或摘要"]
 }`
 
     const planCompletion = await zai.chat.completions.create({
@@ -250,6 +269,51 @@ export async function POST(
         relevanceScore: 0.85,
       },
     })
+
+    // === Extract insights for SharedKnowledge ===
+    try {
+      const insightPrompt = `基于以下代理周期报告，提取1-3个可匿名化的关键洞察/学习要点。每个洞察应该是通用的、可跨分身应用的，不包含特定用户或项目的敏感信息。
+
+报告内容：
+${reportOutput.substring(0, 1500)}
+
+输出格式（严格JSON）：
+{
+  "insights": [
+    {"domain": "marketing|engineering|growth|strategy|operations|code", "insight": "匿名化的洞察内容", "confidence": 0.5-1.0}
+  ]
+}`
+
+      const insightCompletion = await zai.chat.completions.create({
+        messages: [
+          { role: 'assistant', content: insightPrompt },
+          { role: 'user', content: '请提取洞察' },
+        ],
+        thinking: { type: 'disabled' },
+      })
+
+      const insightOutput = insightCompletion.choices[0]?.message?.content || ''
+      const insightJson = JSON.parse(insightOutput)
+
+      if (insightJson.insights && Array.isArray(insightJson.insights)) {
+        for (const item of insightJson.insights.slice(0, 3)) {
+          if (item.domain && item.insight) {
+            await db.sharedKnowledge.create({
+              data: {
+                domain: item.domain,
+                insight: item.insight,
+                sourceType: 'agent_cycle',
+                confidence: typeof item.confidence === 'number'
+                  ? Math.max(0, Math.min(1, item.confidence))
+                  : 0.5,
+              },
+            })
+          }
+        }
+      }
+    } catch {
+      // Insight extraction is best-effort, don't fail the cycle
+    }
 
     // Audit log
     await db.auditLog.create({
