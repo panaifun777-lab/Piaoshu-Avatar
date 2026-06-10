@@ -16,15 +16,16 @@ import {
   Menu,
   X,
   ChevronLeft,
-  Zap,
   Moon,
   Sun,
   Wifi,
   WifiOff,
   UserCircle2,
   LogOut,
+  CreditCard,
   Settings2,
   Command,
+  Mail,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useWebSocket, type WSEventType } from '@/lib/use-websocket'
@@ -38,6 +39,7 @@ import { DashboardView } from '@/components/piaoshu/dashboard'
 import { AIChatWidget } from '@/components/piaoshu/ai-chat-widget'
 import { CommandPalette } from '@/components/piaoshu/command-palette'
 import { AuthModal } from '@/components/piaoshu/auth-modal'
+import { SubscriptionPlans } from '@/components/piaoshu/subscription-plans'
 import { SettingsPanel } from '@/components/piaoshu/settings-panel'
 import { NotificationCenter } from '@/components/piaoshu/notification-center'
 import { ModuleErrorBoundary } from '@/components/piaoshu/error-boundary'
@@ -68,6 +70,10 @@ const RoadmapTrackerView = dynamic(
   () => import('@/components/piaoshu/roadmap-tracker').then(m => ({ default: m.RoadmapTrackerView })),
   { loading: () => <ModuleSkeleton /> }
 )
+const EmailTrackingView = dynamic(
+  () => import('@/components/piaoshu/email-tracking').then(m => ({ default: m.EmailTrackingView })),
+  { loading: () => <ModuleSkeleton /> }
+)
 
 function ModuleSkeleton() {
   return (
@@ -84,7 +90,7 @@ function ModuleSkeleton() {
   )
 }
 
-type ActiveModule = 'dashboard' | 'avatar' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap'
+type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription'
 
 interface NavItem {
   id: ActiveModule
@@ -97,11 +103,13 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', label: '总览', sublabel: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
   { id: 'avatar', label: '分身系统', sublabel: 'Avatar Clone', icon: UserCircle2, color: 'text-violet-500' },
+  { id: 'email', label: '邮件跟踪', sublabel: 'Email Tracking', icon: Mail, color: 'text-emerald-500' },
   { id: 'cognitive', label: '认知分片引擎', sublabel: 'Cognitive Sharding', icon: Brain, color: 'text-emerald-600' },
   { id: 'evidence', label: '可信证据链', sublabel: 'Evidence Chain', icon: Shield, color: 'text-teal-600' },
   { id: 'collaboration', label: '流体协作调度', sublabel: 'Fluid Router', icon: Network, color: 'text-cyan-600' },
   { id: 'sandbox', label: '虚实共生沙盒', sublabel: 'XDP Sandbox', icon: Box, color: 'text-amber-600' },
   { id: 'roadmap', label: '90天路线图', sublabel: 'Roadmap', icon: Target, color: 'text-rose-500' },
+  { id: 'subscription', label: '订阅方案', sublabel: 'AFC Plans', icon: CreditCard, color: 'text-amber-500' },
 ]
 
 // Extracted sidebar component to avoid render-time component creation
@@ -123,12 +131,12 @@ function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavi
       <div className="p-4 pb-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 h-10 w-10">
-            <Zap className="h-5 w-5 text-white" />
+            <span className="text-xl" role="img" aria-label="Piaoshu Avatar Clone">🧬</span>
           </div>
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-base font-bold tracking-tight text-foreground truncate">飘数 Piaoshu</span>
-              <span className="text-[10px] text-muted-foreground font-mono">FOUNDER OS v0.1</span>
+              <span className="text-base font-bold tracking-tight text-foreground truncate">飘叔 Piaoshu</span>
+              <span className="text-[10px] text-muted-foreground font-mono">AI AVATAR OS v0.1</span>
             </div>
           )}
         </div>
@@ -271,11 +279,13 @@ const EVENT_LABELS: Record<WSEventType, string> = {
 const MODULE_NAMES: Record<ActiveModule, string> = {
   dashboard: '总览 Dashboard',
   avatar: '分身系统 Avatar Clone',
+  email: '邮件跟踪 Email Tracking',
   cognitive: '认知分片引擎 Cognitive Engine',
   evidence: '可信证据链 Evidence Chain',
   collaboration: '流体协作调度 Collaboration Router',
   sandbox: '虚实共生沙盒 XDP Sandbox',
   roadmap: '90天路线图 Roadmap',
+  subscription: '订阅方案 AFC Plans',
 }
 
 // Page transition animation variants
@@ -348,6 +358,12 @@ export default function Home() {
             <AvatarCloneView />
           </ModuleErrorBoundary>
         )
+      case 'email':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <EmailTrackingView />
+          </ModuleErrorBoundary>
+        )
       case 'cognitive':
         return (
           <ModuleErrorBoundary moduleName={moduleName}>
@@ -376,6 +392,12 @@ export default function Home() {
         return (
           <ModuleErrorBoundary moduleName={moduleName}>
             <RoadmapTrackerView />
+          </ModuleErrorBoundary>
+        )
+      case 'subscription':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <SubscriptionPlans />
           </ModuleErrorBoundary>
         )
       default:
@@ -569,8 +591,8 @@ export default function Home() {
           <footer className="mt-auto border-t bg-card px-3 sm:px-4 md:px-6 py-2 sm:py-3">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-500" />
-                <span className="font-medium">飘数 Piaoshu · 创始人操作系统</span>
+                <span className="text-sm sm:text-base" role="img" aria-label="Piaoshu">🧬</span>
+                <span className="font-medium">飘叔 Piaoshu · AI分身操作系统</span>
                 <span className="font-mono">v0.1.0-alpha</span>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">

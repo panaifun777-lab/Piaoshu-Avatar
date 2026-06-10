@@ -422,6 +422,118 @@ async function seed() {
   })
   console.log('✅ Sample daily schedule created')
 
+  // ===== AFC Subscription Plans Seed Data =====
+  console.log('🌱 Seeding AFC Subscription Plans...')
+
+  const subscriptionPlans = [
+    {
+      name: 'free',
+      displayName: '免费版',
+      priceAFC: 0,
+      priceUSD: 0,
+      maxClones: 1,
+      maxCyclesPerDay: 5,
+      features: JSON.stringify(['1 智能分身', '5 AI周期/天', '基础技能', '社区支持', '基础邮件跟踪']),
+      isActive: true,
+    },
+    {
+      name: 'starter',
+      displayName: '入门版',
+      priceAFC: 490,
+      priceUSD: 49,
+      maxClones: 3,
+      maxCyclesPerDay: 20,
+      features: JSON.stringify(['3 智能分身', '20 AI周期/天', '邮件跟踪', '高级技能', '优先支持', '知识库访问']),
+      isActive: true,
+    },
+    {
+      name: 'pro',
+      displayName: '专业版',
+      priceAFC: 990,
+      priceUSD: 99,
+      maxClones: 10,
+      maxCyclesPerDay: -1,
+      features: JSON.stringify(['10 智能分身', '无限AI周期', '全部技能', '优先支持', 'API访问', '自定义代理角色', '高级分析', '跨分身知识共享']),
+      isActive: true,
+    },
+    {
+      name: 'enterprise',
+      displayName: '企业版',
+      priceAFC: 0,
+      priceUSD: 0,
+      maxClones: -1,
+      maxCyclesPerDay: -1,
+      features: JSON.stringify(['无限分身', '私有部署', '专属客服', 'SLA保障', '自定义集成', '白标方案', '安全审计', '培训支持']),
+      isActive: true,
+    },
+  ]
+
+  for (const planData of subscriptionPlans) {
+    await db.subscriptionPlan.upsert({
+      where: { name: planData.name },
+      update: {
+        displayName: planData.displayName,
+        priceAFC: planData.priceAFC,
+        priceUSD: planData.priceUSD,
+        maxClones: planData.maxClones,
+        maxCyclesPerDay: planData.maxCyclesPerDay,
+        features: planData.features,
+        isActive: planData.isActive,
+      },
+      create: planData,
+    })
+  }
+  console.log('✅ Subscription plans created:', subscriptionPlans.length)
+
+  // Create a pro subscription for the demo user
+  const proPlan = await db.subscriptionPlan.findUnique({ where: { name: 'pro' } })
+  if (proPlan) {
+    const now = new Date()
+    const periodEnd = new Date(now)
+    periodEnd.setMonth(periodEnd.getMonth() + 1)
+
+    await db.userSubscription.upsert({
+      where: { id: `sub-${demoUser.id}-pro` },
+      update: {},
+      create: {
+        id: `sub-${demoUser.id}-pro`,
+        userId: demoUser.id,
+        planId: proPlan.id,
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        afcBalance: 2500,
+        afcUsed: 990,
+        paymentMethod: 'afc_base',
+        walletAddress: '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+        autoRenew: true,
+      },
+    })
+
+    // Create sample AFC transactions
+    const sampleTxTypes = ['top_up', 'subscription_payment', 'top_up', 'cycle_payment', 'reward']
+    for (let i = 0; i < sampleTxTypes.length; i++) {
+      const type = sampleTxTypes[i]
+      const amounts: Record<string, number> = { top_up: 3000, subscription_payment: -990, cycle_payment: -50, reward: 100 }
+      await db.aFCTransaction.create({
+        data: {
+          userId: demoUser.id,
+          type,
+          amount: amounts[type] ?? 0,
+          txHash: type !== 'reward' ? '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('') : null,
+          status: 'confirmed',
+          description: type === 'top_up' ? '充值 3000 AFC via AFC on Base' :
+                       type === 'subscription_payment' ? '订阅专业版 - 990 AFC/月' :
+                       type === 'cycle_payment' ? 'AI周期执行支付 - 50 AFC' :
+                       '新用户奖励 - 100 AFC',
+          metadata: JSON.stringify({ paymentMethod: 'afc_base', planName: 'pro' }),
+          createdAt: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000),
+        },
+      })
+    }
+    console.log('✅ Demo user subscription and AFC transactions created')
+  }
+
   console.log('🎉 Seeding complete!')
 }
 

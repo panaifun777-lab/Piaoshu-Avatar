@@ -17,16 +17,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "飘数 Piaoshu · 创始人操作系统",
-  description: "Web4.0 AI原生创业操作系统 — 将AI从执行者升维为共生体，创始人升维为系统造物主",
-  keywords: ["Piaoshu", "飘数", "AI", "创业", "Web4.0", "创始人系统", "认知分片", "证据链", "协作调度"],
+  title: "飘叔 Piaoshu · AI分身操作系统",
+  description: "Web4.0 AI原生智能分身操作系统 — 将AI从执行者升维为共生体，让智能分身成为你的超级杠杆",
+  keywords: ["Piaoshu", "飘叔", "AI", "智能分身", "Web4.0", "AI分身", "认知分片", "证据链", "协作调度"],
   authors: [{ name: "Piaoshu Team" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo-emoji.png",
   },
   openGraph: {
-    title: "飘数 Piaoshu · 创始人操作系统",
-    description: "Web4.0 AI原生创业操作系统",
+    title: "飘叔 Piaoshu · AI分身操作系统",
+    description: "Web4.0 AI原生智能分身操作系统",
     type: "website",
   },
 };

@@ -22,7 +22,7 @@ async function getSoulConfig(): Promise<string> {
 }
 
 // Default system prompt for piaoshu founder system
-const DEFAULT_SYSTEM_PROMPT = `你是飘数(Piaoshu)创始人操作系统的AI共生体。你的角色是：
+const DEFAULT_SYSTEM_PROMPT = `你是飘叔(Piaoshu)AI分身操作系统的AI共生体。你的角色是：
 1. 作为创始人的数字分身，帮助分析战略决策
 2. 进行红蓝对抗思维，识别致命漏洞
 3. 基于数据证据给出建议，拒绝模糊表述

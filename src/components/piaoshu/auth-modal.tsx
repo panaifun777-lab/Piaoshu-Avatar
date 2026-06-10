@@ -109,7 +109,7 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
         toast.success('注册成功！请手动登录')
         setActiveTab('login')
       } else {
-        toast.success('注册成功，欢迎加入飘数！')
+        toast.success('注册成功，欢迎加入飘叔！')
         onOpenChange(false)
         // Reset form
         setRegisterName('')
@@ -142,7 +142,7 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
               <div className="flex items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 p-1.5 shadow-lg shadow-violet-500/20">
                 <Zap className="h-4 w-4 text-white" />
               </div>
-              飘数 Founder OS
+              飘叔 Founder OS
             </DialogTitle>
             <DialogDescription className="text-xs mt-1">
               登录以解锁完整的AI分身系统和协作能力

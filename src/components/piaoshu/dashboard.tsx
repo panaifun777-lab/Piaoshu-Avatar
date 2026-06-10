@@ -672,11 +672,11 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                   <Zap className="h-5 w-5 text-emerald-400" />
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  飘数 Piaoshu · 创始人操作系统
+                  飘叔 Piaoshu · AI分身操作系统
                 </h1>
               </div>
               <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-                Web4.0 AI原生创业操作系统 — 将AI从执行者升维为共生体
+                Web4.0 AI原生智能分身操作系统 — 将AI从执行者升维为共生体
               </p>
             </div>
           </motion.div>

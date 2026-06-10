@@ -142,7 +142,7 @@ export function AIChatWidget() {
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-semibold leading-tight">飘叔分身 · AI共生体</span>
-                <span className="text-[10px] text-muted-foreground font-mono">FOUNDER OS</span>
+                <span className="text-[10px] text-muted-foreground font-mono">AI AVATAR OS</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

@@ -308,6 +308,9 @@ model User {
   updatedAt    DateTime @updatedAt
 
   clone AvatarClone?
+  emailConfigs  EmailConfig[]
+  subscriptions  UserSubscription[]
+  afcTransactions AFCTransaction[]
 }
 
 // ===== AI分身(数字克隆体) =====
@@ -417,6 +420,78 @@ model CloneActivity {
   clone AvatarClone @relation(fields: [cloneId], references: [id])
 }
 
+// ===== 邮件跟踪 + 自动回复 =====
+model EmailConfig {
+  id               String    @id @default(cuid())
+  userId           String
+  emailaddress     String    // The email address being tracked
+  imapHost         String?
+  imapPort         Int       @default(993)
+  smtpHost         String?
+  smtpPort         Int       @default(587)
+  isEnabled        Boolean   @default(false)
+  autoReplyEnabled Boolean   @default(false)
+  autoReplyTemplate String?  // Default auto-reply template
+  trackingEnabled  Boolean   @default(true)
+  lastSyncAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model EmailThread {
+  id           String    @id @default(cuid())
+  userId       String
+  fromAddress  String
+  toAddress    String
+  subject      String
+  snippet      String?   // First 200 chars
+  status       String    @default("unread") // unread, read, replied, ignored, escalated
+  priority     String    @default("normal") // low, normal, high, urgent
+  agentId      String?   // Which agent handled this
+  autoReplied  Boolean   @default(false)
+  labels       String?   // JSON array of labels
+  receivedAt   DateTime
+  repliedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  emails EmailMessage[]
+}
+
+model EmailMessage {
+  id           String    @id @default(cuid())
+  threadId     String
+  fromAddress  String
+  toAddress    String
+  subject      String
+  bodyText     String?
+  bodyHtml     String?
+  inReplyTo    String?
+  isAutoReply  Boolean   @default(false)
+  aiGenerated  Boolean   @default(false)
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  thread EmailThread @relation(fields: [threadId], references: [id])
+}
+
+model AutoReplyRule {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  condition   String   // JSON: { field, operator, value } e.g. subject contains "pricing"
+  template    String   // Auto-reply template content
+  agentId     String?  // Which agent should handle
+  priority    String   @default("normal")
+  isEnabled   Boolean  @default(true)
+  matchCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // ===== 跨分身共享知识 =====
 model SharedKnowledge {
   id           String   @id @default(cuid())
@@ -455,4 +530,54 @@ model DailySchedule {
   updatedAt DateTime @updatedAt
 
   clone AvatarClone @relation(fields: [cloneId], references: [id])
+}
+
+// ===== AFC Token 订阅系统 =====
+model SubscriptionPlan {
+  id          String   @id @default(cuid())
+  name        String   @unique // "free", "starter", "pro", "enterprise"
+  displayName String   // "免费版", "入门版", "专业版", "企业版"
+  priceAFC    Int      @default(0)  // Price in AFC tokens per month
+  priceUSD    Float    @default(0)  // USD equivalent
+  maxClones   Int      @default(1)
+  maxCyclesPerDay Int  @default(5)
+  features    String   // JSON array of feature strings
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions UserSubscription[]
+}
+
+model UserSubscription {
+  id          String   @id @default(cuid())
+  userId      String
+  planId      String
+  status      String   @default("active") // active, past_due, cancelled, expired
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  afcBalance  Int      @default(0)  // AFC token balance
+  afcUsed     Int      @default(0)  // AFC tokens used this period
+  paymentMethod String @default("afc_base") // afc_base, usdt_base, usdc_base, credit_card
+  walletAddress String?
+  autoRenew   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id])
+}
+
+model AFCTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // subscription_payment, skill_purchase, cycle_payment, top_up, withdrawal, reward
+  amount      Int      // AFC amount (positive for credit, negative for debit)
+  txHash      String?  // On-chain tx hash
+  status      String   @default("pending") // pending, confirmed, failed
+  description String?
+  metadata    String?  // JSON for additional data
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
 }

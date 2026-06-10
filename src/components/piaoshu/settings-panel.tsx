@@ -473,8 +473,8 @@ function AboutTab() {
           <div className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 h-16 w-16 mb-3">
             <Zap className="h-8 w-8 text-white" />
           </div>
-          <h3 className="text-lg font-bold">飘数 Piaoshu</h3>
-          <p className="text-sm text-muted-foreground">创始人操作系统</p>
+          <h3 className="text-lg font-bold">飘叔 Piaoshu</h3>
+          <p className="text-sm text-muted-foreground">AI分身操作系统</p>
           <Badge variant="outline" className="mt-2 text-[10px] font-mono h-5">
             v0.1.0-alpha
           </Badge>

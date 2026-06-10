@@ -504,3 +504,197 @@ export function useBlockchainStatus() {
     refetchInterval: 15000,
   })
 }
+
+// ===== Email Tracking =====
+export function useEmailConfig() {
+  return useQuery({
+    queryKey: ['emailConfig'],
+    queryFn: () => apiFetch<{ success: boolean; data: unknown | null }>('/api/email/config'),
+  })
+}
+
+export function useUpdateEmailConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      apiFetch('/api/email/config', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['emailConfig'] }),
+  })
+}
+
+export function useEmailThreads(status?: string, search?: string) {
+  return useQuery({
+    queryKey: ['emailThreads', status, search],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (status) params.set('status', status)
+      if (search) params.set('search', search)
+      const qs = params.toString()
+      return apiFetch<{ success: boolean; data: { threads: unknown[]; stats: { total: number; unread: number; read: number; replied: number; ignored: number; escalated: number; autoReplied: number } } }>(
+        `/api/email/threads${qs ? `?${qs}` : ''}`
+      )
+    },
+  })
+}
+
+export function useUpdateEmailThread() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/email/threads/${data.id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['emailThreads'] }),
+  })
+}
+
+export function useAutoReplyRules() {
+  return useQuery({
+    queryKey: ['autoReplyRules'],
+    queryFn: () => apiFetch<{ success: boolean; data: unknown[] }>('/api/email/auto-reply/rules'),
+  })
+}
+
+export function useCreateAutoReplyRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      apiFetch('/api/email/auto-reply/rules', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['autoReplyRules'] }),
+  })
+}
+
+export function useUpdateAutoReplyRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/email/auto-reply/rules/${data.id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['autoReplyRules'] }),
+  })
+}
+
+export function useDeleteAutoReplyRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/email/auto-reply/rules/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['autoReplyRules'] }),
+  })
+}
+
+export function useGenerateAutoReply() {
+  return useMutation({
+    mutationFn: (data: { threadId: string; customPrompt?: string }) =>
+      apiFetch<{ success: boolean; data: { reply: string; threadId: string; subject: string; soulInjected: boolean } }>(
+        '/api/email/auto-reply/generate',
+        { method: 'POST', body: JSON.stringify(data) }
+      ),
+  })
+}
+
+export function useSyncEmails() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data?: { userId?: string }) =>
+      apiFetch('/api/email/sync', { method: 'POST', body: JSON.stringify(data || {}) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['emailThreads'] })
+      qc.invalidateQueries({ queryKey: ['autoReplyRules'] })
+      qc.invalidateQueries({ queryKey: ['emailConfig'] })
+    },
+  })
+}
+
+// ===== Subscription & AFC Token =====
+export interface SubscriptionPlan {
+  id: string
+  name: string
+  displayName: string
+  priceAFC: number
+  priceUSD: number
+  maxClones: number
+  maxCyclesPerDay: number
+  features: string[]
+  isActive: boolean
+  subscriberCount?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserSubscription {
+  id: string
+  userId: string
+  planId: string
+  status: string
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  afcBalance: number
+  afcUsed: number
+  paymentMethod: string
+  walletAddress: string | null
+  autoRenew: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AFCTransaction {
+  id: string
+  userId: string
+  type: string
+  amount: number
+  txHash: string | null
+  status: string
+  description: string | null
+  metadata: string | null
+  createdAt: string
+}
+
+export function useSubscriptionPlans() {
+  return useQuery({
+    queryKey: ['subscriptionPlans'],
+    queryFn: () => apiFetch<{ success: boolean; data: { plans: SubscriptionPlan[] } }>('/api/subscription/plans'),
+  })
+}
+
+export function useCurrentSubscription(userId?: string) {
+  return useQuery({
+    queryKey: ['currentSubscription', userId],
+    queryFn: () => apiFetch<{ success: boolean; data: { subscription: UserSubscription | null; plan: SubscriptionPlan | null; afcBalance: number; afcUsed: number } }>(
+      userId ? `/api/subscription/current?userId=${userId}` : '/api/subscription/current'
+    ),
+    enabled: !!userId,
+  })
+}
+
+export function useSubscribePlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { userId: string; planId: string; paymentMethod?: string; walletAddress?: string }) =>
+      apiFetch('/api/subscription/subscribe', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['currentSubscription'] })
+      qc.invalidateQueries({ queryKey: ['subscriptionPlans'] })
+      qc.invalidateQueries({ queryKey: ['afcTransactions'] })
+    },
+  })
+}
+
+export function useTopUpAFC() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { userId: string; amount: number; paymentMethod?: string }) =>
+      apiFetch('/api/subscription/afc/top-up', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['currentSubscription'] })
+      qc.invalidateQueries({ queryKey: ['afcTransactions'] })
+    },
+  })
+}
+
+export function useAFCTransactions(userId?: string) {
+  return useQuery({
+    queryKey: ['afcTransactions', userId],
+    queryFn: () => apiFetch<{ success: boolean; data: { transactions: AFCTransaction[]; total: number; summary: { totalTransactions: number; netAmount: number; topUpTotal: number; spentTotal: number } } }>(
+      userId ? `/api/subscription/afc/transactions?userId=${userId}` : '/api/subscription/afc/transactions'
+    ),
+    enabled: !!userId,
+  })
+}
