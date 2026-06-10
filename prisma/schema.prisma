@@ -1,0 +1,202 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== 核心用户 =====
+model Founder {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  avatar    String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联
+  decisions    DecisionLog[]
+  credentials  VerifiableCredential[]
+  tasks        CollaborationTask[]  @relation("TaskCreator")
+  assignments  CollaborationTask[]  @relation("TaskAssignee")
+}
+
+// ===== 认知分片引擎 =====
+model CognitiveShard {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  modelBase   String   @default("qwen")   // llama-3, qwen, etc.
+  loraAdapter String?                      // LoRA adapter path
+  status      String   @default("draft")   // draft, training, active, error
+  confidence  Float    @default(0.0)       // 置信度评分
+  shardType   String   @default("red")     // red (红方攻击), blue (蓝方防御), neutral
+  lastTrained DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  simulations RedBlueSimulation[]
+}
+
+model DecisionLog {
+  id          String   @id @default(cuid())
+  founderId   String
+  title       String
+  content     String
+  category    String   @default("strategic")  // strategic, product, technical, hiring
+  outcome     String?                           // 记录决策结果
+  confidence  Float    @default(0.0)
+  tags        String?                           // comma-separated tags
+  createdAt   DateTime @default(now())
+
+  founder Founder @relation(fields: [founderId], references: [id])
+}
+
+model RedBlueSimulation {
+  id          String   @id @default(cuid())
+  shardId     String
+  inputIdea   String                           // 输入的新想法
+  redOutput   String?                          // 红方攻击输出（致命漏洞）
+  blueOutput  String?                          // 蓝方防御输出
+  verdict     String?                          // 最终裁定
+  confidence  Float    @default(0.0)
+  status      String   @default("pending")     // pending, completed, escalated
+  createdAt   DateTime @default(now())
+
+  shard CognitiveShard @relation(fields: [shardId], references: [id])
+}
+
+// ===== 可信证据链 =====
+model EvidenceItem {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  evidenceType String  @default("interview")   // interview, ab_test, decision_log, metric
+  rawData     String?                           // 原始数据 (JSON string)
+  contentHash String?                           // 内容哈希
+  storageRef  String?                           // IPFS/Arweave 引用
+  chainTxHash String?                           // 链上交易哈希
+  vcId        String?  @unique                    // 关联的可验证凭证ID
+  status      String   @default("draft")        // draft, signed, onchain, verified
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  credential VerifiableCredential? @relation(fields: [vcId], references: [id])
+}
+
+model VerifiableCredential {
+  id              String   @id @default(cuid())
+  issuerDID       String                          // W3C DID
+  subjectDID      String                          // 被验证方 DID
+  credentialType  String                          // 凭证类型
+  claimData       String                          // 凭证声明数据 (JSON)
+  proof           String?                         // 签名证明
+  hash            String?                         // 凭证哈希
+  validFrom       DateTime @default(now())
+  validUntil      DateTime?
+  revoked         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  founderId   String?
+  founder     Founder?   @relation(fields: [founderId], references: [id])
+  evidence    EvidenceItem?
+}
+
+// ===== 流体协作调度器 =====
+model CollaborationTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  complexity  String   @default("medium")  // low, medium, high, critical
+  category    String   @default("code")    // code, design, research, creative
+  reward      Float    @default(0.0)       // 微支付金额
+  rewardToken String   @default("USDT")    // 结算代币
+  status      String   @default("open")    // open, assigned, in_progress, review, completed, cancelled
+  priority    Int      @default(5)         // 1-10
+  deadline    DateTime?
+  assigneeType String  @default("auto")    // ai, human, auto
+  ciStatus    String   @default("pending") // pending, passed, failed, scanning
+  safetyScan  String   @default("pending") // pending, passed, failed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creatorId  String
+  assigneeId String?
+  creator    Founder  @relation("TaskCreator", fields: [creatorId], references: [id])
+  assignee   Founder? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  payments   PaymentRecord[]
+}
+
+model PaymentRecord {
+  id        String   @id @default(cuid())
+  taskId    String
+  amount    Float
+  token     String   @default("USDT")
+  txHash    String?               // 链上交易哈希
+  status    String   @default("pending")  // pending, confirmed, failed
+  createdAt DateTime @default(now())
+
+  task CollaborationTask @relation(fields: [taskId], references: [id])
+}
+
+// ===== 虚实共生沙盒 =====
+model SandboxProject {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  projectType String   @default("3d_prototype")  // 3d_prototype, spatial_ui, ar_scene
+  sceneData   String?                              // Three.js scene JSON
+  xdpEnabled  Boolean  @default(false)            // XDP 协议接口开关
+  status      String   @default("draft")          // draft, building, interactive, published
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  interactions SandboxInteraction[]
+}
+
+model SandboxInteraction {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  triggerType String   @default("click")  // click, gaze, proximity, voice
+  actionType  String   @default("navigate") // navigate, animate, data_fetch, state_change
+  config      String?                       // 交互配置 (JSON)
+  createdAt   DateTime @default(now())
+
+  project SandboxProject @relation(fields: [projectId], references: [id])
+}
+
+// ===== 90天路线图 =====
+model RoadmapPhase {
+  id          String   @id @default(cuid())
+  phase       Int                              // 1, 2, 3
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("pending")    // pending, active, completed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  milestones Milestone[]
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  phaseId     String
+  title       String
+  description String?
+  targetDate  DateTime
+  status      String   @default("pending")    // pending, in_progress, completed, failed
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  phase RoadmapPhase @relation(fields: [phaseId], references: [id])
+}
