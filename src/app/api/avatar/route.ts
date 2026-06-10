@@ -4,12 +4,18 @@ import { db } from '@/lib/db'
 // GET /api/avatar - Get current user's avatar clone
 export async function GET(req: NextRequest) {
   try {
-    const userId = req.nextUrl.searchParams.get('userId')
+    let userId = req.nextUrl.searchParams.get('userId')
+
+    // Auto-discover: if no userId, find the first user with a clone
     if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'userId is required' },
-        { status: 400 }
-      )
+      const firstClone = await db.avatarClone.findFirst({
+        orderBy: { createdAt: 'asc' },
+        include: { user: true },
+      })
+      if (!firstClone) {
+        return NextResponse.json({ success: true, data: null })
+      }
+      userId = firstClone.userId
     }
 
     const clone = await db.avatarClone.findUnique({
@@ -29,10 +35,7 @@ export async function GET(req: NextRequest) {
     })
 
     if (!clone) {
-      return NextResponse.json(
-        { success: false, error: 'Avatar clone not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ success: true, data: null })
     }
 
     return NextResponse.json({ success: true, data: clone })

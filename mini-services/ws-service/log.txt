@@ -1,0 +1,44 @@
+[WS] Piaoshu WebSocket service running on port 3003
+[WS] Supported channels: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Heartbeat interval: 30s
+[WS] Client connected: V2Hks-jGa9PmO8pKAAAB (total: 1)
+[WS] V2Hks-jGa9PmO8pKAAAB subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: rc646Yp6n7wbXQoJAAAE (total: 2)
+[WS] Client connected: KLbPOMCtIltZ2tMSAAAF (total: 3)
+[WS] KLbPOMCtIltZ2tMSAAAF subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] rc646Yp6n7wbXQoJAAAE subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: rc646Yp6n7wbXQoJAAAE (reason: client namespace disconnect, total: 2)
+[WS] Client connected: PXn4Qx6wHf5BmmKTAAAH (total: 3)
+[WS] PXn4Qx6wHf5BmmKTAAAH subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: PXn4Qx6wHf5BmmKTAAAH (reason: client namespace disconnect, total: 2)
+[WS] Client connected: mR6rjzx3UBY5UOdaAAAJ (total: 3)
+[WS] mR6rjzx3UBY5UOdaAAAJ subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: mR6rjzx3UBY5UOdaAAAJ (reason: client namespace disconnect, total: 2)
+[WS] Client connected: HQBVe7ZNZ14x2flwAAAL (total: 3)
+[WS] HQBVe7ZNZ14x2flwAAAL subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: KLbPOMCtIltZ2tMSAAAF (reason: transport close, total: 2)
+[WS] Client disconnected: HQBVe7ZNZ14x2flwAAAL (reason: transport close, total: 1)
+[WS] Client disconnected: V2Hks-jGa9PmO8pKAAAB (reason: transport close, total: 0)
+[WS] Client connected: dBuE7hz4kp-q50fvAAAO (total: 1)
+[WS] Client connected: tmGkjJz8OxW8kIFSAAAP (total: 2)
+[WS] dBuE7hz4kp-q50fvAAAO subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] tmGkjJz8OxW8kIFSAAAP subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: RByRZWsLMm3D_VFyAAAS (total: 3)
+[WS] Client connected: kuYxL-W0ColTTHGqAAAT (total: 4)
+[WS] RByRZWsLMm3D_VFyAAAS subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] kuYxL-W0ColTTHGqAAAT subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: RByRZWsLMm3D_VFyAAAS (reason: client namespace disconnect, total: 3)
+[WS] Client connected: Bgu039LUbuG0ceMpAAAV (total: 4)
+[WS] Bgu039LUbuG0ceMpAAAV subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: Bgu039LUbuG0ceMpAAAV (reason: client namespace disconnect, total: 3)
+[WS] Client connected: yfKfqrb5sw1UK59zAAAX (total: 4)
+[WS] yfKfqrb5sw1UK59zAAAX subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: yfKfqrb5sw1UK59zAAAX (reason: client namespace disconnect, total: 3)
+[WS] Client connected: fSMBcPHFc8c8C-ExAAAZ (total: 4)
+[WS] fSMBcPHFc8c8C-ExAAAZ subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: fSMBcPHFc8c8C-ExAAAZ (reason: client namespace disconnect, total: 3)
+[WS] Client connected: trP_xuW56Nv_xoMhAAAc (total: 4)
+[WS] trP_xuW56Nv_xoMhAAAc subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: trP_xuW56Nv_xoMhAAAc (reason: client namespace disconnect, total: 3)
+[WS] Client connected: Ymivm7Ggby26CAXGAAAe (total: 4)
+[WS] Ymivm7Ggby26CAXGAAAe subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity

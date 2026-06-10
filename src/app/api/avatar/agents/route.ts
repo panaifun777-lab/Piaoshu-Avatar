@@ -4,12 +4,15 @@ import { db } from '@/lib/db'
 // GET /api/avatar/agents - List all agents for the clone
 export async function GET(req: NextRequest) {
   try {
-    const cloneId = req.nextUrl.searchParams.get('cloneId')
+    let cloneId = req.nextUrl.searchParams.get('cloneId')
+
+    // Auto-discover first clone if no cloneId provided
     if (!cloneId) {
-      return NextResponse.json(
-        { success: false, error: 'cloneId is required' },
-        { status: 400 }
-      )
+      const firstClone = await db.avatarClone.findFirst({ orderBy: { createdAt: 'asc' } })
+      if (!firstClone) {
+        return NextResponse.json({ success: true, data: [] })
+      }
+      cloneId = firstClone.id
     }
 
     const agents = await db.cloneAgent.findMany({

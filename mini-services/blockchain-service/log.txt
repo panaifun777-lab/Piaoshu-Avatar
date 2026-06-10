@@ -1,0 +1,3 @@
+[blockchain-service] Running on port 3005
+[blockchain-service] Network: Base Sepolia (Chain ID: 84532)
+[blockchain-service] Contracts: EvidenceAnchor @ 0xEv1d3nc3Anch0r0000000000000000000000000

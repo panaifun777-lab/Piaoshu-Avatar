@@ -1,0 +1,8 @@
+[Vector] Piaoshu Vector Search service running on port 3004
+[Vector] Endpoints:
+[Vector]   POST /api/embed      - Generate and store embedding
+[Vector]   POST /api/search     - Semantic search
+[Vector]   GET  /api/collections - List stored vectors
+[Vector]   DELETE /api/vectors/:id - Remove vector
+[Vector]   POST /api/sync       - Sync memories from DB
+[Vector]   GET  /api/health     - Health check

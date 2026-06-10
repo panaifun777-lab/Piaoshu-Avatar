@@ -1,11 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Brain,
   Shield,
@@ -40,6 +42,13 @@ import {
   CircleDot,
   FileText,
   Layers,
+  Eye,
+  Mail,
+  Flame,
+  ListChecks,
+  UserCircle2,
+  LayoutGrid,
+  Plus,
 } from 'lucide-react'
 import {
   LineChart,
@@ -57,7 +66,7 @@ import {
   AreaChart,
   Area,
 } from 'recharts'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   useShards,
   useEvidences,
@@ -135,6 +144,16 @@ const evidenceGrowthData = [
   { day: 'D13', total: 12, verified: 8 },
   { day: 'D16', total: 16, verified: 12 },
   { day: 'D18', total: 20, verified: 14 },
+]
+
+// ─── AI Activity Feed data ──────────────────────────────────────────────
+
+const aiFeedItems = [
+  { id: 'f1', agent: 'CEO分身', action: '完成战略分析周期', output: 'Q2市场策略建议已生成', time: '3分钟前', type: 'cycle', color: 'text-amber-500' },
+  { id: 'f2', agent: 'CTO分身', action: '代码审查完成', output: '3个PR已审核，1个需修改', time: '12分钟前', type: 'output', color: 'text-cyan-500' },
+  { id: 'f3', agent: 'Growth分身', action: '用户增长分析', output: '周活跃用户增长12%', time: '25分钟前', type: 'analysis', color: 'text-emerald-500' },
+  { id: 'f4', agent: 'Engineer分身', action: '部署自动化脚本', output: 'CI/CD管道优化完成', time: '1小时前', type: 'deployment', color: 'text-teal-500' },
+  { id: 'f5', agent: 'CEO分身', action: '合作伙伴评估', output: '3个合作方案已评分', time: '2小时前', type: 'cycle', color: 'text-amber-500' },
 ]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -392,6 +411,9 @@ const engineNavMap: Record<string, ModuleId> = {
 }
 
 export function DashboardView({ onNavigate }: DashboardViewProps) {
+  // ── Tab state ─────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('overview')
+
   // ── Fetch real API data ───────────────────────────────────────────────────
   const shardsQuery = useShards()
   const evidencesQuery = useEvidences()
@@ -492,9 +514,8 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
   const gasPrice = blockchainStatusQuery.data?.data?.network?.gasPrice ?? '0'
   const walletConnected = blockchainStatusQuery.data?.data?.wallet?.connected ?? false
 
-  // Vector service status (simplified - check from hook availability)
-  const vectorOnline = true // We'll show online status as default
-  const vectorCount = 12 // Fallback
+  const vectorOnline = true
+  const vectorCount = 12
 
   // Health indicators
   const systemHealthItems = [
@@ -561,7 +582,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     module: string
   }[] = []
 
-  // Add clone activities
   cloneActivities.slice(0, 10).forEach((a) => {
     const badge = activityModuleBadges[a.activityType] || { label: '系统', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' }
     combinedActivities.push({
@@ -577,7 +597,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     })
   })
 
-  // Add recent evidences
   evidences.slice(0, 3).forEach((e) => {
     combinedActivities.push({
       id: `evidence-${e.id}`,
@@ -589,7 +608,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     })
   })
 
-  // Add recent tasks
   tasks.slice(0, 3).forEach((t) => {
     combinedActivities.push({
       id: `task-${t.id}`,
@@ -601,7 +619,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     })
   })
 
-  // Add recent shards
   shards.slice(0, 2).forEach((s) => {
     combinedActivities.push({
       id: `shard-${s.id}`,
@@ -613,7 +630,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     })
   })
 
-  // Sort by timestamp and take top 20
   combinedActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   const displayActivities = combinedActivities.slice(0, 20)
 
@@ -637,12 +653,19 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
       })
     : fallbackRoadmapPhases
 
-  // ── Determine which data to display (fallback on error) ───────────────────
   const displayRoadmapPhases = anyError ? fallbackRoadmapPhases : roadmapPhases
+
+  // ── Collaboration tasks summary for right column ──────────────────────────
+  const tasksByStatus = {
+    open: tasks.filter(t => t.status === 'open').length,
+    in_progress: tasks.filter(t => t.status === 'in_progress').length,
+    review: tasks.filter(t => t.status === 'review').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+  }
 
   return (
     <div className="bg-background text-foreground">
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* ── API Error Warning ──────────────────────────────────────────────── */}
         {anyError && (
           <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-400">
@@ -651,22 +674,21 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           </div>
         )}
 
-        {/* ── 1. System Overview Banner ─────────────────────────────────── */}
-        <section className="space-y-6">
-          {/* Hero */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="relative overflow-hidden rounded-2xl border border-emerald-500/20 p-6 sm:p-8"
-          >
-            {/* Background image */}
-            <div className="absolute inset-0">
-              <img src="/piaoshu-hero.png" alt="" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60" />
-            </div>
+        {/* ── 1. Hero Banner with God Mode CTA ──────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative overflow-hidden rounded-2xl border border-emerald-500/20 p-6 sm:p-8"
+        >
+          {/* Background image */}
+          <div className="absolute inset-0">
+            <img src="/piaoshu-hero.png" alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60" />
+          </div>
 
-            <div className="relative space-y-2">
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/15">
                   <Zap className="h-5 w-5 text-emerald-400" />
@@ -679,505 +701,721 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                 Web4.0 AI原生智能分身操作系统 — 将AI从执行者升维为共生体
               </p>
             </div>
-          </motion.div>
 
-          {/* Real-time Stat cards row */}
-          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {realtimeStats.map((stat, i) => {
-              const Icon = stat.icon
-              return (
-                <motion.div
-                  key={stat.label}
-                  custom={i}
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  <Card className="relative overflow-hidden border-emerald-500/10 transition-colors hover:border-emerald-500/30 h-full">
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
-                    <CardContent className="relative p-4 sm:p-5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg shadow-emerald-500/20`}
-                          >
-                            <Icon className="h-5 w-5 text-white" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
-                            <div className="text-xl font-bold sm:text-2xl">
-                              {allLoading ? (
-                                <Skeleton className="inline-block h-8 w-12" />
-                              ) : (
-                                <>
-                                  {stat.value}
-                                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                                    {stat.unit}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      {/* Sparkline */}
-                      <div className="mt-3 -mx-1">
-                        <Sparkline data={stat.sparkData} color={stat.sparkColor} height={36} />
-                      </div>
-                      <p className="mt-1 text-[10px] text-muted-foreground font-mono">近7天趋势</p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )
-            })}
+            {/* God Mode Button - Polsia-style orange CTA */}
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25 gap-2 font-bold text-sm sm:text-base"
+                onClick={() => onNavigate?.('avatar')}
+              >
+                <Flame className="h-5 w-5" />
+                上帝模式
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </motion.div>
           </div>
-        </section>
+        </motion.div>
 
-        {/* ── 2. System Health Dashboard ────────────────────────────────── */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-4"
-        >
-          <div className="flex items-center gap-2">
-            <Server className="h-5 w-5 text-emerald-400" />
-            <h2 className="text-lg font-semibold sm:text-xl">系统健康面板</h2>
-            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 text-xs border-emerald-500/20">
-              实时监控
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {systemHealthItems.map((item, i) => {
-              const Icon = item.icon
-              return (
-                <motion.div
-                  key={item.label}
-                  custom={i}
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  <Card className="border-emerald-500/10 h-full">
-                    <CardContent className="p-4 sm:p-5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Icon className={`h-4 w-4 ${healthColor(item.value)}`} />
-                          <span className="text-sm font-medium">{item.label}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`h-2 w-2 rounded-full ${healthDot(item.value)} ${item.value >= 80 ? 'animate-pulse' : ''}`} />
-                          <span className={`text-xs font-medium ${healthColor(item.value)}`}>
-                            {item.status}
-                          </span>
-                        </div>
-                      </div>
-                      {/* Health bar */}
-                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-emerald-500/10">
-                        {allLoading ? (
-                          <Skeleton className="h-full w-full rounded-full" />
-                        ) : (
-                          <div
-                            className={`${healthBg(item.value)} h-full rounded-full transition-all duration-700`}
-                            style={{ width: `${item.value}%` }}
-                          />
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{item.detail}</p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )
-            })}
-          </div>
-
-          {/* Combined health overview bar */}
-          <Card className="border-emerald-500/10">
-            <CardContent className="p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium">系统综合健康度</span>
-                <span className="text-lg font-bold tabular-nums text-emerald-400">
-                  {Math.round((cognitiveHealth + evidenceIntegrity + collaborationEfficiency + sandboxCoverage) / 4)}%
-                </span>
-              </div>
-              <div className="space-y-2">
-                {[
-                  { label: '认知引擎', value: cognitiveHealth, color: 'bg-emerald-500' },
-                  { label: '证据链', value: evidenceIntegrity, color: 'bg-teal-500' },
-                  { label: '协作效率', value: collaborationEfficiency, color: 'bg-cyan-500' },
-                  { label: '沙盒覆盖', value: sandboxCoverage, color: 'bg-amber-500' },
-                ].map((metric) => (
-                  <div key={metric.label} className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground w-16 shrink-0">{metric.label}</span>
-                    <div className="flex-1 relative h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/10">
-                      {allLoading ? (
-                        <Skeleton className="h-full w-full rounded-full" />
-                      ) : (
-                        <div
-                          className={`${metric.color} h-full rounded-full transition-all duration-700`}
-                          style={{ width: `${metric.value}%` }}
-                        />
-                      )}
-                    </div>
-                    <span className="text-xs font-medium tabular-nums w-8 text-right">
-                      {allLoading ? '' : `${metric.value}%`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.section>
-
-        {/* ── 3. Activity Timeline ──────────────────────────────────────── */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-4"
-        >
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-emerald-400" />
-            <h2 className="text-lg font-semibold sm:text-xl">活动时间线</h2>
-            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 text-xs border-emerald-500/20">
-              全模块
-            </Badge>
-          </div>
-
-          <Card className="border-emerald-500/10">
-            <CardContent className="p-0">
-              {displayActivities.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <Activity className="h-8 w-8 mb-2 opacity-40" />
-                  <p className="text-sm">暂无活动记录</p>
-                </div>
-              ) : (
-                <ScrollArea className="max-h-96">
-                  <div className="divide-y divide-border/50">
-                    {displayActivities.map((activity, index) => {
-                      const Icon = activityModuleIcons[activity.type] || CircleDot
-                      const badge = activityModuleBadges[activity.type] || { label: activity.module, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' }
-                      return (
-                        <div
-                          key={activity.id}
-                          className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-emerald-500/5 sm:px-6"
-                        >
-                          {/* Timeline dot + icon */}
-                          <div className="relative flex shrink-0 flex-col items-center">
-                            <div
-                              className={`flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10`}
-                            >
-                              <Icon className="h-3.5 w-3.5 text-emerald-400" />
-                            </div>
-                            {index < displayActivities.length - 1 && (
-                              <div className="absolute top-8 h-[calc(100%+8px)] w-px bg-emerald-500/15" />
-                            )}
-                          </div>
-
-                          {/* Content */}
-                          <div className="min-w-0 flex-1 pt-0.5">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-medium leading-relaxed">{activity.title}</p>
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] h-5 px-1.5 border ${badge.color}`}
-                              >
-                                {badge.label}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{activity.description}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">{timeAgo(activity.timestamp)}</p>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
-        </motion.section>
-
-        {/* ── 4. Quick Action Cards ─────────────────────────────────────── */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-4"
-        >
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-emerald-400" />
-            <h2 className="text-lg font-semibold sm:text-xl">快捷操作</h2>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {quickActions.map((action, i) => {
-              const Icon = action.icon
-              return (
-                <motion.div
-                  key={action.title}
-                  custom={i}
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
-                  whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Card
-                    className="relative overflow-hidden cursor-pointer border-0 h-full"
-                    onClick={() => onNavigate?.(action.module)}
-                  >
-                    {/* Gradient background */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-10`} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-
-                    <CardContent className="relative p-4 sm:p-5">
-                      <div className="flex items-start gap-3">
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${action.iconBg}`}>
-                          <Icon className="h-5 w-5 text-foreground/80" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-sm font-semibold">{action.title}</h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">{action.desc}</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-1" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )
-            })}
-          </div>
-        </motion.section>
-
-        {/* ── 5. Data Analytics Charts ──────────────────────────────────── */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-4"
-        >
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-emerald-400" />
-            <h2 className="text-lg font-semibold sm:text-xl">数据分析面板</h2>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {/* Agent Activity Bar Chart */}
-            <Card className="border-emerald-500/10 lg:col-span-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">智能体活动统计</CardTitle>
-                <CardDescription className="text-xs">各角色周期执行与产出数量</CardDescription>
-              </CardHeader>
-              <CardContent className="pb-4">
-                <div className="h-[260px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={agentActivityData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="name" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" allowDecimals={false} />
-                      <RechartsTooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <Bar dataKey="cycles" name="周期数" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="outputs" name="产出数" fill="#14b8a6" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Task Completion Donut */}
-            <Card className="border-emerald-500/10">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">任务完成率</CardTitle>
-                <CardDescription className="text-xs">按状态分布</CardDescription>
-              </CardHeader>
-              <CardContent className="pb-4">
-                <div className="h-[200px] w-full flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={taskCompletionData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {taskCompletionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                {/* Legend */}
-                <div className="flex flex-wrap justify-center gap-3 mt-2">
-                  {taskCompletionData.map((entry) => (
-                    <div key={entry.name} className="flex items-center gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                      <span className="text-[11px] text-muted-foreground">{entry.name} ({entry.value})</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Evidence Chain Growth Area Chart */}
-          <Card className="border-emerald-500/10">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">证据链增长趋势</CardTitle>
-              <CardDescription className="text-xs">证据总量与已验证数量增长</CardDescription>
-            </CardHeader>
-            <CardContent className="pb-4">
-              <div className="h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={evidenceGrowthData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="day" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                    <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" allowDecimals={false} />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="total"
-                      name="证据总量"
-                      stroke="#10b981"
-                      fill="#10b981"
-                      fillOpacity={0.15}
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="verified"
-                      name="已验证"
-                      stroke="#14b8a6"
-                      fill="#14b8a6"
-                      fillOpacity={0.15}
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.section>
-
-        {/* ── 6. 90天路线图概览 ───────────────────────────────────────── */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-4"
-        >
-          <div className="flex items-center gap-2">
-            <ArrowRight className="h-5 w-5 text-emerald-400" />
-            <h2 className="text-lg font-semibold sm:text-xl">90天路线图概览</h2>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            {displayRoadmapPhases.map((phase, index) => (
+        {/* ── 2. Stat Cards Row ───────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {realtimeStats.map((stat, i) => {
+            const Icon = stat.icon
+            return (
               <motion.div
-                key={`roadmap-${phase.phase}-${index}`}
-                custom={index}
+                key={stat.label}
+                custom={i}
                 variants={cardVariants}
                 initial="hidden"
                 animate="visible"
               >
-                <Card
-                  className={`relative overflow-hidden transition-colors h-full ${
-                    phase.status === 'active'
-                      ? 'border-emerald-500/30 shadow-lg shadow-emerald-500/5'
-                      : 'border-border/50 opacity-70'
-                  }`}
-                >
-                  {/* Active indicator bar */}
-                  {phase.status === 'active' && (
-                    <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-emerald-400 to-teal-500" />
-                  )}
-
-                  <CardHeader className="pb-1">
-                    <div className="flex items-center justify-between">
-                      <Badge
-                        variant={phase.status === 'active' ? 'default' : 'secondary'}
-                        className={
-                          phase.status === 'active'
-                            ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/20'
-                            : ''
-                        }
-                      >
-                        {phase.status === 'active' && (
-                          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        )}
-                        {phase.status === 'active' ? 'Active' : phase.status === 'completed' ? 'Completed' : 'Pending'}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {allLoading ? <Skeleton className="inline-block h-4 w-16" /> : phase.days}
-                      </span>
-                    </div>
-                    <CardTitle className="text-base">
-                      {allLoading ? <Skeleton className="h-5 w-28" /> : phase.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>进度</span>
-                        {allLoading ? (
-                          <Skeleton className="h-4 w-8" />
-                        ) : (
-                          <span className="tabular-nums">{phase.progress}%</span>
-                        )}
+                <Card className="relative overflow-hidden rounded-xl shadow-sm border-emerald-500/10 transition-colors hover:border-emerald-500/30 h-full">
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
+                  <CardContent className="relative p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg shadow-emerald-500/20`}
+                        >
+                          <Icon className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
+                          <div className="text-xl font-bold sm:text-2xl">
+                            {allLoading ? (
+                              <Skeleton className="inline-block h-8 w-12" />
+                            ) : (
+                              <>
+                                {stat.value}
+                                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                  {stat.unit}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      {allLoading ? (
-                        <Skeleton className="h-2 w-full rounded-full" />
-                      ) : (
-                        <Progress
-                          value={phase.progress}
-                          className={`h-2 ${
-                            phase.status === 'active'
-                              ? '[&>[data-slot=progress-indicator]]:bg-emerald-500'
-                              : '[&>[data-slot=progress-indicator]]:bg-muted-foreground/30'
-                          }`}
-                        />
-                      )}
                     </div>
-
-                    {/* Connector arrow between cards (visible on sm+) */}
-                    {index < displayRoadmapPhases.length - 1 && (
-                      <div className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 sm:block">
-                        <ArrowRight className="h-4 w-4 text-emerald-500/40" />
-                      </div>
-                    )}
+                    <div className="mt-3 -mx-1">
+                      <Sparkline data={stat.sparkData} color={stat.sparkColor} height={36} />
+                    </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground font-mono">近7天趋势</p>
                   </CardContent>
                 </Card>
               </motion.div>
-            ))}
-          </div>
-        </motion.section>
+            )
+          })}
+        </div>
+
+        {/* ── 3. Tab Navigation ─────────────────────────────────────────── */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="bg-muted/50 p-1 h-auto">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-background">
+              <LayoutGrid className="h-3.5 w-3.5" />
+              概览
+            </TabsTrigger>
+            <TabsTrigger value="clones" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-background">
+              <UserCircle2 className="h-3.5 w-3.5" />
+              分身
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-background">
+              <ListChecks className="h-3.5 w-3.5" />
+              任务
+            </TabsTrigger>
+            <TabsTrigger value="evidence" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-background">
+              <Shield className="h-3.5 w-3.5" />
+              证据
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Overview Tab: Three-column layout ────────────────────────── */}
+          <TabsContent value="overview" className="mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
+              {/* LEFT COLUMN: AI Activity Feed */}
+              <div className="space-y-4">
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-emerald-500" />
+                        AI 活动流
+                      </CardTitle>
+                      <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0">
+                        实时
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {displayActivities.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                        <Activity className="h-6 w-6 mb-2 opacity-40" />
+                        <p className="text-xs">暂无活动记录</p>
+                      </div>
+                    ) : (
+                      <ScrollArea className="max-h-[420px]">
+                        <div className="space-y-2">
+                          {displayActivities.slice(0, 8).map((activity) => {
+                            const Icon = activityModuleIcons[activity.type] || CircleDot
+                            const badge = activityModuleBadges[activity.type] || { label: activity.module, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' }
+                            return (
+                              <motion.div
+                                key={activity.id}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-emerald-500/5 transition-colors"
+                              >
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10">
+                                  <Icon className="h-3 w-3 text-emerald-400" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="text-xs font-medium leading-relaxed">{activity.title}</p>
+                                    <Badge variant="outline" className={`text-[9px] h-4 px-1 border ${badge.color}`}>
+                                      {badge.label}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{activity.description}</p>
+                                  <p className="text-[9px] text-muted-foreground font-mono">{timeAgo(activity.timestamp)}</p>
+                                </div>
+                              </motion.div>
+                            )
+                          })}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Actions - compact */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-emerald-500" />
+                      快捷操作
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-2 gap-2">
+                      {quickActions.slice(0, 4).map((action) => {
+                        const Icon = action.icon
+                        return (
+                          <motion.button
+                            key={action.title}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="flex items-center gap-2 rounded-lg border border-border/50 p-2.5 text-left transition-colors hover:border-emerald-500/20 hover:bg-emerald-500/5"
+                            onClick={() => onNavigate?.(action.module)}
+                          >
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${action.iconBg}`}>
+                              <Icon className="h-4 w-4 text-foreground/80" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold truncate">{action.title}</p>
+                              <p className="text-[9px] text-muted-foreground truncate">{action.desc}</p>
+                            </div>
+                          </motion.button>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* MIDDLE COLUMN: Data Analytics Charts */}
+              <div className="space-y-4">
+                {/* Agent Activity Bar Chart */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">智能体活动统计</CardTitle>
+                    <CardDescription className="text-xs">各角色周期执行与产出数量</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-4">
+                    <div className="h-[220px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={agentActivityData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis dataKey="name" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                          <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} />
+                          <RechartsTooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                            }}
+                          />
+                          <Bar dataKey="cycles" name="周期数" fill="#10b981" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="outputs" name="产出数" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Task Completion Donut */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">任务完成率</CardTitle>
+                    <CardDescription className="text-xs">按状态分布</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-4">
+                    <div className="h-[180px] w-full flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={taskCompletionData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={72}
+                            paddingAngle={3}
+                            dataKey="value"
+                          >
+                            {taskCompletionData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-3 mt-1">
+                      {taskCompletionData.map((entry) => (
+                        <div key={entry.name} className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                          <span className="text-[11px] text-muted-foreground">{entry.name} ({entry.value})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Evidence Chain Growth */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">证据链增长趋势</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-4">
+                    <div className="h-[180px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={evidenceGrowthData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis dataKey="day" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                          <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} />
+                          <RechartsTooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                            }}
+                          />
+                          <Area type="monotone" dataKey="total" name="证据总量" stroke="#10b981" fill="#10b981" fillOpacity={0.15} strokeWidth={2} />
+                          <Area type="monotone" dataKey="verified" name="已验证" stroke="#14b8a6" fill="#14b8a6" fillOpacity={0.15} strokeWidth={2} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* RIGHT COLUMN: System Health + Collaboration Tasks */}
+              <div className="space-y-4">
+                {/* System Health */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Server className="h-4 w-4 text-emerald-500" />
+                        系统健康
+                      </CardTitle>
+                      <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 text-[10px] border-emerald-500/20">
+                        实时
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-3">
+                    {systemHealthItems.map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <div key={item.label} className="flex items-center gap-3">
+                          <Icon className={`h-4 w-4 shrink-0 ${healthColor(item.value)}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium">{item.label}</span>
+                              <span className={`text-[10px] font-medium ${healthColor(item.value)}`}>
+                                {item.status}
+                              </span>
+                            </div>
+                            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/10">
+                              {allLoading ? (
+                                <Skeleton className="h-full w-full rounded-full" />
+                              ) : (
+                                <div
+                                  className={`${healthBg(item.value)} h-full rounded-full transition-all duration-700`}
+                                  style={{ width: `${item.value}%` }}
+                                />
+                              )}
+                            </div>
+                            <p className="text-[9px] text-muted-foreground mt-0.5">{item.detail}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {/* Combined health overview */}
+                    <div className="pt-2 mt-2 border-t border-border/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium">综合健康度</span>
+                        <span className="text-sm font-bold tabular-nums text-emerald-400">
+                          {Math.round((cognitiveHealth + evidenceIntegrity + collaborationEfficiency + sandboxCoverage) / 4)}%
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { label: '认知引擎', value: cognitiveHealth, color: 'bg-emerald-500' },
+                          { label: '证据链', value: evidenceIntegrity, color: 'bg-teal-500' },
+                          { label: '协作效率', value: collaborationEfficiency, color: 'bg-cyan-500' },
+                          { label: '沙盒覆盖', value: sandboxCoverage, color: 'bg-amber-500' },
+                        ].map((metric) => (
+                          <div key={metric.label} className="flex items-center gap-1.5">
+                            <span className="text-[9px] text-muted-foreground w-12 shrink-0">{metric.label}</span>
+                            <div className="flex-1 relative h-1 w-full overflow-hidden rounded-full bg-emerald-500/10">
+                              <div className={`${metric.color} h-full rounded-full transition-all duration-700`} style={{ width: `${metric.value}%` }} />
+                            </div>
+                            <span className="text-[9px] font-medium tabular-nums w-6 text-right">{metric.value}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Collaboration Tasks Summary */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <ListChecks className="h-4 w-4 text-emerald-500" />
+                        协作任务
+                      </CardTitle>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-0.5" onClick={() => onNavigate?.('collaboration')}>
+                        查看全部 <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-2.5">
+                    {[
+                      { status: '待领取', count: tasksByStatus.open, color: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
+                      { status: '进行中', count: tasksByStatus.in_progress, color: 'bg-cyan-500', textColor: 'text-cyan-600 dark:text-cyan-400' },
+                      { status: '审核中', count: tasksByStatus.review, color: 'bg-violet-500', textColor: 'text-violet-600 dark:text-violet-400' },
+                      { status: '已完成', count: tasksByStatus.completed, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
+                    ].map((item) => (
+                      <div key={item.status} className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-500/5 transition-colors">
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${item.color}/10`}>
+                          <span className={`text-sm font-bold ${item.textColor}`}>{item.count}</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-medium">{item.status}</p>
+                          <div className="mt-1 h-1 rounded-full bg-muted overflow-hidden">
+                            <div className={`${item.color} h-full rounded-full transition-all`} style={{ width: tasks.length > 0 ? `${(item.count / tasks.length) * 100}%` : '0%' }} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* 90-Day Roadmap Mini */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Map className="h-4 w-4 text-emerald-500" />
+                        路线图
+                      </CardTitle>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-0.5" onClick={() => onNavigate?.('roadmap')}>
+                        详情 <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-2">
+                    {displayRoadmapPhases.map((phase) => (
+                      <div key={phase.phase} className="flex items-center gap-2.5">
+                        <div className={`h-2 w-2 rounded-full ${phase.status === 'active' ? 'bg-emerald-400 animate-pulse' : phase.status === 'completed' ? 'bg-emerald-600' : 'bg-muted-foreground/30'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-medium truncate">{phase.title}</span>
+                            <span className="text-[10px] text-muted-foreground tabular-nums">{phase.progress}%</span>
+                          </div>
+                          <Progress value={phase.progress} className={`h-1 mt-1 ${phase.status === 'active' ? '[&>[data-slot=progress-indicator]]:bg-emerald-500' : '[&>[data-slot=progress-indicator]]:bg-muted-foreground/30'}`} />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ── Clones Tab ──────────────────────────────────────────────── */}
+          <TabsContent value="clones" className="mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Agent Status Cards */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {cloneAgents.length > 0 ? cloneAgents.map((agent, i) => {
+                    const agentColors = [
+                      { accent: 'amber', icon: Crown, gradient: 'from-amber-500 to-amber-600' },
+                      { accent: 'cyan', icon: Cpu, gradient: 'from-cyan-500 to-cyan-600' },
+                      { accent: 'emerald', icon: Rocket, gradient: 'from-emerald-500 to-emerald-600' },
+                      { accent: 'teal', icon: Wrench, gradient: 'from-teal-500 to-teal-600' },
+                    ]
+                    const config = agentColors[i % agentColors.length]
+                    const AgentIcon = config.icon
+                    return (
+                      <motion.div
+                        key={agent.id}
+                        custom={i}
+                        variants={cardVariants}
+                        initial="hidden"
+                        animate="visible"
+                      >
+                        <Card className="rounded-xl shadow-sm border-emerald-500/10 h-full">
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${config.gradient} shadow-lg`}>
+                                <AgentIcon className="h-5 w-5 text-white" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold truncate">{agent.name}</p>
+                                <p className="text-[10px] text-muted-foreground">{agent.role}</p>
+                              </div>
+                              <Badge variant="secondary" className={`text-[9px] border-0 ${agent.status === 'working' ? 'bg-emerald-500/10 text-emerald-600' : agent.status === 'idle' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground'}`}>
+                                {agent.status === 'working' ? '工作中' : agent.status === 'idle' ? '空闲' : '休眠'}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="rounded-lg bg-muted/50 p-2 text-center">
+                                <p className="text-[10px] text-muted-foreground">周期数</p>
+                                <p className="text-sm font-bold">{agent.cycleCount || 0}</p>
+                              </div>
+                              <div className="rounded-lg bg-muted/50 p-2 text-center">
+                                <p className="text-[10px] text-muted-foreground">经验值</p>
+                                <p className="text-sm font-bold">{agent.experience || 0}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    )
+                  }) : (
+                    <div className="col-span-2">
+                      <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                        <CardContent className="p-8 text-center">
+                          <UserCircle2 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">暂无活跃分身</p>
+                          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={() => onNavigate?.('avatar')}>
+                            <Plus className="h-3 w-3" /> 创建分身
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Feed for clones tab */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-emerald-500" />
+                      分身实时动态
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ScrollArea className="max-h-64">
+                      <div className="space-y-2">
+                        {aiFeedItems.map((item) => (
+                          <div key={item.id} className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-emerald-500/5 transition-colors">
+                            <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${item.color.replace('text-', 'bg-')}`} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs"><span className={`font-semibold ${item.color}`}>{item.agent}</span> {item.action}</p>
+                              <p className="text-[11px] text-muted-foreground">{item.output}</p>
+                              <p className="text-[9px] text-muted-foreground font-mono">{item.time}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quick Actions for Clones */}
+              <div className="space-y-4">
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-emerald-500" />
+                      分身操作
+                    </h3>
+                    <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 gap-1.5" onClick={() => onNavigate?.('avatar')}>
+                      <Flame className="h-4 w-4" />
+                      启动全部周期
+                    </Button>
+                    <Button variant="outline" className="w-full gap-1.5 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/10" onClick={() => onNavigate?.('avatar')}>
+                      <Plus className="h-4 w-4" />
+                      添加新分身
+                    </Button>
+                    <Button variant="outline" className="w-full gap-1.5" onClick={() => onNavigate?.('avatar')}>
+                      <Eye className="h-4 w-4" />
+                      查看分身详情
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-emerald-500" />
+                      分身状态概览
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-emerald-500/10 p-3 text-center">
+                        <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{cloneAgents.length}</p>
+                        <p className="text-[10px] text-muted-foreground">总分身</p>
+                      </div>
+                      <div className="rounded-lg bg-amber-500/10 p-3 text-center">
+                        <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{workingAgents.length}</p>
+                        <p className="text-[10px] text-muted-foreground">工作中</p>
+                      </div>
+                      <div className="rounded-lg bg-violet-500/10 p-3 text-center">
+                        <p className="text-lg font-bold text-violet-600 dark:text-violet-400">{totalCycles}</p>
+                        <p className="text-[10px] text-muted-foreground">总周期</p>
+                      </div>
+                      <div className="rounded-lg bg-teal-500/10 p-3 text-center">
+                        <p className="text-lg font-bold text-teal-600 dark:text-teal-400">98%</p>
+                        <p className="text-[10px] text-muted-foreground">可用率</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ── Tasks Tab ────────────────────────────────────────────────── */}
+          <TabsContent value="tasks" className="mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Tasks chart */}
+              <div className="lg:col-span-2 space-y-4">
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">任务分布统计</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={agentActivityData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis dataKey="name" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                          <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" allowDecimals={false} />
+                          <RechartsTooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+                          <Bar dataKey="cycles" name="周期数" fill="#10b981" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="outputs" name="产出数" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Recent Tasks List */}
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold">近期任务</CardTitle>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-0.5" onClick={() => onNavigate?.('collaboration')}>
+                        全部 <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ScrollArea className="max-h-64">
+                      <div className="space-y-2">
+                        {tasks.slice(0, 8).map((task) => (
+                          <div key={task.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-emerald-500/5 transition-colors">
+                            <div className={`h-2 w-2 rounded-full shrink-0 ${task.status === 'completed' ? 'bg-emerald-500' : task.status === 'in_progress' ? 'bg-cyan-500' : 'bg-amber-500'}`} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium truncate">{task.title}</p>
+                              <p className="text-[10px] text-muted-foreground">{task.category} · {task.complexity}</p>
+                            </div>
+                            <Badge variant="secondary" className="text-[9px] h-4 border-0 shrink-0">{task.status}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Right: Task Stats */}
+              <div className="space-y-4">
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-semibold mb-3">任务状态分布</h3>
+                    {[
+                      { status: '待领取', count: tasksByStatus.open, color: 'bg-amber-500' },
+                      { status: '进行中', count: tasksByStatus.in_progress, color: 'bg-cyan-500' },
+                      { status: '审核中', count: tasksByStatus.review, color: 'bg-violet-500' },
+                      { status: '已完成', count: tasksByStatus.completed, color: 'bg-emerald-500' },
+                    ].map((item) => (
+                      <div key={item.status} className="flex items-center gap-3 mb-3">
+                        <div className={`h-3 w-3 rounded ${item.color}`} />
+                        <span className="text-xs flex-1">{item.status}</span>
+                        <span className="text-sm font-bold">{item.count}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+                <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 gap-1.5" onClick={() => onNavigate?.('collaboration')}>
+                  <Plus className="h-4 w-4" /> 发布新任务
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ── Evidence Tab ─────────────────────────────────────────────── */}
+          <TabsContent value="evidence" className="mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Evidence growth chart */}
+              <div className="lg:col-span-2">
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">证据链增长趋势</CardTitle>
+                    <CardDescription className="text-xs">证据总量与已验证数量增长</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-4">
+                    <div className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={evidenceGrowthData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis dataKey="day" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                          <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" allowDecimals={false} />
+                          <RechartsTooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+                          <Area type="monotone" dataKey="total" name="证据总量" stroke="#10b981" fill="#10b981" fillOpacity={0.15} strokeWidth={2} />
+                          <Area type="monotone" dataKey="verified" name="已验证" stroke="#14b8a6" fill="#14b8a6" fillOpacity={0.15} strokeWidth={2} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Right: Evidence stats */}
+              <div className="space-y-4">
+                <Card className="rounded-xl shadow-sm border-emerald-500/10">
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-emerald-500" />
+                      证据统计
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-emerald-500/10 p-3 text-center">
+                        <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{evidences.length}</p>
+                        <p className="text-[10px] text-muted-foreground">总证据</p>
+                      </div>
+                      <div className="rounded-lg bg-teal-500/10 p-3 text-center">
+                        <p className="text-lg font-bold text-teal-600 dark:text-teal-400">{verifiedEvidences.length}</p>
+                        <p className="text-[10px] text-muted-foreground">已验证</p>
+                      </div>
+                      <div className="rounded-lg bg-cyan-500/10 p-3 text-center">
+                        <p className="text-lg font-bold text-cyan-600 dark:text-cyan-400">{onchainEvidences.length}</p>
+                        <p className="text-[10px] text-muted-foreground">链上</p>
+                      </div>
+                      <div className="rounded-lg bg-amber-500/10 p-3 text-center">
+                        <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{evidenceIntegrity}%</p>
+                        <p className="text-[10px] text-muted-foreground">完整率</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 gap-1.5" onClick={() => onNavigate?.('evidence')}>
+                  <Plus className="h-4 w-4" /> 提交新证据
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Footer spacer */}
         <div className="h-4" />

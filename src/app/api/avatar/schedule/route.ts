@@ -14,12 +14,15 @@ async function getZAI() {
 // GET /api/avatar/schedule - Get today's schedule
 export async function GET(req: NextRequest) {
   try {
-    const cloneId = req.nextUrl.searchParams.get('cloneId')
+    let cloneId = req.nextUrl.searchParams.get('cloneId')
+
+    // Auto-discover first clone if no cloneId provided
     if (!cloneId) {
-      return NextResponse.json(
-        { success: false, error: 'cloneId is required' },
-        { status: 400 }
-      )
+      const firstClone = await db.avatarClone.findFirst({ orderBy: { createdAt: 'asc' } })
+      if (!firstClone) {
+        return NextResponse.json({ success: true, data: null })
+      }
+      cloneId = firstClone.id
     }
 
     const today = new Date()

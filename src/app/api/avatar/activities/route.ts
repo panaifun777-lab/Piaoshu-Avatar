@@ -4,15 +4,17 @@ import { db } from '@/lib/db'
 // GET /api/avatar/activities - List recent activities (paginated)
 export async function GET(req: NextRequest) {
   try {
-    const cloneId = req.nextUrl.searchParams.get('cloneId')
+    let cloneId = req.nextUrl.searchParams.get('cloneId')
     const limit = parseInt(req.nextUrl.searchParams.get('limit') || '50')
     const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0')
 
+    // Auto-discover first clone if no cloneId provided
     if (!cloneId) {
-      return NextResponse.json(
-        { success: false, error: 'cloneId is required' },
-        { status: 400 }
-      )
+      const firstClone = await db.avatarClone.findFirst({ orderBy: { createdAt: 'asc' } })
+      if (!firstClone) {
+        return NextResponse.json({ success: true, data: [], pagination: { total: 0, limit, offset } })
+      }
+      cloneId = firstClone.id
     }
 
     const [activities, total] = await Promise.all([

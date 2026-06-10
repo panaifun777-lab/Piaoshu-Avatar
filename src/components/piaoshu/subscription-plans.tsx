@@ -19,6 +19,10 @@ import {
   History,
   ChevronDown,
   X,
+  Flame,
+  Gift,
+  Sparkles,
+  TrendingUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
@@ -28,6 +32,9 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
 import {
   useSubscriptionPlans,
   useCurrentSubscription,
@@ -155,6 +162,37 @@ const PAYMENT_METHODS = [
 
 const TOP_UP_AMOUNTS = [100, 500, 1000, 5000]
 
+// ─── Credit packages for one-time purchase ────────────────────────────────────
+const CREDIT_PACKAGES = [
+  { id: 'pkg-10', credits: 10, price: 25, pricePerCredit: 2.50, popular: false },
+  { id: 'pkg-25', credits: 25, price: 50, pricePerCredit: 2.00, popular: false },
+  { id: 'pkg-50', credits: 50, price: 90, pricePerCredit: 1.80, popular: true },
+  { id: 'pkg-100', credits: 100, price: 150, pricePerCredit: 1.50, popular: false },
+]
+
+// ─── Monthly credit plans ──────────────────────────────────────────────────────
+const MONTHLY_CREDIT_PLANS = [
+  { id: 'monthly-50', creditsPerMonth: 50, price: 45, pricePerCredit: 0.90, savings: '50%', popular: false },
+  { id: 'monthly-100', creditsPerMonth: 100, price: 79, pricePerCredit: 0.79, savings: '60%', popular: true },
+  { id: 'monthly-200', creditsPerMonth: 200, price: 139, pricePerCredit: 0.70, savings: '65%', popular: false },
+]
+
+// ─── Feature comparison data ──────────────────────────────────────────────────
+const FEATURE_COMPARISON = [
+  { feature: '智能分身', free: '1', starter: '3', pro: '10', enterprise: '无限' },
+  { feature: 'AI周期/天', free: '5', starter: '20', pro: '无限', enterprise: '无限' },
+  { feature: '邮件跟踪', free: '基础', starter: '完整', pro: '完整', enterprise: '自定义' },
+  { feature: '技能库', free: '基础', starter: '高级', pro: '全部', enterprise: '自定义' },
+  { feature: 'API访问', free: '—', starter: '—', pro: '✓', enterprise: '✓' },
+  { feature: '自定义代理角色', free: '—', starter: '—', pro: '✓', enterprise: '✓' },
+  { feature: '高级分析', free: '—', starter: '—', pro: '✓', enterprise: '✓' },
+  { feature: '跨分身知识共享', free: '—', starter: '—', pro: '✓', enterprise: '✓' },
+  { feature: '私有部署', free: '—', starter: '—', pro: '—', enterprise: '✓' },
+  { feature: 'SLA保障', free: '—', starter: '—', pro: '—', enterprise: '✓' },
+  { feature: '白标方案', free: '—', starter: '—', pro: '—', enterprise: '✓' },
+  { feature: '安全审计', free: '—', starter: '—', pro: '—', enterprise: '✓' },
+]
+
 export function SubscriptionPlans() {
   const { data: session } = useSession()
   const userId = (session?.user as Record<string, unknown> | undefined)?.id as string | undefined
@@ -170,6 +208,12 @@ export function SubscriptionPlans() {
   const [topUpAmount, setTopUpAmount] = useState(500)
   const [txHistoryOpen, setTxHistoryOpen] = useState(false)
   const [subscribingPlan, setSubscribingPlan] = useState<string | null>(null)
+
+  // Credit modal state
+  const [creditModalOpen, setCreditModalOpen] = useState(false)
+  const [creditTab, setCreditTab] = useState('onetime')
+  const [selectedCreditPkg, setSelectedCreditPkg] = useState('pkg-50')
+  const [selectedMonthlyPlan, setSelectedMonthlyPlan] = useState('monthly-100')
 
   const plans = plansData?.data?.plans?.length ? plansData.data.plans : FALLBACK_PLANS
   const currentPlanName = subData?.data?.plan?.name ?? 'free'
@@ -228,6 +272,22 @@ export function SubscriptionPlans() {
     }
   }
 
+  const handleCreditPurchase = () => {
+    if (creditTab === 'onetime') {
+      const pkg = CREDIT_PACKAGES.find(p => p.id === selectedCreditPkg)
+      if (pkg) {
+        toast.success(`成功购买 ${pkg.credits} 积分！共 $${pkg.price}`)
+        setCreditModalOpen(false)
+      }
+    } else {
+      const plan = MONTHLY_CREDIT_PLANS.find(p => p.id === selectedMonthlyPlan)
+      if (plan) {
+        toast.success(`已订阅月度套餐：每月 ${plan.creditsPerMonth} 积分！$${plan.price}/月`)
+        setCreditModalOpen(false)
+      }
+    }
+  }
+
   const formatCycles = (n: number) => (n === -1 ? '无限' : `${n}`)
 
   return (
@@ -245,7 +305,7 @@ export function SubscriptionPlans() {
         </div>
         <div className="flex items-center gap-3">
           {/* AFC Balance Card */}
-          <Card className="border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20">
+          <Card className="rounded-xl shadow-sm border-amber-300 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20">
@@ -273,6 +333,14 @@ export function SubscriptionPlans() {
                 </Button>
                 <Button
                   size="sm"
+                  className="h-7 text-[10px] gap-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 border-0"
+                  onClick={() => setCreditModalOpen(true)}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  积分
+                </Button>
+                <Button
+                  size="sm"
                   variant="ghost"
                   className="h-7 text-[10px] gap-1"
                   onClick={() => setTxHistoryOpen(true)}
@@ -287,7 +355,7 @@ export function SubscriptionPlans() {
       </div>
 
       {/* Payment Method Selector */}
-      <Card>
+      <Card className="rounded-xl shadow-sm">
         <CardContent className="p-4">
           <p className="text-xs font-medium text-muted-foreground mb-3">支付方式</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -322,7 +390,7 @@ export function SubscriptionPlans() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {plansLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="h-[420px]">
+            <Card key={i} className="h-[420px] rounded-xl">
               <CardContent className="p-6 space-y-4">
                 <Skeleton className="h-6 w-20" />
                 <Skeleton className="h-10 w-32" />
@@ -351,7 +419,7 @@ export function SubscriptionPlans() {
                 transition={{ delay: index * 0.1, duration: 0.3 }}
               >
                 <Card
-                  className={`relative h-full flex flex-col transition-all duration-200 hover:shadow-lg ${
+                  className={`relative h-full flex flex-col rounded-xl shadow-sm transition-all duration-200 hover:shadow-lg ${
                     isPopular ? 'ring-2 ring-violet-400 dark:ring-violet-600' : ''
                   } ${isCurrent ? config.borderColor : ''}`}
                 >
@@ -481,8 +549,44 @@ export function SubscriptionPlans() {
         )}
       </div>
 
+      {/* Feature Comparison Table */}
+      <Card className="rounded-xl shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-500" />
+            <h3 className="font-semibold">功能对比</h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-left py-2 pr-4 font-medium text-muted-foreground">功能</th>
+                  <th className="text-center py-2 px-3 font-medium text-slate-500">免费版</th>
+                  <th className="text-center py-2 px-3 font-medium text-emerald-600">入门版</th>
+                  <th className="text-center py-2 px-3 font-medium text-violet-600">专业版</th>
+                  <th className="text-center py-2 px-3 font-medium text-amber-600">企业版</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FEATURE_COMPARISON.map((row, i) => (
+                  <tr key={row.feature} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
+                    <td className="py-2 pr-4 font-medium">{row.feature}</td>
+                    <td className="text-center py-2 px-3 text-muted-foreground">{row.free === '—' ? '—' : row.free === '✓' ? <Check className="h-3.5 w-3.5 mx-auto text-slate-500" /> : row.free}</td>
+                    <td className="text-center py-2 px-3 text-muted-foreground">{row.starter === '—' ? '—' : row.starter === '✓' ? <Check className="h-3.5 w-3.5 mx-auto text-emerald-500" /> : row.starter}</td>
+                    <td className="text-center py-2 px-3 text-muted-foreground">{row.pro === '—' ? '—' : row.pro === '✓' ? <Check className="h-3.5 w-3.5 mx-auto text-violet-500" /> : row.pro}</td>
+                    <td className="text-center py-2 px-3 text-muted-foreground">{row.enterprise === '—' ? '—' : row.enterprise === '✓' ? <Check className="h-3.5 w-3.5 mx-auto text-amber-500" /> : row.enterprise}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* AFC Token Info */}
-      <Card>
+      <Card className="rounded-xl shadow-sm">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Coins className="h-5 w-5 text-amber-500" />
@@ -518,6 +622,201 @@ export function SubscriptionPlans() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Credit Purchase Modal (Polsia-style) ─────────────────────────── */}
+      <Dialog open={creditModalOpen} onOpenChange={setCreditModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              购买积分
+            </DialogTitle>
+          </DialogHeader>
+
+          <Tabs value={creditTab} onValueChange={setCreditTab} className="mt-2">
+            <TabsList className="w-full">
+              <TabsTrigger value="onetime" className="flex-1 gap-1.5 text-xs">
+                <Zap className="h-3.5 w-3.5" />
+                一次性充值
+              </TabsTrigger>
+              <TabsTrigger value="monthly" className="flex-1 gap-1.5 text-xs">
+                <Gift className="h-3.5 w-3.5" />
+                月度套餐
+              </TabsTrigger>
+            </TabsList>
+
+            {/* One-time top up */}
+            <TabsContent value="onetime" className="mt-4 space-y-4">
+              <RadioGroup value={selectedCreditPkg} onValueChange={setSelectedCreditPkg}>
+                <div className="space-y-2">
+                  {CREDIT_PACKAGES.map((pkg) => (
+                    <label
+                      key={pkg.id}
+                      className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
+                        selectedCreditPkg === pkg.id
+                          ? 'border-orange-400 dark:border-orange-600 bg-orange-50 dark:bg-orange-950/20 ring-1 ring-orange-400/30'
+                          : 'border-border hover:border-orange-300 dark:hover:border-orange-700'
+                      }`}
+                    >
+                      <RadioGroupItem value={pkg.id} id={pkg.id} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor={pkg.id} className="text-sm font-semibold cursor-pointer">
+                            {pkg.credits} 积分
+                          </Label>
+                          {pkg.popular && (
+                            <Badge className="text-[9px] h-4 px-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white border-0">
+                              热门
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          ${pkg.pricePerCredit.toFixed(2)}/积分
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-base font-bold">${pkg.price}</p>
+                        {pkg.credits === 100 && (
+                          <Badge variant="secondary" className="text-[8px] h-3.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0">
+                            省两成
+                          </Badge>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </RadioGroup>
+
+              {/* Selected package summary */}
+              {(() => {
+                const pkg = CREDIT_PACKAGES.find(p => p.id === selectedCreditPkg)
+                if (!pkg) return null
+                return (
+                  <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">积分数量</span>
+                      <span className="font-medium">{pkg.credits} 积分</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">单价</span>
+                      <span className="font-medium">${pkg.pricePerCredit.toFixed(2)}/积分</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-sm font-bold">
+                      <span>应付</span>
+                      <span className="text-orange-600 dark:text-orange-400">${pkg.price}</span>
+                    </div>
+                  </div>
+                )
+              })()}
+            </TabsContent>
+
+            {/* Monthly plans */}
+            <TabsContent value="monthly" className="mt-4 space-y-4">
+              <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-3 mb-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                  <Gift className="h-3.5 w-3.5" />
+                  月度套餐更优惠 — 最低 $0.70/积分，节省高达65%
+                </div>
+              </div>
+
+              <RadioGroup value={selectedMonthlyPlan} onValueChange={setSelectedMonthlyPlan}>
+                <div className="space-y-2">
+                  {MONTHLY_CREDIT_PLANS.map((plan) => (
+                    <label
+                      key={plan.id}
+                      className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
+                        selectedMonthlyPlan === plan.id
+                          ? 'border-orange-400 dark:border-orange-600 bg-orange-50 dark:bg-orange-950/20 ring-1 ring-orange-400/30'
+                          : 'border-border hover:border-orange-300 dark:hover:border-orange-700'
+                      }`}
+                    >
+                      <RadioGroupItem value={plan.id} id={plan.id} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor={plan.id} className="text-sm font-semibold cursor-pointer">
+                            {plan.creditsPerMonth} 积分/月
+                          </Label>
+                          {plan.popular && (
+                            <Badge className="text-[9px] h-4 px-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white border-0">
+                              热门
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          ${plan.pricePerCredit.toFixed(2)}/积分 · 节省{plan.savings}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-base font-bold">${plan.price}</p>
+                        <p className="text-[10px] text-muted-foreground">/月</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </RadioGroup>
+
+              {/* Selected monthly plan summary */}
+              {(() => {
+                const plan = MONTHLY_CREDIT_PLANS.find(p => p.id === selectedMonthlyPlan)
+                if (!plan) return null
+                return (
+                  <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">每月积分</span>
+                      <span className="font-medium">{plan.creditsPerMonth} 积分</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">单价</span>
+                      <span className="font-medium">${plan.pricePerCredit.toFixed(2)}/积分</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">节省</span>
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">{plan.savings}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-sm font-bold">
+                      <span>月付</span>
+                      <span className="text-orange-600 dark:text-orange-400">${plan.price}/月</span>
+                    </div>
+                  </div>
+                )
+              })()}
+            </TabsContent>
+          </Tabs>
+
+          {/* Payment method selector */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">支付方式</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PAYMENT_METHODS.slice(0, 2).map((method) => (
+                <button
+                  key={method.id}
+                  onClick={() => setSelectedPayment(method.id)}
+                  className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs transition-all ${
+                    selectedPayment === method.id
+                      ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20'
+                      : 'border-border'
+                  }`}
+                >
+                  <method.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>{method.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Button
+            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 gap-1.5 font-semibold"
+            onClick={handleCreditPurchase}
+          >
+            <Flame className="h-4 w-4" />
+            确认购买
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {/* Top Up Dialog */}
       <Dialog open={topUpOpen} onOpenChange={setTopUpOpen}>
