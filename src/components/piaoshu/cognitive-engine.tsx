@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -38,8 +39,13 @@ import {
   ChevronUp,
   FileText,
   Loader2,
+  Search,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  BarChart3,
 } from 'lucide-react'
-import { useShards, useCreateShard, useRunSimulation, useDecisions, useMemories, useAgentRoles, useTriggerCycle, useAgentCycles } from '@/lib/api-hooks'
+import { useShards, useCreateShard, useRunSimulation, useDecisions, useMemories, useAgentRoles, useTriggerCycle, useAgentCycles, useVectorSearch, useVectorSync, useVectorCollections } from '@/lib/api-hooks'
 import { useToast } from '@/hooks/use-toast'
 
 // ─── Data Types ──────────────────────────────────────────────────────────────
@@ -773,6 +779,8 @@ export function CognitiveEngineView() {
   const [strategyInput, setStrategyInput] = useState('')
   const [simulationResult, setSimulationResult] = useState<SimulationRow | null>(null)
   const [triggeringAgentId, setTriggeringAgentId] = useState<string | null>(null)
+  const [vectorQuery, setVectorQuery] = useState('')
+  const [vectorServiceOnline, setVectorServiceOnline] = useState(false)
   const humanThreshold = 60
   const { toast } = useToast()
 
@@ -784,6 +792,16 @@ export function CognitiveEngineView() {
   const { data: memoriesData, isLoading: memoriesLoading } = useMemories()
   const { data: agentsData, isLoading: agentsLoading } = useAgentRoles()
   const triggerCycleMutation = useTriggerCycle()
+  const vectorSearchMutation = useVectorSearch()
+  const vectorSyncMutation = useVectorSync()
+  const { data: vectorCollectionsData } = useVectorCollections()
+
+  // ── Vector service health check ───────────────────────────────────────
+  useEffect(() => {
+    fetch('/api/health?XTransformPort=3004')
+      .then(res => { if (res.ok) setVectorServiceOnline(true); else setVectorServiceOnline(false) })
+      .catch(() => setVectorServiceOnline(false))
+  }, [])
 
   // ── Derived data ────────────────────────────────────────────────────────
   const shards: ShardRow[] = useMemo(
@@ -903,6 +921,37 @@ export function CognitiveEngineView() {
     }
   }
 
+  const handleVectorSearch = async () => {
+    if (!vectorQuery.trim()) return
+    try {
+      await vectorSearchMutation.mutateAsync({ query: vectorQuery, topK: 8 })
+    } catch {
+      toast({
+        title: '语义搜索失败',
+        description: '向量搜索服务暂时不可用',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleVectorSync = async () => {
+    try {
+      const result = await vectorSyncMutation.mutateAsync()
+      if (result?.data) {
+        toast({
+          title: '记忆同步完成',
+          description: `成功嵌入 ${result.data.synced}/${result.data.total} 条记忆`,
+        })
+      }
+    } catch {
+      toast({
+        title: '记忆同步失败',
+        description: '向量服务暂时不可用',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const isSimulating = runSimulationMutation.isPending
 
   return (
@@ -929,6 +978,10 @@ export function CognitiveEngineView() {
             <Badge variant="outline" className="gap-1 text-emerald-600 border-emerald-200 bg-emerald-500/5">
               <Zap className="h-3 w-3" />
               引擎在线
+            </Badge>
+            <Badge variant="outline" className={`gap-1 ${vectorServiceOnline ? 'text-emerald-600 border-emerald-200 bg-emerald-500/5' : 'text-red-600 border-red-200 bg-red-500/5'}`}>
+              {vectorServiceOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {vectorServiceOnline ? '向量服务' : '向量离线'}
             </Badge>
             <Badge variant="outline" className="gap-1 text-muted-foreground">
               <Clock className="h-3 w-3" />
@@ -1215,7 +1268,215 @@ export function CognitiveEngineView() {
           )}
         </section>
 
-        {/* ── Section 4: Decision Log + Confidence Dashboard ──────── */}
+        {/* ── Section 4: Vector Semantic Search ──────────────────────── */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-teal-600" />
+            <h2 className="text-base font-semibold">向量语义搜索</h2>
+            <Badge variant="outline" className="text-[10px] border-teal-200 text-teal-600 bg-teal-500/5">
+              Qdrant替代
+            </Badge>
+            <Badge variant="secondary" className="text-[10px]">
+              {vectorCollectionsData?.data?.total ?? 0} 向量
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Search Panel */}
+            <div className="lg:col-span-2 space-y-4">
+              <Card className="border-teal-500/20 bg-teal-500/[0.02]">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-500/10 text-teal-500">
+                        <Search className="h-3.5 w-3.5" />
+                      </div>
+                      <CardTitle className="text-sm text-teal-700">语义搜索</CardTitle>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-xs border-teal-200 text-teal-600 hover:bg-teal-500/10"
+                      onClick={handleVectorSync}
+                      disabled={vectorSyncMutation.isPending}
+                    >
+                      {vectorSyncMutation.isPending ? (
+                        <><Loader2 className="h-3 w-3 animate-spin" />同步中...</>
+                      ) : (
+                        <><RefreshCw className="h-3 w-3" />同步记忆到向量库</>
+                      )}
+                    </Button>
+                  </div>
+                  <CardDescription className="text-xs">基于向量嵌入的语义搜索，查找语义最相关的记忆条目</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="输入搜索查询，例如：市场扩张策略..."
+                      className="flex-1 text-sm"
+                      value={vectorQuery}
+                      onChange={(e) => setVectorQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleVectorSearch()}
+                    />
+                    <Button
+                      onClick={handleVectorSearch}
+                      disabled={!vectorQuery.trim() || vectorSearchMutation.isPending}
+                      className="gap-2 bg-teal-600 hover:bg-teal-700 text-white shrink-0"
+                    >
+                      {vectorSearchMutation.isPending ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" />搜索中...</>
+                      ) : (
+                        <><Search className="h-4 w-4" />搜索</>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Search Results */}
+                  {vectorSearchMutation.isPending && (
+                    <div className="space-y-3">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="h-16 rounded-lg bg-teal-500/5 animate-pulse" />
+                      ))}
+                    </div>
+                  )}
+
+                  {vectorSearchMutation.data?.data?.results && vectorSearchMutation.data.data.results.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          找到 {vectorSearchMutation.data.data.total} 个相关结果
+                        </span>
+                        <Badge variant="outline" className="text-[9px] border-teal-200 text-teal-600">
+                          {vectorSearchMutation.data.data.queryDimensions}维向量
+                        </Badge>
+                      </div>
+                      {vectorSearchMutation.data.data.results.map((result, idx) => (
+                        <div key={result.id} className="rounded-lg border border-border/60 bg-background p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-500/10 text-teal-600 text-[10px] font-bold">
+                                #{idx + 1}
+                              </div>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-teal-200 text-teal-600">
+                                {result.metadata?.sourceType || 'unknown'}
+                              </Badge>
+                              {result.metadata?.tags && (
+                                <span className="text-[9px] text-muted-foreground">
+                                  {String(result.metadata.tags).split(',').slice(0, 2).join(', ')}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-teal-600">
+                                {(result.similarity * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">
+                            {result.text}
+                          </p>
+                          {/* Similarity bar */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-muted-foreground shrink-0">相似度</span>
+                            <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  result.similarity > 0.8 ? 'bg-emerald-500' :
+                                  result.similarity > 0.6 ? 'bg-teal-500' :
+                                  result.similarity > 0.4 ? 'bg-amber-500' :
+                                  'bg-red-500'
+                                }`}
+                                style={{ width: `${Math.round(result.similarity * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {vectorSearchMutation.data?.data?.results?.length === 0 && !vectorSearchMutation.isPending && vectorQuery && (
+                    <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                      <Search className="h-6 w-6 mb-2 opacity-40" />
+                      <p className="text-xs">未找到语义相关结果</p>
+                      <p className="text-[10px] mt-1">尝试同步记忆到向量库后重试</p>
+                    </div>
+                  )}
+
+                  {vectorSearchMutation.isError && (
+                    <div className="rounded-md bg-red-500/10 border border-red-200/60 px-3 py-2">
+                      <span className="text-[11px] text-red-700 font-medium">
+                        向量搜索服务暂不可用，请确认向量服务是否已启动
+                      </span>
+                    </div>
+                  )}
+
+                  {vectorSyncMutation.isSuccess && vectorSyncMutation.data?.data && (
+                    <div className="rounded-md bg-emerald-500/10 border border-emerald-200/60 px-3 py-2">
+                      <span className="text-[11px] text-emerald-700">
+                        ✅ 记忆同步完成: {vectorSyncMutation.data.data.synced} 条成功嵌入, {vectorSyncMutation.data.data.errors} 条失败
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Vector Stats Panel */}
+            <div className="space-y-4">
+              <Card className="border-teal-500/20">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-500/10 text-teal-500">
+                      <BarChart3 className="h-3.5 w-3.5" />
+                    </div>
+                    <CardTitle className="text-sm">向量库状态</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">服务状态</span>
+                    <Badge variant="outline" className={`text-[10px] ${vectorServiceOnline ? 'border-emerald-200 text-emerald-600' : 'border-red-200 text-red-600'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1 ${vectorServiceOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                      {vectorServiceOnline ? '在线' : '离线'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">存储向量数</span>
+                    <span className="text-sm font-semibold text-teal-600">
+                      {vectorCollectionsData?.data?.total ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">向量维度</span>
+                    <span className="text-sm font-semibold">64</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">相似度算法</span>
+                    <span className="text-xs font-medium">余弦相似度</span>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-muted-foreground font-medium">最近入库向量</span>
+                    {vectorCollectionsData?.data?.vectors?.slice(0, 5).map((vec) => (
+                      <div key={vec.id} className="flex items-center gap-2 text-[10px]">
+                        <span className="w-1 h-1 rounded-full bg-teal-500 shrink-0" />
+                        <span className="text-muted-foreground truncate flex-1">{vec.text.substring(0, 40)}</span>
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 border-teal-200 text-teal-600 shrink-0">
+                          {vec.metadata?.sourceType || 'unknown'}
+                        </Badge>
+                      </div>
+                    )) || (
+                      <p className="text-[10px] text-muted-foreground text-center py-2">暂无向量数据</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Section 5: Decision Log + Confidence Dashboard ──────── ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Decision Log */}
           <section className="lg:col-span-2 space-y-4">

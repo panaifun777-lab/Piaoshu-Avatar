@@ -400,3 +400,90 @@ export function useApplySharedKnowledge() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sharedKnowledge'] }),
   })
 }
+
+// ===== Vector Search =====
+export function useVectorSearch() {
+  return useMutation({
+    mutationFn: (data: { query: string; topK?: number }) =>
+      apiFetch<{ success: boolean; data: { results: Array<{ id: string; text: string; similarity: number; metadata: Record<string, unknown> }>; total: number } }>(
+        `/api/cognitive/vector-search?q=${encodeURIComponent(data.query)}&topK=${data.topK || 5}`
+      ),
+  })
+}
+
+export function useVectorSync() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ success: boolean; data: { synced: number; errors: number; total: number } }>(
+        '/api/cognitive/vector-sync',
+        { method: 'POST' }
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vectorCollections'] }),
+  })
+}
+
+export function useVectorCollections() {
+  return useQuery({
+    queryKey: ['vectorCollections'],
+    queryFn: () =>
+      apiFetch<{ success: boolean; data: { vectors: Array<{ id: string; text: string; metadata: Record<string, unknown>; dimensions: number }>; total: number } }>(
+        '/api/collections?XTransformPort=3004'
+      ),
+    refetchInterval: 30000,
+  })
+}
+
+// ===== Blockchain =====
+export function useWalletStatus() {
+  return useQuery({
+    queryKey: ['walletStatus'],
+    queryFn: () => apiFetch<{ success: boolean; data: { connected: boolean; address: string | null; balance: string | null; network: string | null; connectedAt: string | null } }>('/api/blockchain/wallet'),
+    refetchInterval: 30000,
+  })
+}
+
+export function useConnectWallet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      apiFetch('/api/blockchain/wallet', { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['walletStatus'] }),
+  })
+}
+
+export function useAnchorEvidence() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { evidenceId: string; contentHash?: string; metadata?: string }) =>
+      apiFetch('/api/blockchain/anchor', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['evidences'] })
+      qc.invalidateQueries({ queryKey: ['blockchainStatus'] })
+    },
+  })
+}
+
+export function useVerifyEvidence() {
+  return useMutation({
+    mutationFn: (data: { txHash: string }) =>
+      apiFetch('/api/blockchain/verify', { method: 'POST', body: JSON.stringify(data) }),
+  })
+}
+
+export function useSettlePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { taskId: string; amount?: number; token?: string; recipient?: string; paymentId?: string }) =>
+      apiFetch('/api/blockchain/settle', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['blockchainStatus'] }),
+  })
+}
+
+export function useBlockchainStatus() {
+  return useQuery({
+    queryKey: ['blockchainStatus'],
+    queryFn: () => apiFetch<{ success: boolean; data: { network: { network: string; chainId: number; blockHeight: number; gasPrice: string; isSyncing: boolean; pendingTxCount: number } | null; wallet: { connected: boolean; address: string | null; balance: string | null; network: string | null } | null; contracts: { contracts: { name: string; address: string; version: string; network: string }[] } | null; recentTransactions: { id: string; txHash: string; txType: string; status: string; blockNumber: number | null; gasUsed: number | null; entityId: string | null; createdAt: string }[] } }>('/api/blockchain/status'),
+    refetchInterval: 15000,
+  })
+}

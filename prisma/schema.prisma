@@ -428,6 +428,22 @@ model SharedKnowledge {
   createdAt    DateTime @default(now())
 }
 
+// ===== 链上交易记录 =====
+model OnChainTransaction {
+  id          String   @id @default(cuid())
+  txHash      String   @unique
+  txType      String   // anchor_evidence, settle_payment, verify
+  status      String   @default("pending") // pending, confirmed, failed
+  blockNumber Int?
+  gasUsed     Int?
+  fromAddress String?
+  toAddress   String?  // contract address
+  entityId    String?  // evidence ID or payment ID
+  metadata    String?  // JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // ===== 日程安排 =====
 model DailySchedule {
   id        String   @id @default(cuid())
