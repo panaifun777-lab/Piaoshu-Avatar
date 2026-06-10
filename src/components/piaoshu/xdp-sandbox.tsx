@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, Component, type ReactNode, type ErrorInfo } from 'react'
 import dynamic from 'next/dynamic'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -30,8 +30,67 @@ import { useProjects, useCreateProject } from '@/lib/api-hooks'
 // Dynamic import for Three.js viewport (SSR disabled)
 const Sandbox3DViewport = dynamic(
   () => import('./sandbox-3d-viewport').then((m) => ({ default: m.Sandbox3DViewport })),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="relative overflow-hidden rounded-xl border border-emerald-700/30" style={{ background: '#0a0f1a', minHeight: 420 }}>
+        <div className="flex items-center justify-center h-full min-h-[420px]">
+          <div className="flex flex-col items-center gap-3 text-emerald-400/60">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-500" />
+            <span className="text-sm font-medium">加载3D视口...</span>
+          </div>
+        </div>
+      </div>
+    ),
+  }
 )
+
+// ---------------------------------------------------------------------------
+// Error Boundary for 3D viewport
+// ---------------------------------------------------------------------------
+
+interface ErrorBoundaryState {
+  hasError: boolean
+  error: Error | null
+}
+
+class ViewportErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('3D Viewport error:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="relative overflow-hidden rounded-xl border border-amber-700/30" style={{ background: '#0a0f1a', minHeight: 420 }}>
+          <div className="flex flex-col items-center justify-center h-full min-h-[420px] gap-3 text-amber-400/80">
+            <Box className="h-8 w-8" />
+            <span className="text-sm font-medium">3D视口加载失败</span>
+            <span className="text-xs text-amber-400/50 max-w-xs text-center">{this.state.error?.message || 'WebGL不可用或加载超时'}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+              onClick={() => this.setState({ hasError: false, error: null })}
+            >
+              重试
+            </Button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -482,7 +541,9 @@ export function XDPSandboxView() {
           <h2 className="text-lg font-semibold">3D 视口预览</h2>
         </div>
 
-        <Sandbox3DViewport projectName={projects[0]?.name} />
+        <ViewportErrorBoundary>
+          <Sandbox3DViewport projectName={projects[0]?.name} />
+        </ViewportErrorBoundary>
       </section>
 
       {/* ================================================================= */}

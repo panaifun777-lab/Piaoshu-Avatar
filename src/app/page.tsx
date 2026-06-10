@@ -179,8 +179,18 @@ function SidebarContent({ activeModule, sidebarCollapsed, theme, onNavigate, onT
           className="w-full justify-center"
           onClick={onToggleTheme}
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          {!sidebarCollapsed && <span className="ml-2 text-xs">{theme === 'dark' ? '浅色' : '深色'}</span>}
+          {theme === undefined ? (
+            <Sun className="h-4 w-4" />
+          ) : theme === 'dark' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+          {!sidebarCollapsed && (
+            <span className="ml-2 text-xs">
+              {theme === undefined ? '' : theme === 'dark' ? '浅色' : '深色'}
+            </span>
+          )}
         </Button>
       </div>
     </div>
@@ -205,14 +215,20 @@ export default function Home() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const { connected, lastEvent } = useWebSocket()
   const lastToastRef = useRef<string | null>(null)
   const { data: session } = useSession()
   const [authModalOpen, setAuthModalOpen] = useState(false)
 
+  // Only render theme-dependent UI after mount to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark')
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
   }
 
   // Show toast on WebSocket events (with debounce to avoid spam)
@@ -264,7 +280,7 @@ export default function Home() {
         <SidebarContent
           activeModule={activeModule}
           sidebarCollapsed={sidebarCollapsed}
-          theme={theme}
+          theme={mounted ? resolvedTheme : undefined}
           onNavigate={setActiveModule}
           onToggleTheme={toggleTheme}
         />
@@ -305,7 +321,7 @@ export default function Home() {
         <SidebarContent
           activeModule={activeModule}
           sidebarCollapsed={false}
-          theme={theme}
+          theme={mounted ? resolvedTheme : undefined}
           onNavigate={setActiveModule}
           onToggleTheme={toggleTheme}
           onMobileClose={() => setMobileMenuOpen(false)}
