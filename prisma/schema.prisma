@@ -264,3 +264,168 @@ model Notification {
   actionUrl   String?                             // 点击跳转链接
   createdAt   DateTime @default(now())
 }
+
+// ===== 角色化AI代理 =====
+model AgentRole {
+  id           String   @id @default(cuid())
+  name         String                    // CEO, CTO, Growth, Engineer, Designer, etc.
+  persona      String                    // 角色人格描述
+  avatar       String?                   // 角色头像URL
+  capabilities String?                   // 能力列表 (JSON array string)
+  status       String   @default("idle") // idle, working, sleeping, error
+  lastCycleAt  DateTime?
+  cycleCount   Int      @default(0)      // 完成的周期数
+  shardId      String?                   // 关联的认知分片
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cycles DailyCycle[]
+}
+
+model DailyCycle {
+  id          String    @id @default(cuid())
+  agentId     String
+  phase       String    @default("planning") // planning, executing, reporting, completed
+  plan        String?                     // 本周期计划 (JSON)
+  execution   String?                     // 执行结果 (JSON)
+  report      String?                     // 周期报告
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  agent AgentRole @relation(fields: [agentId], references: [id])
+}
+
+// ===== 用户账户 =====
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String // bcrypt hash
+  avatar       String? // avatar image URL
+  bio          String?
+  plan         String   @default("free") // free, pro, enterprise
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clone AvatarClone?
+}
+
+// ===== AI分身(数字克隆体) =====
+model AvatarClone {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  name         String // 分身名称 e.g. "飘叔"
+  persona      String // 核心人格描述 (SOUL.md内容)
+  avatarStyle  String   @default("realistic") // realistic, cartoon, abstract
+  avatarUrl    String? // 分身头像
+  status       String   @default("initializing") // initializing, active, sleeping, error
+  level        Int      @default(1) // 分身等级
+  experience   Int      @default(0) // 经验值
+  totalCycles  Int      @default(0) // 累计周期数
+  lastActiveAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id])
+  agents        CloneAgent[]
+  skills        CloneSkill[]
+  activities    CloneActivity[]
+  dailySchedules DailySchedule[]
+}
+
+// ===== 分身代理 (Polsia角色) =====
+model CloneAgent {
+  id          String    @id @default(cuid())
+  cloneId     String
+  name        String // CEO, CTO, Growth, Engineer, Designer, etc.
+  role        String // 角色类型
+  persona     String // 角色人格描述
+  avatarUrl   String? // 角色头像
+  status      String    @default("idle") // idle, working, sleeping, error
+  level       Int       @default(1)
+  experience  Int       @default(0)
+  cycleCount  Int       @default(0)
+  lastCycleAt DateTime?
+  config      String? // JSON: agent configuration (tools, permissions, etc.)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  clone   AvatarClone  @relation(fields: [cloneId], references: [id])
+  cycles  AgentCycle[]
+  outputs AgentOutput[]
+}
+
+// ===== 代理周期 (Polsia日周期) =====
+model AgentCycle {
+  id          String    @id @default(cuid())
+  agentId     String
+  phase       String    @default("planning") // planning, executing, reporting, completed
+  plan        String? // JSON: 本周期计划
+  execution   String? // JSON: 执行结果
+  report      String? // 周期报告
+  metrics     String? // JSON: 执行指标
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  agent   CloneAgent   @relation(fields: [agentId], references: [id])
+  outputs AgentOutput[]
+}
+
+// ===== 代理输出 (代码/邮件/部署/分析) =====
+model AgentOutput {
+  id         String   @id @default(cuid())
+  agentId    String
+  cycleId    String
+  outputType String // code, email, deployment, analysis, design, task
+  title      String
+  content    String // 输出内容
+  metadata   String? // JSON: 额外元数据
+  status     String   @default("draft") // draft, submitted, approved, rejected
+  createdAt  DateTime @default(now())
+
+  agent CloneAgent @relation(fields: [agentId], references: [id])
+  cycle AgentCycle @relation(fields: [cycleId], references: [id])
+}
+
+// ===== 分身技能 =====
+model CloneSkill {
+  id          String   @id @default(cuid())
+  cloneId     String
+  name        String // 技能名称: code_writing, email_automation, deployment, metrics_analysis, etc.
+  category    String // 分类: engineering, marketing, operations, design
+  level       Int      @default(1) // 技能等级 1-10
+  experience  Int      @default(0) // 技能经验
+  description String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clone AvatarClone @relation(fields: [cloneId], references: [id])
+}
+
+// ===== 分身活动 =====
+model CloneActivity {
+  id           String   @id @default(cuid())
+  cloneId      String
+  agentId      String? // 关联的代理
+  activityType String // cycle_completed, output_created, skill_upgraded, agent_added, etc.
+  title        String
+  description  String?
+  metadata     String? // JSON
+  createdAt    DateTime @default(now())
+
+  clone AvatarClone @relation(fields: [cloneId], references: [id])
+}
+
+// ===== 日程安排 =====
+model DailySchedule {
+  id        String   @id @default(cuid())
+  cloneId   String
+  day       DateTime // 哪一天
+  timeSlots String // JSON: [{time, agentId, task, status}]
+  status    String   @default("planned") // planned, in_progress, completed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clone AvatarClone @relation(fields: [cloneId], references: [id])
+}

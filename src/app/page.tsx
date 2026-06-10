@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTheme } from 'next-themes'
+import { useSession, signOut } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import {
   Brain,
@@ -16,21 +17,29 @@ import {
   Zap,
   Moon,
   Sun,
+  Wifi,
+  WifiOff,
+  UserCircle2,
+  LogOut,
 } from 'lucide-react'
+import { toast } from 'sonner'
+import { useWebSocket, type WSEventType } from '@/lib/use-websocket'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 import { DashboardView } from '@/components/piaoshu/dashboard'
+import { AvatarCloneView } from '@/components/piaoshu/avatar-clone'
 import { CognitiveEngineView } from '@/components/piaoshu/cognitive-engine'
 import { EvidenceChainView } from '@/components/piaoshu/evidence-chain'
 import { CollaborationRouterView } from '@/components/piaoshu/collaboration-router'
 import { XDPSandboxView } from '@/components/piaoshu/xdp-sandbox'
 import { RoadmapTrackerView } from '@/components/piaoshu/roadmap-tracker'
 import { AIChatWidget } from '@/components/piaoshu/ai-chat-widget'
+import { AuthModal } from '@/components/piaoshu/auth-modal'
 
-type ActiveModule = 'dashboard' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap'
+type ActiveModule = 'dashboard' | 'avatar' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap'
 
 interface NavItem {
   id: ActiveModule
@@ -42,6 +51,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: '总览', sublabel: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
+  { id: 'avatar', label: '分身系统', sublabel: 'Avatar Clone', icon: UserCircle2, color: 'text-violet-500' },
   { id: 'cognitive', label: '认知分片引擎', sublabel: 'Cognitive Sharding', icon: Brain, color: 'text-emerald-600' },
   { id: 'evidence', label: '可信证据链', sublabel: 'Evidence Chain', icon: Shield, color: 'text-teal-600' },
   { id: 'collaboration', label: '流体协作调度', sublabel: 'Fluid Router', icon: Network, color: 'text-cyan-600' },
@@ -177,20 +187,56 @@ function SidebarContent({ activeModule, sidebarCollapsed, theme, onNavigate, onT
   )
 }
 
+// Map WS event types to friendly Chinese labels
+const EVENT_LABELS: Record<WSEventType, string> = {
+  'task:updated': '任务更新',
+  'task:created': '新任务',
+  'shard:updated': '分片更新',
+  'simulation:completed': '模拟完成',
+  'node:status': '节点状态',
+  'notification': '通知',
+  'agent:status': '分身状态',
+  'agent:cycle': '周期事件',
+  'agent:output': '新产出',
+  'clone:activity': '分身活动',
+}
+
 export default function Home() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { theme, setTheme } = useTheme()
+  const { connected, lastEvent } = useWebSocket()
+  const lastToastRef = useRef<string | null>(null)
+  const { data: session } = useSession()
+  const [authModalOpen, setAuthModalOpen] = useState(false)
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')
   }
 
+  // Show toast on WebSocket events (with debounce to avoid spam)
+  useEffect(() => {
+    if (!lastEvent) return
+    const key = `${lastEvent.type}-${lastEvent.timestamp}`
+    if (key === lastToastRef.current) return
+    lastToastRef.current = key
+
+    const label = EVENT_LABELS[lastEvent.type] || lastEvent.type
+    const data = lastEvent.data as Record<string, unknown> | undefined
+    const message = data?.message || data?.title || ''
+
+    toast.info(`[${label}] ${message}`, {
+      duration: 3000,
+    })
+  }, [lastEvent])
+
   const renderModule = () => {
     switch (activeModule) {
       case 'dashboard':
         return <DashboardView onNavigate={setActiveModule} />
+      case 'avatar':
+        return <AvatarCloneView />
       case 'cognitive':
         return <CognitiveEngineView />
       case 'evidence':
@@ -289,15 +335,60 @@ export default function Home() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <Badge variant="secondary" className="text-[10px] h-6 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-0">
-              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              系统在线
+            <Badge
+              variant="secondary"
+              className={cn(
+                "text-[10px] h-6 border-0 transition-colors",
+                connected
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "bg-red-500/10 text-red-700 dark:text-red-400"
+              )}
+            >
+              {connected ? (
+                <Wifi className="mr-1 h-3 w-3" />
+              ) : (
+                <WifiOff className="mr-1 h-3 w-3" />
+              )}
+              {connected ? '实时连接' : '连接断开'}
             </Badge>
             <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground font-mono">
               <span>Phase 1</span>
               <span>·</span>
               <span>Day 18</span>
             </div>
+
+            {/* Auth button */}
+            {session?.user ? (
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 rounded-full border border-violet-200 dark:border-violet-800 bg-violet-500/10 px-2.5 py-1">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-[9px] font-bold text-white">
+                    {(session.user.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-[10px] font-medium text-violet-700 dark:text-violet-400 max-w-[60px] truncate">
+                    {session.user.name}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  title="退出登录"
+                >
+                  <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+                onClick={() => setAuthModalOpen(true)}
+              >
+                <UserCircle2 className="h-3.5 w-3.5" />
+                登录
+              </Button>
+            )}
           </div>
         </header>
 
@@ -327,6 +418,9 @@ export default function Home() {
 
       {/* Floating AI Chat Widget */}
       <AIChatWidget />
+
+      {/* Auth Modal */}
+      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
     </div>
   )
 }

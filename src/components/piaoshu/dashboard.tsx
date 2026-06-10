@@ -484,7 +484,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
-                      <p className="text-xl font-bold sm:text-2xl">
+                      <div className="text-xl font-bold sm:text-2xl">
                         {allLoading ? (
                           <Skeleton className="inline-block h-8 w-12" />
                         ) : (
@@ -495,7 +495,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                             </span>
                           </>
                         )}
-                      </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -701,7 +701,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           <div className="grid gap-4 sm:grid-cols-3">
             {displayRoadmapPhases.map((phase, index) => (
               <Card
-                key={phase.phase}
+                key={`roadmap-${phase.phase}-${index}`}
                 className={`relative overflow-hidden transition-colors ${
                   phase.status === 'active'
                     ? 'border-emerald-500/30 shadow-lg shadow-emerald-500/5'

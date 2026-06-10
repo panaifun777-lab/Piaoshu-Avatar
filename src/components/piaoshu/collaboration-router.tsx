@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  useDroppable,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+  type UniqueIdentifier,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   Network,
   Send,
@@ -26,7 +46,8 @@ import {
   Zap,
   ArrowRight,
 } from 'lucide-react'
-import { useTasks, useCreateTask } from '@/lib/api-hooks'
+import { useTasks, useCreateTask, useUpdateTask } from '@/lib/api-hooks'
+import { useWebSocket } from '@/lib/use-websocket'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -87,7 +108,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string; icon: Reac
   creative: { label: '创意', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: <Zap className="h-3 w-3" /> },
 }
 
-const NETWORK_NODES: NetworkNode[] = [
+const INITIAL_NETWORK_NODES: NetworkNode[] = [
   { id: 'n0', label: '创始人 (you)', type: 'founder', status: 'online' },
   { id: 'n1', label: 'AI-Analyst-01', type: 'ai', status: 'online' },
   { id: 'n2', label: 'AI-Coder-02', type: 'ai', status: 'online' },
@@ -246,19 +267,60 @@ function TaskCard({ task }: { task: ApiTask }) {
   )
 }
 
-function KanbanColumn({ title, count, tasks, accentColor }: { title: string; count: number; tasks: ApiTask[]; accentColor: string }) {
+// Sortable TaskCard wrapper
+function SortableTaskCard({ task }: { task: ApiTask }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  }
+
   return (
-    <div className="flex flex-col min-w-0">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={isDragging ? 'cursor-grabbing' : 'cursor-grab'}
+    >
+      <TaskCard task={task} />
+    </div>
+  )
+}
+
+function KanbanColumn({ id, title, count, tasks, accentColor, footer }: { id: string; title: string; count: number; tasks: ApiTask[]; accentColor: string; footer?: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col min-w-0 rounded-lg p-2 -m-2 transition-colors duration-200 ${
+        isOver ? 'bg-emerald-500/5 ring-1 ring-emerald-500/20' : ''
+      }`}
+    >
       <div className="flex items-center gap-2 mb-3 px-1">
         <span className={`h-2 w-2 rounded-full ${accentColor}`} />
         <h3 className="text-sm font-semibold">{title}</h3>
         <Badge variant="secondary" className="h-5 text-[10px] px-1.5 font-mono">{count}</Badge>
       </div>
-      <div className="flex flex-col gap-2.5 flex-1">
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
-        ))}
-      </div>
+      <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-2.5 flex-1">
+          {tasks.map((task) => (
+            <SortableTaskCard key={task.id} task={task} />
+          ))}
+        </div>
+      </SortableContext>
+      {footer}
     </div>
   )
 }
@@ -325,11 +387,106 @@ export function CollaborationRouterView() {
   const [rewardToken, setRewardToken] = useState('USDT')
   const [deadline, setDeadline] = useState('')
   const [assignment, setAssignment] = useState<Assignment | ''>('')
+  const [networkNodes, setNetworkNodes] = useState<NetworkNode[]>(INITIAL_NETWORK_NODES)
 
   const { data, isLoading, error } = useTasks()
   const createTask = useCreateTask()
+  const updateTask = useUpdateTask()
+  const queryClient = useQueryClient()
+  const { emit } = useWebSocket({
+    onEvent: useCallback((event) => {
+      switch (event.type) {
+        case 'task:updated':
+        case 'task:created':
+          // Invalidate react-query cache for tasks
+          queryClient.invalidateQueries({ queryKey: ['tasks'] })
+          break
+        case 'node:status': {
+          // Update network node status
+          const nodeData = event.data as { nodeId: string; status: 'online' | 'offline'; label?: string }
+          if (nodeData?.nodeId && nodeData?.status) {
+            setNetworkNodes(prev => prev.map(node =>
+              node.id === nodeData.nodeId
+                ? { ...node, status: nodeData.status, label: nodeData.label || node.label }
+                : node
+            ))
+          }
+          break
+        }
+      }
+    }, [queryClient]),
+  })
 
   const tasks = (data?.tasks ?? []) as ApiTask[]
+
+  // DnD state
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null)
+  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  )
+
+  // DnD handlers
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id)
+  }, [])
+
+  const handleDragOver = useCallback((_event: DragOverEvent) => {
+    // Visual feedback is handled by isOver on droppable columns
+  }, [])
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveId(null)
+
+    if (!over) return
+
+    // Determine target column - over.id could be a column id or a task id
+    const overId = over.id as string
+    let targetStatus: TaskStatus | null = null
+
+    // Check if dropped on a column directly
+    const columnIds: TaskStatus[] = ['open', 'in_progress', 'review', 'completed']
+    if (columnIds.includes(overId as TaskStatus)) {
+      targetStatus = overId as TaskStatus
+    } else {
+      // Dropped on a task - find that task's column
+      const overTask = tasks.find(t => t.id === overId)
+      if (overTask) {
+        targetStatus = mapTaskStatus(overTask.status)
+      }
+    }
+
+    if (!targetStatus) return
+
+    // Find the dragged task
+    const draggedTask = tasks.find(t => t.id === active.id as string)
+    if (!draggedTask) return
+
+    // Check if status actually changed
+    const currentStatus = mapTaskStatus(draggedTask.status)
+    if (currentStatus === targetStatus) return
+
+    // Update the task status
+    try {
+      await updateTask.mutateAsync({ id: draggedTask.id, status: targetStatus })
+      // Broadcast task update via WebSocket
+      emit('task:updated', { taskId: draggedTask.id, status: targetStatus, title: draggedTask.title })
+      toast.success(`任务已移至「${
+        targetStatus === 'open' ? '开放' :
+        targetStatus === 'in_progress' ? '进行中' :
+        targetStatus === 'review' ? '审核中' : '已完成'
+      }」`)
+    } catch {
+      toast.error('任务状态更新失败')
+    }
+  }, [tasks, updateTask, emit])
 
   // Group tasks by kanban status
   const kanbanGroups = useMemo(() => {
@@ -388,6 +545,8 @@ export function CollaborationRouterView() {
         assigneeType: assignment || undefined,
       })
       toast.success('任务发布成功')
+      // Broadcast task creation via WebSocket
+      emit('task:created', { taskId: 'new', title: taskTitle })
       setTaskTitle('')
       setTaskDesc('')
       setComplexity('')
@@ -420,7 +579,7 @@ export function CollaborationRouterView() {
           <StatCard
             icon={<Users className="h-5 w-5" />}
             label="在线节点"
-            value={NETWORK_NODES.filter(n => n.status === 'online').length}
+            value={networkNodes.filter(n => n.status === 'online').length}
             description="AI + 人类节点活跃"
           />
           <StatCard
@@ -598,7 +757,7 @@ export function CollaborationRouterView() {
           </div>
           <div>
             <h2 className="text-lg font-bold tracking-tight">任务看板</h2>
-            <p className="text-xs text-muted-foreground">任务全生命周期管理</p>
+            <p className="text-xs text-muted-foreground">任务全生命周期管理 · 拖拽卡片切换状态</p>
           </div>
         </div>
 
@@ -618,54 +777,73 @@ export function CollaborationRouterView() {
             <p className="text-sm">加载任务失败，请稍后重试</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {/* Open */}
-            <KanbanColumn
-              title="开放"
-              count={kanbanGroups.open.length}
-              tasks={kanbanGroups.open}
-              accentColor="bg-emerald-500"
-            />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+              {/* Open */}
+              <KanbanColumn
+                id="open"
+                title="开放"
+                count={kanbanGroups.open.length}
+                tasks={kanbanGroups.open}
+                accentColor="bg-emerald-500"
+              />
 
-            {/* In Progress */}
-            <KanbanColumn
-              title="进行中"
-              count={kanbanGroups.in_progress.length}
-              tasks={kanbanGroups.in_progress}
-              accentColor="bg-amber-500"
-            />
+              {/* In Progress */}
+              <KanbanColumn
+                id="in_progress"
+                title="进行中"
+                count={kanbanGroups.in_progress.length}
+                tasks={kanbanGroups.in_progress}
+                accentColor="bg-amber-500"
+              />
 
-            {/* Review */}
-            <KanbanColumn
-              title="审核中"
-              count={kanbanGroups.review.length}
-              tasks={kanbanGroups.review}
-              accentColor="bg-orange-500"
-            />
+              {/* Review */}
+              <KanbanColumn
+                id="review"
+                title="审核中"
+                count={kanbanGroups.review.length}
+                tasks={kanbanGroups.review}
+                accentColor="bg-orange-500"
+              />
 
-            {/* Completed */}
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-2 mb-3 px-1">
-                <span className="h-2 w-2 rounded-full bg-teal-500" />
-                <h3 className="text-sm font-semibold">已完成</h3>
-                <Badge variant="secondary" className="h-5 text-[10px] px-1.5 font-mono">{completedCount}</Badge>
-              </div>
-              <div className="flex flex-col gap-2.5 flex-1">
-                {kanbanGroups.completed.slice(0, 3).map((task) => (
-                  <TaskCard key={task.id} task={task} />
-                ))}
-                <Card className="border-dashed border-border/60 bg-muted/30">
-                  <CardContent className="p-4 flex flex-col items-center justify-center gap-2 text-center min-h-[100px]">
-                    <CheckCircle2 className="h-8 w-8 text-teal-500" />
-                    <p className="text-sm font-semibold">{completedCount} 个任务已完成</p>
-                    <p className="text-xs text-muted-foreground">
-                      已结算赏金: <span className="font-semibold text-teal-600 dark:text-teal-400">{completedTotalReward} USDT</span>
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Completed */}
+              <KanbanColumn
+                id="completed"
+                title="已完成"
+                count={completedCount}
+                tasks={kanbanGroups.completed}
+                accentColor="bg-teal-500"
+                footer={
+                  <Card className="border-dashed border-border/60 bg-muted/30 mt-2.5">
+                    <CardContent className="p-4 flex flex-col items-center justify-center gap-2 text-center min-h-[100px]">
+                      <CheckCircle2 className="h-8 w-8 text-teal-500" />
+                      <p className="text-sm font-semibold">{completedCount} 个任务已完成</p>
+                      <p className="text-xs text-muted-foreground">
+                        已结算赏金: <span className="font-semibold text-teal-600 dark:text-teal-400">{completedTotalReward} USDT</span>
+                      </p>
+                    </CardContent>
+                  </Card>
+                }
+              />
             </div>
-          </div>
+
+            <DragOverlay dropAnimation={{
+              duration: 200,
+              easing: 'ease',
+            }}>
+              {activeTask ? (
+                <div className="rotate-2 scale-105 shadow-xl shadow-emerald-500/10 rounded-lg">
+                  <TaskCard task={activeTask} />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </section>
 
@@ -713,7 +891,7 @@ export function CollaborationRouterView() {
             <div className="flex flex-col items-center gap-6">
               {/* Center founder node */}
               <div className="relative">
-                <NetworkNodeCard node={NETWORK_NODES[0]} isCenter />
+                <NetworkNodeCard node={networkNodes[0]} isCenter />
 
                 {/* Connection lines radiating outward - visual indicator */}
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-gradient-to-b from-amber-300 to-transparent dark:from-amber-600" />
@@ -728,7 +906,7 @@ export function CollaborationRouterView() {
 
               {/* Node grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                {NETWORK_NODES.slice(1).map((node) => (
+                {networkNodes.slice(1).map((node) => (
                   <div key={node.id} className="relative">
                     {/* Connection line to top */}
                     <div className={`absolute -top-3 left-1/2 -translate-x-1/2 w-px h-3 ${
@@ -746,15 +924,15 @@ export function CollaborationRouterView() {
             <div className="mt-5 pt-4 border-t border-border/40 flex flex-wrap gap-4 text-xs text-muted-foreground">
               <span>
                 <Bot className="inline h-3 w-3 mr-1" />
-                AI节点: <span className="font-semibold text-foreground">{NETWORK_NODES.filter(n => n.type === 'ai').length}</span>
+                AI节点: <span className="font-semibold text-foreground">{networkNodes.filter(n => n.type === 'ai').length}</span>
               </span>
               <span>
                 <Users className="inline h-3 w-3 mr-1" />
-                人类节点: <span className="font-semibold text-foreground">{NETWORK_NODES.filter(n => n.type === 'human').length}</span>
+                人类节点: <span className="font-semibold text-foreground">{networkNodes.filter(n => n.type === 'human').length}</span>
               </span>
               <span>
                 在线率: <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  {Math.round((NETWORK_NODES.filter(n => n.status === 'online').length / NETWORK_NODES.length) * 100)}%
+                  {Math.round((networkNodes.filter(n => n.status === 'online').length / networkNodes.length) * 100)}%
                 </span>
               </span>
             </div>

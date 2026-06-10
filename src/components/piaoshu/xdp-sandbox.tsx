@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,10 +18,6 @@ import {
   MousePointer,
   Mic,
   ArrowRight,
-  Play,
-  Pause,
-  RotateCcw,
-  Maximize2,
   Layers,
   Globe,
   Sparkles,
@@ -29,6 +26,12 @@ import {
   Move3d,
 } from 'lucide-react'
 import { useProjects, useCreateProject } from '@/lib/api-hooks'
+
+// Dynamic import for Three.js viewport (SSR disabled)
+const Sandbox3DViewport = dynamic(
+  () => import('./sandbox-3d-viewport').then((m) => ({ default: m.Sandbox3DViewport })),
+  { ssr: false }
+)
 
 // ---------------------------------------------------------------------------
 // Types
@@ -479,94 +482,7 @@ export function XDPSandboxView() {
           <h2 className="text-lg font-semibold">3D 视口预览</h2>
         </div>
 
-        <div className="relative overflow-hidden rounded-xl border border-emerald-700/30" style={{ background: '#0a0f1a' }}>
-          {/* Toolbar */}
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
-            <div className="flex items-center gap-2 text-xs text-white/60">
-              <Play className="h-3.5 w-3.5" />
-              <Pause className="h-3.5 w-3.5" />
-              <RotateCcw className="h-3.5 w-3.5" />
-            </div>
-            <div className="flex items-center gap-2 text-xs text-white/60">
-              <Maximize2 className="h-3.5 w-3.5" />
-            </div>
-          </div>
-
-          {/* 3D Viewport area */}
-          <div className="relative flex min-h-[420px] items-center justify-center overflow-hidden">
-            {/* CSS Grid floor */}
-            <div
-              className="absolute inset-0 opacity-20"
-              style={{
-                backgroundImage:
-                  'linear-gradient(rgba(16,185,129,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,.35) 1px, transparent 1px)',
-                backgroundSize: '48px 48px',
-                transform: 'perspective(600px) rotateX(55deg)',
-                transformOrigin: 'center 80%',
-              }}
-            />
-
-            {/* Floating UI element - product card */}
-            <div
-              className="absolute left-1/2 top-1/3 z-10 w-52 -translate-x-1/2 -translate-y-1/2 rounded-lg border border-emerald-500/30 bg-emerald-950/80 p-3 shadow-lg shadow-emerald-500/10 backdrop-blur-sm"
-              style={{ transform: 'translate(-50%, -50%) perspective(800px) rotateY(-8deg) rotateX(4deg)' }}
-            >
-              <div className="mb-2 h-2 w-16 rounded-full bg-emerald-500/40" />
-              <div className="mb-1 h-2 w-28 rounded-full bg-white/20" />
-              <div className="mb-2 h-2 w-20 rounded-full bg-white/10" />
-              <div className="flex gap-1.5">
-                <span className="inline-block rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] text-emerald-400">
-                  3D
-                </span>
-                <span className="inline-block rounded bg-white/10 px-1.5 py-0.5 text-[9px] text-white/60">
-                  Interactive
-                </span>
-              </div>
-            </div>
-
-            {/* Floating UI element - nav node */}
-            <div
-              className="absolute right-1/4 top-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-teal-400/40 bg-teal-900/60 shadow-lg shadow-teal-500/10 backdrop-blur-sm"
-              style={{ transform: 'translate(50%, -50%) perspective(600px) translateZ(20px)' }}
-            >
-              <Globe className="h-4 w-4 text-teal-400" />
-            </div>
-
-            {/* Floating UI element - data panel */}
-            <div
-              className="absolute bottom-1/4 left-1/4 z-10 w-40 rounded-md border border-emerald-500/20 bg-emerald-950/70 p-2 shadow-md backdrop-blur-sm"
-              style={{ transform: 'perspective(600px) rotateY(6deg) rotateX(-3deg)' }}
-            >
-              <div className="mb-1.5 flex items-center gap-1">
-                <Code className="h-3 w-3 text-emerald-400" />
-                <span className="text-[10px] font-medium text-emerald-400">Data</span>
-              </div>
-              <div className="space-y-1">
-                <div className="h-1.5 w-full rounded-full bg-white/10">
-                  <div className="h-1.5 w-3/4 rounded-full bg-emerald-500/60" />
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-white/10">
-                  <div className="h-1.5 w-1/2 rounded-full bg-teal-500/60" />
-                </div>
-              </div>
-            </div>
-
-            {/* Orbit controls hint */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[11px] text-white/40 backdrop-blur-sm">
-              拖拽旋转 · 滚轮缩放 · 右键平移
-            </div>
-
-            {/* Top-left overlay */}
-            <div className="absolute left-4 top-4 rounded-md border border-emerald-500/30 bg-emerald-950/70 px-3 py-1.5 text-xs font-medium text-emerald-400 backdrop-blur-sm">
-              {projects.length > 0 ? `${projects[0].name}` : 'SpaceUI-v2'} &nbsp;|&nbsp; Interactive Mode
-            </div>
-
-            {/* Top-right overlay */}
-            <div className="absolute right-4 top-4 rounded-md border border-white/10 bg-black/40 px-3 py-1.5 text-[11px] tabular-nums text-white/50 backdrop-blur-sm">
-              FPS: 60 &nbsp;|&nbsp; Draw Calls: 42
-            </div>
-          </div>
-        </div>
+        <Sandbox3DViewport projectName={projects[0]?.name} />
       </section>
 
       {/* ================================================================= */}

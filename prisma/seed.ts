@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import bcrypt from 'bcryptjs'
 
 async function seed() {
   console.log('🌱 Seeding piaoshu founder system...')
@@ -263,6 +264,163 @@ async function seed() {
     })
   }
   console.log('✅ Roadmap phases and milestones created')
+
+  // ===== Avatar/Clone System Seed Data =====
+  console.log('🌱 Seeding Avatar/Clone system...')
+
+  // Create demo user with bcrypt-hashed password
+  const demoPasswordHash = await bcrypt.hash('demo123', 10)
+  const demoUser = await db.user.upsert({
+    where: { email: 'demo@piaoshu.ai' },
+    update: {},
+    create: {
+      email: 'demo@piaoshu.ai',
+      name: '飘叔',
+      passwordHash: demoPasswordHash,
+      bio: 'Web4.0 AI原生创业先驱 - 数字分身系统体验账号',
+      plan: 'pro',
+    },
+  })
+  console.log('✅ Demo user created:', demoUser.name)
+
+  // Create AvatarClone for demo user
+  const demoClone = await db.avatarClone.upsert({
+    where: { userId: demoUser.id },
+    update: {},
+    create: {
+      userId: demoUser.id,
+      name: '飘叔',
+      persona: '你是飘叔的数字AI分身。飘叔是一个连续创业者，具备敏锐的商业直觉和深厚的技术功底。你的决策风格果断但审慎，善于在不确定性中找到方向。你关注AI原生产品的构建，推崇简洁优雅的技术方案，重视用户价值和数据驱动。你的口头禅是"少说多做，让数据说话"。',
+      avatarStyle: 'realistic',
+      status: 'active',
+      level: 5,
+      experience: 120,
+      totalCycles: 42,
+      lastActiveAt: new Date(),
+    },
+  })
+  console.log('✅ AvatarClone created:', demoClone.name)
+
+  // Create 4 default agents for the demo clone
+  const defaultAgents = [
+    {
+      name: 'CEO',
+      role: 'ceo',
+      persona: '你是飘叔的CEO分身。你负责战略决策、愿景规划、合作伙伴关系管理。你具备宏观视野，能够从全局角度评估风险和机遇。你的决策风格果断但审慎，善于在不确定性中找到方向。你信奉"先做减法再做加法"的策略哲学。',
+      status: 'idle',
+      level: 4,
+      experience: 85,
+      cycleCount: 15,
+      config: JSON.stringify({ color: '#f59e0b', icon: 'crown' }),
+    },
+    {
+      name: 'CTO',
+      role: 'cto',
+      persona: '你是飘叔的CTO分身。你负责技术架构、代码审查、技术债务管理。你对系统设计有深刻的理解，擅长在速度和质量之间找到平衡。你推崇简洁优雅的技术方案，信奉"好的架构是长出来的，不是设计出来的"。',
+      status: 'idle',
+      level: 4,
+      experience: 92,
+      cycleCount: 18,
+      config: JSON.stringify({ color: '#06b6d4', icon: 'cpu' }),
+    },
+    {
+      name: 'Growth',
+      role: 'growth',
+      persona: '你是飘叔的增长引擎分身。你负责市场营销、用户获取、数据分析。你善于从数据中发现增长机会，擅长制定和执行增长策略。你关注用户转化漏斗的每一个环节，信奉"增长是系统的输出，不是灵感的产物"。',
+      status: 'idle',
+      level: 3,
+      experience: 60,
+      cycleCount: 10,
+      config: JSON.stringify({ color: '#10b981', icon: 'rocket' }),
+    },
+    {
+      name: 'Engineer',
+      role: 'engineer',
+      persona: '你是飘叔的工程执行分身。你负责代码实现、部署运维、CI/CD流水线。你是一个高效的执行者，善于将设计方案转化为高质量的代码。你关注代码质量和系统稳定性，信奉"快速交付不等于粗糙交付"。',
+      status: 'idle',
+      level: 3,
+      experience: 70,
+      cycleCount: 12,
+      config: JSON.stringify({ color: '#14b8a6', icon: 'wrench' }),
+    },
+  ]
+
+  for (const agentData of defaultAgents) {
+    await db.cloneAgent.create({
+      data: {
+        cloneId: demoClone.id,
+        ...agentData,
+        lastCycleAt: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
+      },
+    })
+  }
+  console.log('✅ Default agents created:', defaultAgents.length)
+
+  // Create default skills for the demo clone
+  const defaultSkills = [
+    { name: 'code_writing', category: 'engineering', level: 5, experience: 200, description: '编写高质量代码，支持多种编程语言' },
+    { name: 'email_automation', category: 'operations', level: 3, experience: 80, description: '自动化邮件处理、分类和回复' },
+    { name: 'deployment', category: 'engineering', level: 4, experience: 150, description: '自动化部署、CI/CD流水线管理' },
+    { name: 'metrics_analysis', category: 'marketing', level: 3, experience: 90, description: '数据指标分析、趋势洞察和报告生成' },
+    { name: 'design_review', category: 'design', level: 2, experience: 40, description: 'UI/UX设计评审和改进建议' },
+    { name: 'strategic_planning', category: 'operations', level: 4, experience: 120, description: '战略规划、目标设定和路径推演' },
+    { name: 'content_creation', category: 'marketing', level: 3, experience: 75, description: '营销文案、博客文章和社交媒体内容创作' },
+    { name: 'risk_assessment', category: 'operations', level: 3, experience: 60, description: '项目风险评估、红蓝对抗分析' },
+  ]
+
+  for (const skillData of defaultSkills) {
+    await db.cloneSkill.create({
+      data: {
+        cloneId: demoClone.id,
+        ...skillData,
+      },
+    })
+  }
+  console.log('✅ Default skills created:', defaultSkills.length)
+
+  // Create sample activities
+  const sampleActivities = [
+    { activityType: 'clone_created', title: '数字分身创建成功', description: '飘叔的AI分身已激活，包含4个角色化代理', metadata: JSON.stringify({ agentCount: 4 }) },
+    { activityType: 'cycle_completed', title: 'CEO完成周期#15', description: '战略规划周期完成：确定Q2产品方向，聚焦AI Agent赛道', agentId: undefined },
+    { activityType: 'output_created', title: 'CTO产出架构方案', description: '微服务架构升级方案v2.1已提交审阅', agentId: undefined },
+    { activityType: 'skill_upgraded', title: '技能code_writing升级至Lv.5', description: '基于42次代码输出经验升级', metadata: JSON.stringify({ skill: 'code_writing', level: 5 }) },
+    { activityType: 'cycle_completed', title: 'Growth完成周期#10', description: '增长分析周期完成：月活环比增长23%', agentId: undefined },
+    { activityType: 'agent_added', title: '新增Designer代理', description: 'UI/UX设计代理已加入团队', metadata: JSON.stringify({ role: 'designer' }) },
+    { activityType: 'cycle_completed', title: 'Engineer完成周期#12', description: '工程执行周期完成：3个功能已部署至生产环境', agentId: undefined },
+    { activityType: 'output_created', title: 'Growth产出增长报告', description: '3月用户增长分析报告已生成', agentId: undefined },
+    { activityType: 'schedule_generated', title: '今日日程已生成', description: '为4个代理安排了工作日程', metadata: JSON.stringify({ date: new Date().toISOString().split('T')[0] }) },
+    { activityType: 'skill_upgraded', title: '技能deployment升级至Lv.4', description: '基于连续15次成功部署经验升级', metadata: JSON.stringify({ skill: 'deployment', level: 4 }) },
+  ]
+
+  for (const activityData of sampleActivities) {
+    await db.cloneActivity.create({
+      data: {
+        cloneId: demoClone.id,
+        ...activityData,
+        createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
+      },
+    })
+  }
+  console.log('✅ Sample activities created:', sampleActivities.length)
+
+  // Create a sample daily schedule for today
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  await db.dailySchedule.create({
+    data: {
+      cloneId: demoClone.id,
+      day: today,
+      timeSlots: JSON.stringify([
+        { time: '09:00-10:30', agent: 'CEO', task: '审查Q2战略执行进度', priority: 'high', status: 'pending' },
+        { time: '10:30-12:00', agent: 'CTO', task: '微服务架构升级方案评审', priority: 'high', status: 'pending' },
+        { time: '13:00-14:30', agent: 'Growth', task: '分析3月用户增长数据', priority: 'medium', status: 'pending' },
+        { time: '14:30-16:00', agent: 'Engineer', task: '部署v2.1.0至生产环境', priority: 'high', status: 'pending' },
+        { time: '16:00-17:30', agent: 'CEO', task: '团队周会与复盘', priority: 'medium', status: 'pending' },
+      ]),
+      status: 'planned',
+    },
+  })
+  console.log('✅ Sample daily schedule created')
 
   console.log('🎉 Seeding complete!')
 }

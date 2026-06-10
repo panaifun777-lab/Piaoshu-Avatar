@@ -218,9 +218,157 @@ export function useNotifications() {
 }
 
 // ===== Memories =====
-export function useMemories() {
+export function useMemories(agentId?: string) {
   return useQuery({
-    queryKey: ['memories'],
-    queryFn: () => apiFetch<{ memories: unknown[]; total: number; continuity: number }>('/api/cognitive/memory'),
+    queryKey: ['memories', agentId],
+    queryFn: () => apiFetch<{ memories: unknown[]; total: number; continuity: number; memoryChains?: unknown[] }>(
+      agentId ? `/api/cognitive/memory?agentId=${agentId}` : '/api/cognitive/memory'
+    ),
+  })
+}
+
+// ===== Agent Roles =====
+export function useAgentRoles() {
+  return useQuery({
+    queryKey: ['agentRoles'],
+    queryFn: () => apiFetch<{ agents: unknown[] }>('/api/cognitive/agents'),
+  })
+}
+
+export function useCreateAgentRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; persona?: string; capabilities?: string[] }) =>
+      apiFetch('/api/cognitive/agents', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agentRoles'] }),
+  })
+}
+
+export function useUpdateAgentRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/cognitive/agents/${data.id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agentRoles'] }),
+  })
+}
+
+export function useDeleteAgentRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/cognitive/agents/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agentRoles'] }),
+  })
+}
+
+export function useTriggerCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { agentId: string }) =>
+      apiFetch(`/api/cognitive/agents/${data.agentId}/cycle`, { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agentRoles'] })
+      qc.invalidateQueries({ queryKey: ['memories'] })
+    },
+  })
+}
+
+export function useAgentCycles(agentId: string) {
+  return useQuery({
+    queryKey: ['agentCycles', agentId],
+    queryFn: () => apiFetch<{ cycles: unknown[] }>(`/api/cognitive/agents/${agentId}/cycle`),
+    enabled: !!agentId,
+  })
+}
+
+// ===== Avatar Clone =====
+export function useAvatarClone() {
+  return useQuery({
+    queryKey: ['avatarClone'],
+    queryFn: () => apiFetch<{ clone: unknown }>('/api/avatar'),
+  })
+}
+
+export function useCreateClone() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; persona?: string }) =>
+      apiFetch('/api/avatar', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['avatarClone'] }),
+  })
+}
+
+export function useCloneAgents() {
+  return useQuery({
+    queryKey: ['cloneAgents'],
+    queryFn: () => apiFetch<{ agents: unknown[] }>('/api/avatar/agents'),
+  })
+}
+
+export function useAddCloneAgent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; role: string; persona?: string }) =>
+      apiFetch('/api/avatar/agents', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cloneAgents'] }),
+  })
+}
+
+export function useUpdateCloneAgent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/avatar/agents/${data.id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cloneAgents'] }),
+  })
+}
+
+export function useTriggerCloneCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { agentId: string }) =>
+      apiFetch(`/api/avatar/agents/${data.agentId}/cycle`, { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cloneAgents'] })
+      qc.invalidateQueries({ queryKey: ['cloneOutputs'] })
+      qc.invalidateQueries({ queryKey: ['cloneActivities'] })
+    },
+  })
+}
+
+export function useCloneSkills() {
+  return useQuery({
+    queryKey: ['cloneSkills'],
+    queryFn: () => apiFetch<{ skills: unknown[] }>('/api/avatar/skills'),
+  })
+}
+
+export function useCloneActivities() {
+  return useQuery({
+    queryKey: ['cloneActivities'],
+    queryFn: () => apiFetch<{ activities: unknown[] }>('/api/avatar/activities'),
+  })
+}
+
+export function useCloneSchedule() {
+  return useQuery({
+    queryKey: ['cloneSchedule'],
+    queryFn: () => apiFetch<{ schedule: unknown }>('/api/avatar/schedule'),
+  })
+}
+
+export function useGenerateSchedule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch('/api/avatar/schedule', { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['cloneSchedule'] }),
+  })
+}
+
+export function useCloneOutputs() {
+  return useQuery({
+    queryKey: ['cloneOutputs'],
+    queryFn: () => apiFetch<{ outputs: unknown[] }>('/api/avatar/outputs'),
   })
 }

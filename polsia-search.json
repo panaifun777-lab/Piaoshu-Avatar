@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.youtube.com/watch?v=TqC1qOfiVcQ",
+    "name": "Claude Agent SDK [Full Workshop] — Thariq Shihipar, Anthropic",
+    "snippet": "... Claude Agent SDK (formerly Claude Code SDK) for AI-powered development workflows! https://platform.claude ... How AI agents & Claude ...",
+    "host_name": "www.youtube.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cobusgreyling.medium.com/building-specialised-ai-agents-using-claude-agent-sdk-b4bb8562956e",
+    "name": "Building Specialised AI Agents using Claude Agent SDK",
+    "snippet": "The Claude Agent SDK lets you build purpose-built AI Agents in Python. Each agent gets its own system prompt, its own tool set and its own ...",
+    "host_name": "cobusgreyling.medium.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://code.claude.com/docs/en/agent-sdk/overview",
+    "name": "Agent SDK overview - Claude Code Docs",
+    "snippet": "See Use the Claude Agent SDK with your Claude plan for details. Build AI agents that autonomously read files, run commands, search the web, edit code, and more.",
+    "host_name": "code.claude.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/pulse/building-specialised-ai-agents-using-claude-agentsdk-cobus-greyling-uvcrf",
+    "name": "Building Specialised AI Agents using Claude Agent SDK - LinkedIn",
+    "snippet": "The Claude Agent SDK lets you build purpose-built AI Agents in Python. Each agent gets its own system prompt, its own tool set and its own scope",
+    "host_name": "www.linkedin.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ClaudeCode/comments/1qer5rn/built_a_self_managing_agent_using_claude_agent_sdk",
+    "name": "Built a self managing agent using Claude agent sdk - Reddit",
+    "snippet": "I built an AI agent that builds automations like n8n and zapier using OpenAI's Agents SDK. ... Building an AI Prospector with Claude Agent ...",
+    "host_name": "www.reddit.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://sidsaladi.substack.com/p/claude-code-agents-101-build-your",
+    "name": "Build Your First AI Agent from Scratch (+ 75 Copy-Paste Prompts)",
+    "snippet": "Claude Code wins for agents because of four things: Native sub-agent support — built into the platform, not bolted on. The richest MCP ecosystem ...",
+    "host_name": "sidsaladi.substack.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.anthropic.com/research/measuring-agent-autonomy",
+    "name": "Measuring AI agent autonomy in practice - Anthropic",
+    "snippet": "This makes Claude Code especially useful for studying autonomy—for example, how long agents run without human intervention, what triggers ...",
+    "host_name": "www.anthropic.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.contextstudios.ai/blog/polsia-how-a-solo-founder-hit-1m-arr-in-30-days-with-ai-agents",
+    "name": "Polsia: How a Solo Founder Hit $1M ARR in 30 Days With AI Agents",
+    "snippet": "MCP (Model Context Protocol), Claude Code, OpenAI Agents SDK — the infrastructure for autonomous AI agents now exists as commodity. What was ...",
+    "host_name": "www.contextstudios.ai",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.pluralsight.com/professional-services/data-machine-learning/build-ai-agents-with-claude-agent-sdk",
+    "name": "Build AI Agents with Claude Agent SDK - Pluralsight",
+    "snippet": "This course is designed to transition developers from building simple chatbots to engineering autonomous systems that can navigate filesystems, ...",
+    "host_name": "www.pluralsight.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.developersdigest.tech/guides/ai-agent-frameworks-compared",
+    "name": "AI Agent Frameworks Compared: LangGraph vs CrewAI vs Mastra",
+    "snippet": "Deep comparison of the top AI agent frameworks - LangGraph, CrewAI, Mastra, CopilotKit, AutoGen, and Claude Code.",
+    "host_name": "www.developersdigest.tech",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
