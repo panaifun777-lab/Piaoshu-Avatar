@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Target,
   CheckCircle2,
@@ -28,25 +29,29 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react'
+import { useRoadmap } from '@/lib/api-hooks'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type MilestoneStatus = 'completed' | 'in_progress' | 'pending'
 
-interface Milestone {
-  label: string
-  status: MilestoneStatus
+interface ApiPhase {
+  id: string
+  phase: number
+  name: string
+  startDate: string
+  endDate: string
+  status: string
+  milestones: ApiMilestone[]
 }
 
-interface Phase {
-  id: number
+interface ApiMilestone {
+  id: string
   title: string
-  period: string
-  status: 'active' | 'pending'
-  progress: number
-  goal: string
-  criteria: string
-  milestones: Milestone[]
+  description?: string | null
+  targetDate: string
+  status: string
+  order: number
 }
 
 interface Metric {
@@ -57,67 +62,7 @@ interface Metric {
   phase: string
 }
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-const phases: Phase[] = [
-  {
-    id: 1,
-    title: '基建与协议验证',
-    period: 'D1-D30',
-    status: 'active',
-    progress: 60,
-    goal:
-      '实现"输入一段访谈记录 → 自动提取假设 → 生成带哈希的VC凭证"',
-    criteria: '凭证生成时间 < 2秒，链上查询延迟 < 500ms',
-    milestones: [
-      { label: '搭建 Qdrant 向量库', status: 'completed' },
-      { label: '接入 W3C VC 签发模块', status: 'completed' },
-      { label: '定义证据数据模型', status: 'completed' },
-      { label: '实现访谈记录→假设提取管道', status: 'in_progress' },
-      { label: '凭证生成性能优化', status: 'pending' },
-      { label: '链上查询延迟测试', status: 'pending' },
-      { label: 'Benchmark 验收', status: 'pending' },
-    ],
-  },
-  {
-    id: 2,
-    title: '认知分身MVP',
-    period: 'D31-D60',
-    status: 'pending',
-    progress: 0,
-    goal:
-      '上线"虚拟红蓝对抗"功能。输入新想法，分身必须输出至少3个致命漏洞',
-    criteria:
-      '分身找出的漏洞，经人工复核，准确率需 > 70%。达不到就换基座模型',
-    milestones: [
-      { label: '导入创始人过去3年决策日志', status: 'pending' },
-      { label: '导入Code Review记录和项目文档', status: 'pending' },
-      { label: '训练首个LoRA适配器', status: 'pending' },
-      { label: '实现红蓝对抗交互界面', status: 'pending' },
-      { label: '人工复核准确率测试', status: 'pending' },
-      { label: '基座模型评估与切换', status: 'pending' },
-    ],
-  },
-  {
-    id: 3,
-    title: '流体协作闭环',
-    period: 'D61-D90',
-    status: 'pending',
-    progress: 0,
-    goal:
-      '验证"任务发布 → 节点接单 → 代码提交 → 自动化审计 → 微支付结算"全链路',
-    criteria:
-      '完成至少10次无摩擦的外部协作。系统无资金卡死或权限越界Bug',
-    milestones: [
-      { label: '接入外部开发者节点', status: 'pending' },
-      { label: '发布首个基于微支付的开源任务', status: 'pending' },
-      { label: '实现自动化CI/CD管道', status: 'pending' },
-      { label: '安全扫描集成', status: 'pending' },
-      { label: '微支付结算网关上线', status: 'pending' },
-      { label: '10次协作全链路验收测试', status: 'pending' },
-    ],
-  },
-]
+// ─── Static Data (metrics) ───────────────────────────────────────────────────
 
 const metrics: Metric[] = [
   { label: '凭证生成时间', value: '1.8s', target: '< 2s', status: 'pass', phase: 'Phase 1' },
@@ -128,25 +73,52 @@ const metrics: Metric[] = [
   { label: '权限越界Bug', value: '0', target: '0', status: 'pass', phase: '全局' },
 ]
 
+// Phase descriptions and criteria (static supplementary data)
+const PHASE_DETAILS: Record<number, { goal: string; criteria: string; period: string }> = {
+  1: {
+    goal: '实现"输入一段访谈记录 → 自动提取假设 → 生成带哈希的VC凭证"',
+    criteria: '凭证生成时间 < 2秒，链上查询延迟 < 500ms',
+    period: 'D1-D30',
+  },
+  2: {
+    goal: '上线"虚拟红蓝对抗"功能。输入新想法，分身必须输出至少3个致命漏洞',
+    criteria: '分身找出的漏洞，经人工复核，准确率需 > 70%。达不到就换基座模型',
+    period: 'D31-D60',
+  },
+  3: {
+    goal: '验证"任务发布 → 节点接单 → 代码提交 → 自动化审计 → 微支付结算"全链路',
+    criteria: '完成至少10次无摩擦的外部协作。系统无资金卡死或权限越界Bug',
+    period: 'D61-D90',
+  },
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function MilestoneIcon({ status }: { status: MilestoneStatus }) {
+function MilestoneIcon({ status }: { status: string }) {
   switch (status) {
     case 'completed':
       return <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
     case 'in_progress':
       return <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-500" />
-    case 'pending':
+    default:
       return <Circle className="h-4 w-4 shrink-0 text-muted-foreground/40" />
   }
 }
 
-function StatusBadge({ status }: { status: 'active' | 'pending' }) {
+function StatusBadge({ status }: { status: string }) {
   if (status === 'active') {
     return (
       <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
         <Zap className="mr-1 h-3 w-3" />
         进行中
+      </Badge>
+    )
+  }
+  if (status === 'completed') {
+    return (
+      <Badge className="bg-teal-100 text-teal-700 hover:bg-teal-100 border-teal-200">
+        <CheckCircle2 className="mr-1 h-3 w-3" />
+        已完成
       </Badge>
     )
   }
@@ -158,7 +130,7 @@ function StatusBadge({ status }: { status: 'active' | 'pending' }) {
   )
 }
 
-function PhaseCard({ phase }: { phase: Phase }) {
+function PhaseCard({ phase, details }: { phase: ApiPhase; details?: { goal: string; criteria: string; period: string } }) {
   const [expanded, setExpanded] = useState(phase.status === 'active')
 
   const completedCount = phase.milestones.filter(
@@ -166,10 +138,17 @@ function PhaseCard({ phase }: { phase: Phase }) {
   ).length
   const totalCount = phase.milestones.length
 
+  // Compute progress from milestone completion ratio
+  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
   const phaseColor =
     phase.status === 'active'
       ? 'border-emerald-200 bg-emerald-50/30'
+      : phase.status === 'completed'
+      ? 'border-teal-200 bg-teal-50/20'
       : 'border-border'
+
+  const periodLabel = details?.period ?? `${phase.startDate?.slice(0, 10) ?? ''} - ${phase.endDate?.slice(0, 10) ?? ''}`
 
   return (
     <Card className={`transition-all duration-200 ${phaseColor}`}>
@@ -183,24 +162,24 @@ function PhaseCard({ phase }: { phase: Phase }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               <Flag className="h-3.5 w-3.5" />
-              Phase {phase.id}
+              Phase {phase.phase}
             </span>
             <span className="text-lg font-semibold tracking-tight">
-              {phase.title}
+              {phase.name}
             </span>
             <Badge variant="outline" className="font-mono text-xs">
-              {phase.period}
+              {periodLabel}
             </Badge>
             <StatusBadge status={phase.status} />
           </div>
           {/* Progress mini bar */}
           <div className="mt-2 flex items-center gap-3">
             <Progress
-              value={phase.progress}
+              value={progress}
               className="h-2 flex-1"
             />
             <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {completedCount}/{totalCount} 里程碑 · {phase.progress}%
+              {completedCount}/{totalCount} 里程碑 · {progress}%
             </span>
           </div>
         </CardHeader>
@@ -219,61 +198,69 @@ function PhaseCard({ phase }: { phase: Phase }) {
           <Separator />
 
           {/* Goal */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-              <Target className="h-4 w-4 text-emerald-600" />
-              目标
-            </div>
-            <p className="pl-5.5 text-sm text-muted-foreground leading-relaxed">
-              {phase.goal}
-            </p>
-          </div>
+          {details && (
+            <>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  <Target className="h-4 w-4 text-emerald-600" />
+                  目标
+                </div>
+                <p className="pl-5.5 text-sm text-muted-foreground leading-relaxed">
+                  {details.goal}
+                </p>
+              </div>
 
-          {/* Criteria */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              验收标准
-            </div>
-            <p className="pl-5.5 text-sm text-muted-foreground leading-relaxed">
-              {phase.criteria}
-            </p>
-          </div>
+              {/* Criteria */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  验收标准
+                </div>
+                <p className="pl-5.5 text-sm text-muted-foreground leading-relaxed">
+                  {details.criteria}
+                </p>
+              </div>
 
-          <Separator />
+              <Separator />
+            </>
+          )}
 
           {/* Milestones checklist */}
           <div className="space-y-1.5">
             <div className="text-sm font-medium text-foreground mb-2">
               里程碑清单
             </div>
-            {phase.milestones.map((milestone, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/50"
-              >
-                <MilestoneIcon status={milestone.status} />
-                <span
-                  className={`text-sm ${
-                    milestone.status === 'completed'
-                      ? 'text-muted-foreground line-through'
-                      : milestone.status === 'in_progress'
-                      ? 'text-foreground font-medium'
-                      : 'text-muted-foreground'
-                  }`}
+            {phase.milestones.length === 0 ? (
+              <p className="text-sm text-muted-foreground">暂无里程碑</p>
+            ) : (
+              phase.milestones.map((milestone) => (
+                <div
+                  key={milestone.id}
+                  className="flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/50"
                 >
-                  {milestone.label}
-                </span>
-                {milestone.status === 'in_progress' && (
-                  <Badge
-                    variant="outline"
-                    className="ml-auto text-[10px] border-amber-300 text-amber-600 bg-amber-50"
+                  <MilestoneIcon status={milestone.status} />
+                  <span
+                    className={`text-sm ${
+                      milestone.status === 'completed'
+                        ? 'text-muted-foreground line-through'
+                        : milestone.status === 'in_progress'
+                        ? 'text-foreground font-medium'
+                        : 'text-muted-foreground'
+                    }`}
                   >
-                    进行中
-                  </Badge>
-                )}
-              </div>
-            ))}
+                    {milestone.title}
+                  </span>
+                  {milestone.status === 'in_progress' && (
+                    <Badge
+                      variant="outline"
+                      className="ml-auto text-[10px] border-amber-300 text-amber-600 bg-amber-50"
+                    >
+                      进行中
+                    </Badge>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       )}
@@ -284,9 +271,44 @@ function PhaseCard({ phase }: { phase: Phase }) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function RoadmapTrackerView() {
-  const currentDay = 18
-  const totalDays = 90
-  const overallProgress = Math.round((currentDay / totalDays) * 100)
+  const { data, isLoading, error } = useRoadmap()
+
+  const apiPhases = (data?.phases ?? []) as ApiPhase[]
+
+  // Sort phases by phase number
+  const sortedPhases = useMemo(() => {
+    return [...apiPhases].sort((a, b) => a.phase - b.phase)
+  }, [apiPhases])
+
+  // Compute overall progress
+  const totalMilestones = sortedPhases.reduce((sum, p) => sum + p.milestones.length, 0)
+  const completedMilestones = sortedPhases.reduce(
+    (sum, p) => sum + p.milestones.filter((m) => m.status === 'completed').length,
+    0
+  )
+
+  // Find the current day based on active phase
+  const activePhase = sortedPhases.find((p) => p.status === 'active')
+  let currentDay = 1
+  let totalDays = 90
+
+  if (activePhase) {
+    const start = new Date(activePhase.startDate)
+    const end = new Date(activePhase.endDate)
+    const now = new Date()
+    totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    const elapsed = Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    currentDay = Math.max(1, Math.min(elapsed, totalDays))
+
+    // Overall day offset
+    const dayOffset = (activePhase.phase - 1) * 30
+    currentDay = dayOffset + currentDay
+    totalDays = 90
+  }
+
+  const overallProgress = totalMilestones > 0
+    ? Math.round((completedMilestones / totalMilestones) * 100)
+    : Math.round((currentDay / totalDays) * 100)
 
   return (
     <div className="space-y-6">
@@ -308,7 +330,7 @@ export function RoadmapTrackerView() {
                 第 {currentDay} 天
               </Badge>
               <Badge variant="outline" className="font-mono text-xs">
-                Phase 1 进行中
+                {activePhase ? `Phase ${activePhase.phase} 进行中` : '待启动'}
               </Badge>
             </div>
           </div>
@@ -337,31 +359,55 @@ export function RoadmapTrackerView() {
             </div>
           </div>
           {/* Phase summaries */}
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            {phases.map((p) => (
-              <div
-                key={p.id}
-                className={`rounded-lg border p-3 text-center transition-colors ${
-                  p.status === 'active'
-                    ? 'border-emerald-300 bg-emerald-50/60'
-                    : 'border-border bg-muted/30'
-                }`}
-              >
-                <div className="text-[11px] font-medium text-muted-foreground">
-                  Phase {p.id}
+          <div className={`grid gap-3 pt-2 ${sortedPhases.length > 0 ? 'grid-cols-' + Math.min(sortedPhases.length, 3) : 'grid-cols-3'}`}
+            style={{ gridTemplateColumns: `repeat(${Math.max(sortedPhases.length, 1)}, minmax(0, 1fr))` }}
+          >
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-lg border p-3 text-center">
+                  <Skeleton className="h-4 w-14 mx-auto mb-2" />
+                  <Skeleton className="h-7 w-10 mx-auto mb-1" />
+                  <Skeleton className="h-3 w-20 mx-auto" />
                 </div>
-                <div
-                  className={`text-lg font-bold ${
-                    p.status === 'active' ? 'text-emerald-700' : 'text-muted-foreground/60'
-                  }`}
-                >
-                  {p.progress}%
-                </div>
-                <div className="text-[10px] text-muted-foreground truncate">
-                  {p.title}
-                </div>
+              ))
+            ) : sortedPhases.length === 0 ? (
+              <div className="col-span-3 text-center py-4 text-muted-foreground text-sm">
+                暂无阶段数据
               </div>
-            ))}
+            ) : (
+              sortedPhases.map((p) => {
+                const pCompleted = p.milestones.filter((m) => m.status === 'completed').length
+                const pTotal = p.milestones.length
+                const pProgress = pTotal > 0 ? Math.round((pCompleted / pTotal) * 100) : 0
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`rounded-lg border p-3 text-center transition-colors ${
+                      p.status === 'active'
+                        ? 'border-emerald-300 bg-emerald-50/60'
+                        : p.status === 'completed'
+                        ? 'border-teal-300 bg-teal-50/40'
+                        : 'border-border bg-muted/30'
+                    }`}
+                  >
+                    <div className="text-[11px] font-medium text-muted-foreground">
+                      Phase {p.phase}
+                    </div>
+                    <div
+                      className={`text-lg font-bold ${
+                        p.status === 'active' ? 'text-emerald-700' : p.status === 'completed' ? 'text-teal-700' : 'text-muted-foreground/60'
+                      }`}
+                    >
+                      {pProgress}%
+                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {p.name}
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         </CardContent>
       </Card>
@@ -372,9 +418,34 @@ export function RoadmapTrackerView() {
           <ArrowRight className="h-4 w-4 text-emerald-600" />
           阶段详情
         </div>
-        {phases.map((phase) => (
-          <PhaseCard key={phase.id} phase={phase} />
-        ))}
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="border-border">
+              <CardHeader className="py-4 px-6">
+                <Skeleton className="h-5 w-48 mb-2" />
+                <Skeleton className="h-3 w-full" />
+              </CardHeader>
+            </Card>
+          ))
+        ) : error ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+            <p className="text-sm">加载路线图失败，请稍后重试</p>
+          </div>
+        ) : sortedPhases.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Flag className="h-8 w-8 mx-auto mb-2" />
+            <p className="text-sm">暂无阶段数据</p>
+          </div>
+        ) : (
+          sortedPhases.map((phase) => (
+            <PhaseCard
+              key={phase.id}
+              phase={phase}
+              details={PHASE_DETAILS[phase.phase]}
+            />
+          ))
+        )}
       </div>
 
       {/* ── Key Metrics ──────────────────────────────────────────────────── */}

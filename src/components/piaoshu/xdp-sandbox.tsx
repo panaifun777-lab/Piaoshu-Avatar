@@ -1,12 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 import {
   Box,
   Eye,
@@ -24,75 +28,39 @@ import {
   Zap,
   Move3d,
 } from 'lucide-react'
+import { useProjects, useCreateProject } from '@/lib/api-hooks'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+interface ApiProject {
+  id: string
+  name: string
+  description?: string | null
+  projectType: string
+  xdpEnabled: boolean
+  status: string
+  version: number
+  interactions?: ApiInteraction[]
+  createdAt: string
+}
+
+interface ApiInteraction {
+  id: string
+  name: string
+  triggerType: string
+  actionType: string
+}
+
 type ProjectType = '3d_prototype' | 'spatial_ui' | 'ar_scene'
 type ProjectStatus = 'interactive' | 'building' | 'published' | 'draft'
-
-interface PrototypeProject {
-  name: string
-  type: ProjectType
-  status: ProjectStatus
-  xdpEnabled: boolean
-  version: number
-}
-
-interface InteractionLoop {
-  trigger: string
-  triggerType: string
-  action: string
-  actionType: string
-  response: string
-  stateChange: string
-}
-
-// ---------------------------------------------------------------------------
-// Data
-// ---------------------------------------------------------------------------
-
-const prototypeProjects: PrototypeProject[] = [
-  { name: 'SpaceUI-v2', type: '3d_prototype', status: 'interactive', xdpEnabled: true, version: 3 },
-  { name: 'Dashboard-AR', type: 'spatial_ui', status: 'building', xdpEnabled: true, version: 1 },
-  { name: 'ProductWalkthrough', type: '3d_prototype', status: 'published', xdpEnabled: false, version: 5 },
-  { name: 'InvestorPitch3D', type: '3d_prototype', status: 'interactive', xdpEnabled: true, version: 2 },
-  { name: 'DataViz-Spatial', type: 'ar_scene', status: 'draft', xdpEnabled: false, version: 1 },
-]
-
-const interactionLoops: InteractionLoop[] = [
-  {
-    trigger: '点击产品卡片',
-    triggerType: 'click',
-    action: '展开3D详情',
-    actionType: 'navigate',
-    response: '显示规格动画',
-    stateChange: '标记已浏览',
-  },
-  {
-    trigger: '凝视导航点',
-    triggerType: 'gaze',
-    action: '平滑位移',
-    actionType: 'animate',
-    response: '环境音效',
-    stateChange: '更新位置',
-  },
-  {
-    trigger: '语音搜索',
-    triggerType: 'voice',
-    action: 'AI解析意图',
-    actionType: 'data_fetch',
-    response: '高亮匹配项',
-    stateChange: '记录搜索',
-  },
-]
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function typeLabel(t: ProjectType): string {
+function typeLabel(t: string): string {
   switch (t) {
     case '3d_prototype':
       return '3D 原型'
@@ -100,10 +68,12 @@ function typeLabel(t: ProjectType): string {
       return '空间 UI'
     case 'ar_scene':
       return 'AR 场景'
+    default:
+      return t
   }
 }
 
-function typeColor(t: ProjectType): string {
+function typeColor(t: string): string {
   switch (t) {
     case '3d_prototype':
       return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
@@ -111,10 +81,12 @@ function typeColor(t: ProjectType): string {
       return 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'
     case 'ar_scene':
       return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+    default:
+      return 'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300'
   }
 }
 
-function statusLabel(s: ProjectStatus): string {
+function statusLabel(s: string): string {
   switch (s) {
     case 'interactive':
       return '交互中'
@@ -124,10 +96,12 @@ function statusLabel(s: ProjectStatus): string {
       return '已发布'
     case 'draft':
       return '草稿'
+    default:
+      return s
   }
 }
 
-function statusColor(s: ProjectStatus): string {
+function statusColor(s: string): string {
   switch (s) {
     case 'interactive':
       return 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
@@ -136,6 +110,8 @@ function statusColor(s: ProjectStatus): string {
     case 'published':
       return 'bg-teal-500/15 text-teal-600 dark:text-teal-400'
     case 'draft':
+      return 'bg-gray-500/15 text-gray-500 dark:text-gray-400'
+    default:
       return 'bg-gray-500/15 text-gray-500 dark:text-gray-400'
   }
 }
@@ -190,10 +166,12 @@ function ProjectCard({
   project,
   xdpState,
   onToggleXdp,
+  onOpen,
 }: {
-  project: PrototypeProject
+  project: ApiProject
   xdpState: boolean
   onToggleXdp: () => void
+  onOpen: () => void
 }) {
   return (
     <Card className="group flex flex-col justify-between border-border/60 transition-shadow hover:shadow-md">
@@ -205,7 +183,7 @@ function ProjectCard({
           </Badge>
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          <Badge className={`text-[10px] ${typeColor(project.type)}`}>{typeLabel(project.type)}</Badge>
+          <Badge className={`text-[10px] ${typeColor(project.projectType)}`}>{typeLabel(project.projectType)}</Badge>
           <Badge className={`text-[10px] ${statusColor(project.status)}`}>{statusLabel(project.status)}</Badge>
         </div>
       </CardHeader>
@@ -224,7 +202,7 @@ function ProjectCard({
               {xdpState ? 'enabled' : 'disabled'}
             </span>
           </div>
-          <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onOpen}>
             打开
           </Button>
         </div>
@@ -238,16 +216,85 @@ function ProjectCard({
 // ---------------------------------------------------------------------------
 
 export function XDPSandboxView() {
-  // XDP toggle states per project (initialised from data)
-  const [xdpToggles, setXdpToggles] = useState<Record<string, boolean>>(
-    Object.fromEntries(prototypeProjects.map((p) => [p.name, p.xdpEnabled]))
-  )
+  const { data, isLoading, error } = useProjects()
+  const createProject = useCreateProject()
+
+  const projects = (data?.projects ?? []) as ApiProject[]
+
+  // XDP toggle states per project
+  const [xdpToggles, setXdpToggles] = useState<Record<string, boolean>>({})
   const [xdpProtocolEnabled, setXdpProtocolEnabled] = useState(true)
   const [selectedTriggerType, setSelectedTriggerType] = useState('click')
   const [selectedActionType, setSelectedActionType] = useState('navigate')
 
-  const toggleXdp = (name: string) => {
-    setXdpToggles((prev) => ({ ...prev, [name]: !prev[name] }))
+  // New project form state
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newProjectName, setNewProjectName] = useState('')
+  const [newProjectDesc, setNewProjectDesc] = useState('')
+  const [newProjectType, setNewProjectType] = useState<string>('3d_prototype')
+  const [newProjectXdp, setNewProjectXdp] = useState(false)
+
+  // Initialize xdp toggles from project data
+  const initializedToggles = useMemo(() => {
+    const toggles: Record<string, boolean> = {}
+    for (const p of projects) {
+      toggles[p.id] = xdpToggles[p.id] ?? p.xdpEnabled
+    }
+    return toggles
+  }, [projects, xdpToggles])
+
+  const toggleXdp = (id: string) => {
+    setXdpToggles((prev) => ({ ...prev, [id]: !(prev[id] ?? projects.find(p => p.id === id)?.xdpEnabled ?? false) }))
+  }
+
+  // Compute stats
+  const totalProjects = projects.length
+  const publishedCount = projects.filter((p) => p.status === 'published' || p.status === 'interactive').length
+  const xdpEnabledCount = projects.filter((p) => initializedToggles[p.id] ?? p.xdpEnabled).length
+
+  // Collect all interactions across projects
+  const allInteractions = useMemo(() => {
+    const interactions: { name: string; triggerType: string; actionType: string; projectName: string }[] = []
+    for (const p of projects) {
+      if (p.interactions) {
+        for (const i of p.interactions) {
+          interactions.push({
+            name: i.name,
+            triggerType: i.triggerType,
+            actionType: i.actionType,
+            projectName: p.name,
+          })
+        }
+      }
+    }
+    return interactions
+  }, [projects])
+
+  const handleOpenProject = () => {
+    toast.info('3D编辑器开发中')
+  }
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) {
+      toast.error('请输入项目名称')
+      return
+    }
+    try {
+      await createProject.mutateAsync({
+        name: newProjectName,
+        description: newProjectDesc || undefined,
+        projectType: newProjectType,
+        xdpEnabled: newProjectXdp,
+      })
+      toast.success('原型项目已创建')
+      setNewProjectName('')
+      setNewProjectDesc('')
+      setNewProjectType('3d_prototype')
+      setNewProjectXdp(false)
+      setShowCreateForm(false)
+    } catch {
+      toast.error('创建原型项目失败')
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -271,19 +318,19 @@ export function XDPSandboxView() {
           <StatCard
             icon={<Box className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
             title="原型项目"
-            value={5}
+            value={isLoading ? 0 : totalProjects}
             description="活跃的空间计算原型总数"
           />
           <StatCard
             icon={<Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
             title="已发布"
-            value={2}
+            value={isLoading ? 0 : publishedCount}
             description="已上线可公开访问的原型"
           />
           <StatCard
             icon={<Globe className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
             title="XDP协议启用"
-            value={3}
+            value={isLoading ? 0 : xdpEnabledCount}
             description="启用跨维度社交协议的原型"
           />
         </div>
@@ -301,23 +348,122 @@ export function XDPSandboxView() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {prototypeProjects.map((project) => (
-            <ProjectCard
-              key={project.name}
-              project={project}
-              xdpState={xdpToggles[project.name]}
-              onToggleXdp={() => toggleXdp(project.name)}
-            />
-          ))}
-
-          {/* Create new prototype button card */}
-          <Card className="group flex flex-col items-center justify-center border-dashed border-emerald-300 bg-emerald-50/50 py-10 transition-colors hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-700/50 dark:bg-emerald-950/20 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/30">
-            <div className="mb-3 rounded-full bg-emerald-200 p-3 dark:bg-emerald-800/60">
-              <Sparkles className="h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="border-border/60">
+                <CardHeader className="pb-3">
+                  <Skeleton className="h-5 w-32" />
+                  <div className="flex gap-1.5 mt-2">
+                    <Skeleton className="h-5 w-14" />
+                    <Skeleton className="h-5 w-14" />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Separator className="mb-3" />
+                  <Skeleton className="h-7 w-full" />
+                </CardContent>
+              </Card>
+            ))
+          ) : error ? (
+            <div className="col-span-full text-center py-8 text-muted-foreground">
+              <Box className="h-8 w-8 mx-auto mb-2" />
+              <p className="text-sm">加载项目失败，请稍后重试</p>
             </div>
-            <Button variant="ghost" className="text-emerald-700 dark:text-emerald-300">
-              创建新原型
-            </Button>
+          ) : (
+            projects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                xdpState={initializedToggles[project.id] ?? project.xdpEnabled}
+                onToggleXdp={() => toggleXdp(project.id)}
+                onOpen={handleOpenProject}
+              />
+            ))
+          )}
+
+          {/* Create new prototype button card / expanded form */}
+          <Card className="group flex flex-col items-center justify-center border-dashed border-emerald-300 bg-emerald-50/50 py-6 transition-colors hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-700/50 dark:bg-emerald-950/20 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/30">
+            {showCreateForm ? (
+              <div className="w-full px-4 space-y-3">
+                <div className="text-center mb-2">
+                  <Sparkles className="h-5 w-5 mx-auto text-emerald-600 dark:text-emerald-300 mb-1" />
+                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">创建新原型</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">项目名称</label>
+                  <Input
+                    placeholder="输入项目名称"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">项目描述</label>
+                  <Textarea
+                    placeholder="描述项目用途..."
+                    value={newProjectDesc}
+                    onChange={(e) => setNewProjectDesc(e.target.value)}
+                    className="min-h-[60px] text-sm resize-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">项目类型</label>
+                  <Select value={newProjectType} onValueChange={setNewProjectType}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3d_prototype">3D 原型</SelectItem>
+                      <SelectItem value="spatial_ui">空间 UI</SelectItem>
+                      <SelectItem value="ar_scene">AR 场景</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span>XDP协议:</span>
+                  <Switch
+                    checked={newProjectXdp}
+                    onCheckedChange={setNewProjectXdp}
+                    className="scale-75 data-[state=checked]:bg-emerald-500"
+                  />
+                  <span className={newProjectXdp ? 'text-emerald-600' : 'text-muted-foreground'}>
+                    {newProjectXdp ? '启用' : '禁用'}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
+                    onClick={handleCreateProject}
+                    disabled={createProject.isPending}
+                  >
+                    {createProject.isPending ? '创建中...' : '创建'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => setShowCreateForm(false)}
+                  >
+                    取消
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-3 rounded-full bg-emerald-200 p-3 dark:bg-emerald-800/60">
+                  <Sparkles className="h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+                </div>
+                <Button
+                  variant="ghost"
+                  className="text-emerald-700 dark:text-emerald-300"
+                  onClick={() => setShowCreateForm(true)}
+                >
+                  创建新原型
+                </Button>
+              </>
+            )}
           </Card>
         </div>
       </section>
@@ -412,7 +558,7 @@ export function XDPSandboxView() {
 
             {/* Top-left overlay */}
             <div className="absolute left-4 top-4 rounded-md border border-emerald-500/30 bg-emerald-950/70 px-3 py-1.5 text-xs font-medium text-emerald-400 backdrop-blur-sm">
-              SpaceUI-v2 &nbsp;|&nbsp; Interactive Mode
+              {projects.length > 0 ? `${projects[0].name}` : 'SpaceUI-v2'} &nbsp;|&nbsp; Interactive Mode
             </div>
 
             {/* Top-right overlay */}
@@ -468,78 +614,93 @@ export function XDPSandboxView() {
 
         {/* Interaction loop rows */}
         <div className="space-y-4">
-          {interactionLoops.map((loop, idx) => (
-            <div
-              key={idx}
-              className="flex flex-col items-start gap-2 rounded-lg border border-border/50 bg-card p-4 sm:flex-row sm:items-center sm:gap-0"
-            >
-              {/* Trigger */}
-              <Card className="flex-1 border-emerald-300/40 dark:border-emerald-700/40">
-                <CardContent className="flex items-center gap-2 p-3">
-                  <span className="shrink-0 rounded bg-emerald-100 p-1 dark:bg-emerald-900/40">
-                    {triggerIcon(loop.triggerType)}
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                      触发
-                    </p>
-                    <p className="text-sm font-medium">{loop.trigger}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <ArrowRight className="mx-1 hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
-
-              {/* Action */}
-              <Card className="flex-1 border-teal-300/40 dark:border-teal-700/40">
-                <CardContent className="flex items-center gap-2 p-3">
-                  <span className="shrink-0 rounded bg-teal-100 p-1 dark:bg-teal-900/40">
-                    <Code className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                      动作
-                    </p>
-                    <p className="text-sm font-medium">{loop.action}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <ArrowRight className="mx-1 hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
-
-              {/* Response */}
-              <Card className="flex-1 border-amber-300/40 dark:border-amber-700/40">
-                <CardContent className="flex items-center gap-2 p-3">
-                  <span className="shrink-0 rounded bg-amber-100 p-1 dark:bg-amber-900/40">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                      响应
-                    </p>
-                    <p className="text-sm font-medium">{loop.response}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <ArrowRight className="mx-1 hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
-
-              {/* State Change */}
-              <Card className="flex-1 border-rose-300/40 dark:border-rose-700/40">
-                <CardContent className="flex items-center gap-2 p-3">
-                  <span className="shrink-0 rounded bg-rose-100 p-1 dark:bg-rose-900/40">
-                    <Zap className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-                  </span>
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                      状态变更
-                    </p>
-                    <p className="text-sm font-medium">{loop.stateChange}</p>
-                  </div>
-                </CardContent>
-              </Card>
+          {isLoading ? (
+            Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="flex flex-col sm:flex-row gap-2">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <Skeleton key={j} className="h-16 flex-1 rounded-lg" />
+                ))}
+              </div>
+            ))
+          ) : allInteractions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Zap className="h-8 w-8 mx-auto mb-2" />
+              <p className="text-sm">暂无交互循环，请在项目中定义交互</p>
             </div>
-          ))}
+          ) : (
+            allInteractions.map((loop, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col items-start gap-2 rounded-lg border border-border/50 bg-card p-4 sm:flex-row sm:items-center sm:gap-0"
+              >
+                {/* Trigger */}
+                <Card className="flex-1 border-emerald-300/40 dark:border-emerald-700/40">
+                  <CardContent className="flex items-center gap-2 p-3">
+                    <span className="shrink-0 rounded bg-emerald-100 p-1 dark:bg-emerald-900/40">
+                      {triggerIcon(loop.triggerType)}
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        触发
+                      </p>
+                      <p className="text-sm font-medium">{loop.name}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <ArrowRight className="mx-1 hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
+
+                {/* Action */}
+                <Card className="flex-1 border-teal-300/40 dark:border-teal-700/40">
+                  <CardContent className="flex items-center gap-2 p-3">
+                    <span className="shrink-0 rounded bg-teal-100 p-1 dark:bg-teal-900/40">
+                      <Code className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                        动作
+                      </p>
+                      <p className="text-sm font-medium">{loop.actionType}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <ArrowRight className="mx-1 hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
+
+                {/* Response */}
+                <Card className="flex-1 border-amber-300/40 dark:border-amber-700/40">
+                  <CardContent className="flex items-center gap-2 p-3">
+                    <span className="shrink-0 rounded bg-amber-100 p-1 dark:bg-amber-900/40">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                        响应
+                      </p>
+                      <p className="text-sm font-medium">{loop.triggerType} → {loop.actionType}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <ArrowRight className="mx-1 hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
+
+                {/* State Change */}
+                <Card className="flex-1 border-rose-300/40 dark:border-rose-700/40">
+                  <CardContent className="flex items-center gap-2 p-3">
+                    <span className="shrink-0 rounded bg-rose-100 p-1 dark:bg-rose-900/40">
+                      <Zap className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                        状态变更
+                      </p>
+                      <p className="text-sm font-medium">{loop.projectName}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Hard constraint warning */}
@@ -634,7 +795,7 @@ export function XDPSandboxView() {
               <div>
                 <p className="text-sm font-medium">资产迁移状态</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">3</span>{' '}
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{xdpEnabledCount}</span>{' '}
                   个资产已迁移至XDP兼容格式
                 </p>
               </div>

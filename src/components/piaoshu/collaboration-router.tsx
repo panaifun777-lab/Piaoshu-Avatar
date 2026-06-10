@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 import {
   Network,
   Send,
@@ -24,27 +26,32 @@ import {
   Zap,
   ArrowRight,
 } from 'lucide-react'
+import { useTasks, useCreateTask } from '@/lib/api-hooks'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Complexity = 'low' | 'medium' | 'high' | 'critical'
 type Category = 'code' | 'design' | 'research' | 'creative'
 type Assignment = 'auto' | 'ai' | 'human'
-type TaskStatus = 'open' | 'in-progress' | 'review' | 'completed'
+type TaskStatus = 'open' | 'in_progress' | 'review' | 'completed'
 type NodeType = 'ai' | 'human' | 'founder'
 type NodeStatus = 'online' | 'offline'
 type PaymentStatus = 'confirmed' | 'pending' | 'failed'
 
-interface Task {
+interface ApiTask {
   id: string
   title: string
-  category: Category
-  complexity: Complexity
+  description?: string | null
+  complexity: string
+  category: string
   reward: number
-  token: string
-  assignee?: string
-  ciStatus?: 'passed' | 'failed' | 'scanning'
-  safetyStatus?: 'passed' | 'scanning' | 'failed'
+  rewardToken: string
+  status: string
+  assigneeType: string
+  ciStatus: string
+  safetyScan: string
+  createdAt: string
+  payments?: { id: string; amount: number; token: string; txHash?: string | null; status: string; createdAt: string }[]
 }
 
 interface NetworkNode {
@@ -66,37 +73,19 @@ interface PaymentRecord {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const COMPLEXITY_CONFIG: Record<Complexity, { label: string; color: string; dot: string }> = {
+const COMPLEXITY_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
   low: { label: '低', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', dot: 'bg-emerald-500' },
   medium: { label: '中', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', dot: 'bg-amber-500' },
   high: { label: '高', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', dot: 'bg-orange-500' },
   critical: { label: '关键', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', dot: 'bg-red-500' },
 }
 
-const CATEGORY_CONFIG: Record<Category, { label: string; color: string; icon: React.ReactNode }> = {
+const CATEGORY_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   code: { label: '代码', color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400', icon: <GitBranch className="h-3 w-3" /> },
   design: { label: '设计', color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400', icon: <CircleDot className="h-3 w-3" /> },
   research: { label: '调研', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', icon: <Network className="h-3 w-3" /> },
   creative: { label: '创意', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: <Zap className="h-3 w-3" /> },
 }
-
-const TASKS_OPEN: Task[] = [
-  { id: 't1', title: '实现VC签名SDK', category: 'code', complexity: 'medium', reward: 200, token: 'USDT' },
-  { id: 't2', title: '用户调研问卷设计', category: 'research', complexity: 'low', reward: 80, token: 'USDT' },
-  { id: 't3', title: 'Logo与VI设计', category: 'design', complexity: 'medium', reward: 300, token: 'USDT' },
-]
-
-const TASKS_IN_PROGRESS: Task[] = [
-  { id: 't4', title: '智能合约审计', category: 'code', complexity: 'critical', reward: 500, token: 'USDT', assignee: 'dev-0x7f' },
-  { id: 't5', title: '竞品分析报告', category: 'research', complexity: 'medium', reward: 150, token: 'USDT', assignee: 'ai-analyst-01' },
-]
-
-const TASKS_REVIEW: Task[] = [
-  { id: 't6', title: '前端原型开发', category: 'code', complexity: 'high', reward: 350, token: 'USDT', ciStatus: 'passed', safetyStatus: 'scanning' },
-]
-
-const COMPLETED_COUNT = 4
-const COMPLETED_TOTAL_REWARD = 1280
 
 const NETWORK_NODES: NetworkNode[] = [
   { id: 'n0', label: '创始人 (you)', type: 'founder', status: 'online' },
@@ -107,14 +96,6 @@ const NETWORK_NODES: NetworkNode[] = [
   { id: 'n5', label: 'researcher-bob', type: 'human', status: 'online' },
   { id: 'n6', label: 'AI-Reviewer-03', type: 'ai', status: 'online' },
   { id: 'n7', label: 'dev-0xa3', type: 'human', status: 'online' },
-]
-
-const PAYMENT_RECORDS: PaymentRecord[] = [
-  { id: 'p1', taskTitle: '白皮书撰写', amount: 400, token: 'USDT', txHash: '0x8f3a…c7d2', status: 'confirmed', timestamp: '2024-03-10 14:32' },
-  { id: 'p2', taskTitle: '合约部署脚本', amount: 250, token: 'DAI', txHash: '0x1b9e…4a5f', status: 'confirmed', timestamp: '2024-03-09 11:20' },
-  { id: 'p3', taskTitle: 'UI/UX审查', amount: 180, token: 'USDT', txHash: '0x6c2d…e8b1', status: 'pending', timestamp: '2024-03-08 09:45' },
-  { id: 'p4', taskTitle: '安全漏洞修复', amount: 320, token: 'USDT', txHash: '0xa4f1…2c9e', status: 'confirmed', timestamp: '2024-03-07 16:12' },
-  { id: 'p5', taskTitle: '文档翻译', amount: 130, token: 'DAI', txHash: '0xd7b3…5f8a', status: 'failed', timestamp: '2024-03-06 08:30' },
 ]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -141,27 +122,38 @@ function getNodeStyle(type: NodeType) {
   }
 }
 
-function getNodeDotColor(type: NodeType) {
-  switch (type) {
-    case 'ai': return 'bg-emerald-500'
-    case 'human': return 'bg-teal-500'
-    case 'founder': return 'bg-amber-500'
-  }
-}
-
-function getPaymentStatusStyle(status: PaymentStatus) {
+function getPaymentStatusStyle(status: string) {
   switch (status) {
     case 'confirmed': return 'text-emerald-600 dark:text-emerald-400'
     case 'pending': return 'text-amber-600 dark:text-amber-400'
     case 'failed': return 'text-red-600 dark:text-red-400'
+    default: return 'text-muted-foreground'
   }
 }
 
-function getPaymentStatusIcon(status: PaymentStatus) {
+function getPaymentStatusIcon(status: string) {
   switch (status) {
     case 'confirmed': return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
     case 'pending': return <Clock className="h-3.5 w-3.5 text-amber-500" />
     case 'failed': return <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+    default: return <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+  }
+}
+
+// Map API task status to kanban column key
+function mapTaskStatus(status: string): TaskStatus {
+  switch (status) {
+    case 'open':
+    case 'assigned':
+      return 'open'
+    case 'in_progress':
+      return 'in_progress'
+    case 'review':
+      return 'review'
+    case 'completed':
+      return 'completed'
+    default:
+      return 'open'
   }
 }
 
@@ -186,9 +178,9 @@ function StatCard({ icon, label, value, description }: { icon: React.ReactNode; 
   )
 }
 
-function TaskCard({ task, status }: { task: Task; status: TaskStatus }) {
-  const comp = COMPLEXITY_CONFIG[task.complexity]
-  const cat = CATEGORY_CONFIG[task.category]
+function TaskCard({ task }: { task: ApiTask }) {
+  const comp = COMPLEXITY_CONFIG[task.complexity] ?? COMPLEXITY_CONFIG.medium
+  const cat = CATEGORY_CONFIG[task.category] ?? CATEGORY_CONFIG.code
 
   return (
     <Card className="border-border/50 transition-all hover:shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700">
@@ -213,34 +205,34 @@ function TaskCard({ task, status }: { task: Task; status: TaskStatus }) {
 
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            {task.reward} {task.token}
+            {task.reward} {task.rewardToken}
           </span>
-          {task.assignee && (
+          {task.assigneeType && (
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
               <CircleDot className="h-3 w-3" />
-              {task.assignee}
+              {task.assigneeType}
             </span>
           )}
         </div>
 
-        {(task.ciStatus || task.safetyStatus) && (
+        {(task.ciStatus !== 'pending' || task.safetyScan !== 'pending') && (
           <div className="flex items-center gap-2 text-[10px] pt-1 border-t border-border/40">
-            {task.ciStatus && (
+            {task.ciStatus && task.ciStatus !== 'pending' && (
               <span className="flex items-center gap-1">
                 <GitBranch className="h-3 w-3" />
                 CI: {task.ciStatus === 'passed' ? (
                   <span className="text-emerald-600 dark:text-emerald-400 font-medium">passed ✓</span>
                 ) : (
-                  <span className="text-red-500 font-medium">failed ✗</span>
+                  <span className="text-red-500 font-medium">{task.ciStatus} ✗</span>
                 )}
               </span>
             )}
-            {task.safetyStatus && (
+            {task.safetyScan && task.safetyScan !== 'pending' && (
               <span className="flex items-center gap-1">
                 <Shield className="h-3 w-3" />
-                Safety: {task.safetyStatus === 'passed' ? (
+                Safety: {task.safetyScan === 'passed' ? (
                   <span className="text-emerald-600 dark:text-emerald-400 font-medium">passed ✓</span>
-                ) : task.safetyStatus === 'scanning' ? (
+                ) : task.safetyScan === 'scanning' ? (
                   <span className="text-amber-500 font-medium">scanning...</span>
                 ) : (
                   <span className="text-red-500 font-medium">failed ✗</span>
@@ -254,7 +246,7 @@ function TaskCard({ task, status }: { task: Task; status: TaskStatus }) {
   )
 }
 
-function KanbanColumn({ title, count, tasks, status, accentColor, children }: { title: string; count: number; tasks: Task[]; status: TaskStatus; accentColor: string; children?: React.ReactNode }) {
+function KanbanColumn({ title, count, tasks, accentColor }: { title: string; count: number; tasks: ApiTask[]; accentColor: string }) {
   return (
     <div className="flex flex-col min-w-0">
       <div className="flex items-center gap-2 mb-3 px-1">
@@ -264,9 +256,8 @@ function KanbanColumn({ title, count, tasks, status, accentColor, children }: { 
       </div>
       <div className="flex flex-col gap-2.5 flex-1">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} status={status} />
+          <TaskCard key={task.id} task={task} />
         ))}
-        {children}
       </div>
     </div>
   )
@@ -335,9 +326,79 @@ export function CollaborationRouterView() {
   const [deadline, setDeadline] = useState('')
   const [assignment, setAssignment] = useState<Assignment | ''>('')
 
-  const handlePublish = () => {
-    // In production this would POST to an API
-    alert('任务发布功能 - 连接后端后启用')
+  const { data, isLoading, error } = useTasks()
+  const createTask = useCreateTask()
+
+  const tasks = (data?.tasks ?? []) as ApiTask[]
+
+  // Group tasks by kanban status
+  const kanbanGroups = useMemo(() => {
+    const groups: Record<TaskStatus, ApiTask[]> = {
+      open: [],
+      in_progress: [],
+      review: [],
+      completed: [],
+    }
+    for (const task of tasks) {
+      const key = mapTaskStatus(task.status)
+      groups[key].push(task)
+    }
+    return groups
+  }, [tasks])
+
+  // Collect all payment records from tasks
+  const paymentRecords: PaymentRecord[] = useMemo(() => {
+    const records: PaymentRecord[] = []
+    for (const task of tasks) {
+      if (task.payments) {
+        for (const p of task.payments) {
+          records.push({
+            id: p.id,
+            taskTitle: task.title,
+            amount: p.amount,
+            token: p.token,
+            txHash: p.txHash ? p.txHash.slice(0, 6) + '…' + p.txHash.slice(-4) : '—',
+            status: p.status as PaymentStatus,
+            timestamp: new Date(p.createdAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+          })
+        }
+      }
+    }
+    return records
+  }, [tasks])
+
+  const completedCount = kanbanGroups.completed.length
+  const completedTotalReward = kanbanGroups.completed.reduce((sum, t) => sum + t.reward, 0)
+  const totalRewardPool = tasks.filter((t) => t.status !== 'completed').reduce((sum, t) => sum + t.reward, 0)
+
+  const handlePublish = async () => {
+    if (!taskTitle.trim()) {
+      toast.error('请输入任务标题')
+      return
+    }
+    try {
+      await createTask.mutateAsync({
+        title: taskTitle,
+        description: taskDesc || undefined,
+        complexity: complexity || undefined,
+        category: category || undefined,
+        reward: reward ? parseFloat(reward) : undefined,
+        rewardToken: rewardToken || undefined,
+        deadline: deadline || undefined,
+        assigneeType: assignment || undefined,
+      })
+      toast.success('任务发布成功')
+      setTaskTitle('')
+      setTaskDesc('')
+      setComplexity('')
+      setCategory('')
+      setReward('')
+      setRewardToken('USDT')
+      setDeadline('')
+      setAssignment('')
+    } catch {
+      toast.error('任务发布失败')
+    }
   }
 
   return (
@@ -359,25 +420,25 @@ export function CollaborationRouterView() {
           <StatCard
             icon={<Users className="h-5 w-5" />}
             label="在线节点"
-            value={8}
+            value={NETWORK_NODES.filter(n => n.status === 'online').length}
             description="AI + 人类节点活跃"
           />
           <StatCard
             icon={<Zap className="h-5 w-5" />}
             label="进行中任务"
-            value={5}
+            value={isLoading ? '—' : kanbanGroups.in_progress.length + kanbanGroups.review.length}
             description="正在执行或审核"
           />
           <StatCard
             icon={<Clock className="h-5 w-5" />}
             label="待审核"
-            value={3}
+            value={isLoading ? '—' : kanbanGroups.review.length}
             description="等待CI/安全验证"
           />
           <StatCard
             icon={<DollarSign className="h-5 w-5" />}
             label="总赏金池"
-            value="$2,450 USDT"
+            value={isLoading ? '—' : `$${totalRewardPool.toLocaleString()} USDT`}
             description="未结算赏金总额"
           />
         </div>
@@ -517,10 +578,11 @@ export function CollaborationRouterView() {
 
             <Button
               onClick={handlePublish}
+              disabled={createTask.isPending}
               className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white h-9 gap-2"
             >
               <Send className="h-4 w-4" />
-              发布任务
+              {createTask.isPending ? '发布中...' : '发布任务'}
             </Button>
           </CardContent>
         </Card>
@@ -540,53 +602,71 @@ export function CollaborationRouterView() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {/* Open */}
-          <KanbanColumn
-            title="开放"
-            count={TASKS_OPEN.length}
-            tasks={TASKS_OPEN}
-            status="open"
-            accentColor="bg-emerald-500"
-          />
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-24 w-full rounded-lg" />
+                <Skeleton className="h-24 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
+            <p className="text-sm">加载任务失败，请稍后重试</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {/* Open */}
+            <KanbanColumn
+              title="开放"
+              count={kanbanGroups.open.length}
+              tasks={kanbanGroups.open}
+              accentColor="bg-emerald-500"
+            />
 
-          {/* In Progress */}
-          <KanbanColumn
-            title="进行中"
-            count={TASKS_IN_PROGRESS.length}
-            tasks={TASKS_IN_PROGRESS}
-            status="in-progress"
-            accentColor="bg-amber-500"
-          />
+            {/* In Progress */}
+            <KanbanColumn
+              title="进行中"
+              count={kanbanGroups.in_progress.length}
+              tasks={kanbanGroups.in_progress}
+              accentColor="bg-amber-500"
+            />
 
-          {/* Review */}
-          <KanbanColumn
-            title="审核中"
-            count={TASKS_REVIEW.length}
-            tasks={TASKS_REVIEW}
-            status="review"
-            accentColor="bg-orange-500"
-          />
+            {/* Review */}
+            <KanbanColumn
+              title="审核中"
+              count={kanbanGroups.review.length}
+              tasks={kanbanGroups.review}
+              accentColor="bg-orange-500"
+            />
 
-          {/* Completed */}
-          <KanbanColumn
-            title="已完成"
-            count={COMPLETED_COUNT}
-            tasks={[]}
-            status="completed"
-            accentColor="bg-teal-500"
-          >
-            <Card className="border-dashed border-border/60 bg-muted/30">
-              <CardContent className="p-4 flex flex-col items-center justify-center gap-2 text-center min-h-[100px]">
-                <CheckCircle2 className="h-8 w-8 text-teal-500" />
-                <p className="text-sm font-semibold">{COMPLETED_COUNT} 个任务已完成</p>
-                <p className="text-xs text-muted-foreground">
-                  已结算赏金: <span className="font-semibold text-teal-600 dark:text-teal-400">{COMPLETED_TOTAL_REWARD} USDT</span>
-                </p>
-              </CardContent>
-            </Card>
-          </KanbanColumn>
-        </div>
+            {/* Completed */}
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <span className="h-2 w-2 rounded-full bg-teal-500" />
+                <h3 className="text-sm font-semibold">已完成</h3>
+                <Badge variant="secondary" className="h-5 text-[10px] px-1.5 font-mono">{completedCount}</Badge>
+              </div>
+              <div className="flex flex-col gap-2.5 flex-1">
+                {kanbanGroups.completed.slice(0, 3).map((task) => (
+                  <TaskCard key={task.id} task={task} />
+                ))}
+                <Card className="border-dashed border-border/60 bg-muted/30">
+                  <CardContent className="p-4 flex flex-col items-center justify-center gap-2 text-center min-h-[100px]">
+                    <CheckCircle2 className="h-8 w-8 text-teal-500" />
+                    <p className="text-sm font-semibold">{completedCount} 个任务已完成</p>
+                    <p className="text-xs text-muted-foreground">
+                      已结算赏金: <span className="font-semibold text-teal-600 dark:text-teal-400">{completedTotalReward} USDT</span>
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       <Separator />
@@ -699,49 +779,62 @@ export function CollaborationRouterView() {
         <Card className="border-border/60">
           <CardContent className="p-0">
             <div className="max-h-80 overflow-y-auto custom-scrollbar">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm">
-                  <tr className="border-b border-border/60">
-                    <th className="text-left text-xs font-medium text-muted-foreground p-3 pl-4">任务</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-3 hidden sm:table-cell">金额</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-3 hidden md:table-cell">Tx Hash</th>
-                    <th className="text-left text-xs font-medium text-muted-foreground p-3">状态</th>
-                    <th className="text-right text-xs font-medium text-muted-foreground p-3 pr-4 hidden lg:table-cell">时间</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {PAYMENT_RECORDS.map((record) => (
-                    <tr key={record.id} className="border-b border-border/30 last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="p-3 pl-4">
-                        <span className="font-medium text-sm">{record.taskTitle}</span>
-                        <span className="block sm:hidden text-xs text-muted-foreground mt-0.5">
-                          {record.amount} {record.token}
-                        </span>
-                      </td>
-                      <td className="p-3 hidden sm:table-cell">
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          {record.amount}
-                        </span>
-                        <span className="text-xs text-muted-foreground ml-1">{record.token}</span>
-                      </td>
-                      <td className="p-3 hidden md:table-cell">
-                        <code className="text-[11px] text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded">
-                          {record.txHash}
-                        </code>
-                      </td>
-                      <td className="p-3">
-                        <span className={`flex items-center gap-1.5 text-xs font-medium ${getPaymentStatusStyle(record.status)}`}>
-                          {getPaymentStatusIcon(record.status)}
-                          <span className="hidden sm:inline">{record.status === 'confirmed' ? '已确认' : record.status === 'pending' ? '待确认' : '失败'}</span>
-                        </span>
-                      </td>
-                      <td className="p-3 pr-4 text-right hidden lg:table-cell">
-                        <span className="text-xs text-muted-foreground">{record.timestamp}</span>
-                      </td>
-                    </tr>
+              {isLoading ? (
+                <div className="p-4 space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
                   ))}
-                </tbody>
-              </table>
+                </div>
+              ) : paymentRecords.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <DollarSign className="h-8 w-8 mx-auto mb-2" />
+                  <p className="text-sm">暂无支付记录</p>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+                    <tr className="border-b border-border/60">
+                      <th className="text-left text-xs font-medium text-muted-foreground p-3 pl-4">任务</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-3 hidden sm:table-cell">金额</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-3 hidden md:table-cell">Tx Hash</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-3">状态</th>
+                      <th className="text-right text-xs font-medium text-muted-foreground p-3 pr-4 hidden lg:table-cell">时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentRecords.map((record) => (
+                      <tr key={record.id} className="border-b border-border/30 last:border-0 hover:bg-muted/30 transition-colors">
+                        <td className="p-3 pl-4">
+                          <span className="font-medium text-sm">{record.taskTitle}</span>
+                          <span className="block sm:hidden text-xs text-muted-foreground mt-0.5">
+                            {record.amount} {record.token}
+                          </span>
+                        </td>
+                        <td className="p-3 hidden sm:table-cell">
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            {record.amount}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-1">{record.token}</span>
+                        </td>
+                        <td className="p-3 hidden md:table-cell">
+                          <code className="text-[11px] text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded">
+                            {record.txHash}
+                          </code>
+                        </td>
+                        <td className="p-3">
+                          <span className={`flex items-center gap-1.5 text-xs font-medium ${getPaymentStatusStyle(record.status)}`}>
+                            {getPaymentStatusIcon(record.status)}
+                            <span className="hidden sm:inline">{record.status === 'confirmed' ? '已确认' : record.status === 'pending' ? '待确认' : '失败'}</span>
+                          </span>
+                        </td>
+                        <td className="p-3 pr-4 text-right hidden lg:table-cell">
+                          <span className="text-xs text-muted-foreground">{record.timestamp}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </CardContent>
         </Card>

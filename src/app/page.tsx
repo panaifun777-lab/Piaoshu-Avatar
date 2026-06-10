@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import {
   Brain,
@@ -27,6 +28,7 @@ import { EvidenceChainView } from '@/components/piaoshu/evidence-chain'
 import { CollaborationRouterView } from '@/components/piaoshu/collaboration-router'
 import { XDPSandboxView } from '@/components/piaoshu/xdp-sandbox'
 import { RoadmapTrackerView } from '@/components/piaoshu/roadmap-tracker'
+import { AIChatWidget } from '@/components/piaoshu/ai-chat-widget'
 
 type ActiveModule = 'dashboard' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap'
 
@@ -51,13 +53,13 @@ const navItems: NavItem[] = [
 interface SidebarContentProps {
   activeModule: ActiveModule
   sidebarCollapsed: boolean
-  darkMode: boolean
+  theme: string | undefined
   onNavigate: (module: ActiveModule) => void
-  onToggleDarkMode: () => void
+  onToggleTheme: () => void
   onMobileClose?: () => void
 }
 
-function SidebarContent({ activeModule, sidebarCollapsed, darkMode, onNavigate, onToggleDarkMode, onMobileClose }: SidebarContentProps) {
+function SidebarContent({ activeModule, sidebarCollapsed, theme, onNavigate, onToggleTheme, onMobileClose }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Logo & Brand */}
@@ -165,10 +167,10 @@ function SidebarContent({ activeModule, sidebarCollapsed, darkMode, onNavigate, 
           variant="ghost"
           size="sm"
           className="w-full justify-center"
-          onClick={onToggleDarkMode}
+          onClick={onToggleTheme}
         >
-          {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          {!sidebarCollapsed && <span className="ml-2 text-xs">{darkMode ? '浅色' : '深色'}</span>}
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {!sidebarCollapsed && <span className="ml-2 text-xs">{theme === 'dark' ? '浅色' : '深色'}</span>}
         </Button>
       </div>
     </div>
@@ -179,11 +181,10 @@ export default function Home() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [darkMode, setDarkMode] = useState(false)
+  const { theme, setTheme } = useTheme()
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode)
-    document.documentElement.classList.toggle('dark')
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
   }
 
   const renderModule = () => {
@@ -217,9 +218,9 @@ export default function Home() {
         <SidebarContent
           activeModule={activeModule}
           sidebarCollapsed={sidebarCollapsed}
-          darkMode={darkMode}
+          theme={theme}
           onNavigate={setActiveModule}
-          onToggleDarkMode={toggleDarkMode}
+          onToggleTheme={toggleTheme}
         />
         <div className="p-2 border-t">
           <Button
@@ -258,9 +259,9 @@ export default function Home() {
         <SidebarContent
           activeModule={activeModule}
           sidebarCollapsed={false}
-          darkMode={darkMode}
+          theme={theme}
           onNavigate={setActiveModule}
-          onToggleDarkMode={toggleDarkMode}
+          onToggleTheme={toggleTheme}
           onMobileClose={() => setMobileMenuOpen(false)}
         />
       </aside>
@@ -323,6 +324,9 @@ export default function Home() {
           </div>
         </footer>
       </div>
+
+      {/* Floating AI Chat Widget */}
+      <AIChatWidget />
     </div>
   )
 }

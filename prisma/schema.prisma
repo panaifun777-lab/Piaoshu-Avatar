@@ -200,3 +200,67 @@ model Milestone {
 
   phase RoadmapPhase @relation(fields: [phaseId], references: [id])
 }
+
+// ===== SOUL.md 人格配置 =====
+model SoulConfig {
+  id          String   @id @default(cuid())
+  name        String   @unique                    // 配置名称 e.g. "piaoshu-soul-v1"
+  content     String                              // SOUL.md 原始内容
+  isActive    Boolean  @default(true)             // 当前激活的配置
+  version     Int      @default(1)                // 版本号
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ===== 聊天记录 =====
+model ChatMessage {
+  id          String   @id @default(cuid())
+  role        String                              // user, assistant, system
+  content     String                              // 消息内容
+  sessionId   String?                             // 会话ID，用于关联对话
+  module      String?                             // 来源模块: cognitive, evidence, collaboration, sandbox, roadmap
+  modelUsed   String?                             // 使用的模型
+  tokenCount  Int      @default(0)
+  metadata    String?                             // 额外元数据 (JSON string)
+  createdAt   DateTime @default(now())
+}
+
+// ===== 记忆条目 =====
+model MemoryEntry {
+  id             String   @id @default(cuid())
+  sourceType     String                              // simulation, chat, decision, manual, evidence, external
+  sourceId       String?                             // 来源实体ID
+  content        String                              // 记忆内容摘要
+  embedding      String?                             // 向量嵌入 (JSON array string, 未来接Qdrant后迁移)
+  tags           String?                             // 逗号分隔的标签
+  relevanceScore Float    @default(0.0)              // 相关性/重要性评分
+  accessCount    Int      @default(0)                // 被检索次数
+  lastAccessed   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ===== 审计日志 =====
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String                              // 操作类型: create, update, delete, sign, verify, simulate
+  module      String                              // 模块名: cognitive, evidence, collaboration, sandbox, roadmap
+  entityType  String?                             // 实体类型
+  entityId    String?                             // 实体ID
+  details     String?                             // 详情 (JSON string)
+  performedBy String   @default("system")         // 执行者
+  createdAt   DateTime @default(now())
+}
+
+// ===== 通知 =====
+model Notification {
+  id          String   @id @default(cuid())
+  type        String                              // info, warning, success, error
+  title       String
+  message     String
+  module      String?                             // 来源模块
+  isRead      Boolean  @default(false)
+  actionUrl   String?                             // 点击跳转链接
+  createdAt   DateTime @default(now())
+}
