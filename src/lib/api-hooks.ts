@@ -434,6 +434,23 @@ export function useVectorCollections() {
   })
 }
 
+// ===== Soul Config (SOUL.md) =====
+export function useSoulConfig() {
+  return useQuery({
+    queryKey: ['soulConfig'],
+    queryFn: () => apiFetch<{ success: boolean; data: { content: string; name: string; version: number; isDefault: boolean; id?: string; description?: string; updatedAt?: string } }>('/api/cognitive/soul'),
+  })
+}
+
+export function useUpdateSoulConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { content: string; name?: string; description?: string }) =>
+      apiFetch('/api/cognitive/soul', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['soulConfig'] }),
+  })
+}
+
 // ===== Blockchain =====
 export function useWalletStatus() {
   return useQuery({

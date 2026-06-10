@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const { taskId, amount, token, recipient, paymentId } = body
 
     if (!taskId) {
-      return NextResponse.json({ success: false, error: 'taskId is required' }, 400)
+      return NextResponse.json({ success: false, error: 'taskId is required' }, { status: 400 })
     }
 
     // Call blockchain service
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     })
 
     if (!result.success) {
-      return NextResponse.json(result, 400)
+      return NextResponse.json(result, { status: 400 })
     }
 
     // Update payment record in DB if paymentId provided
@@ -75,6 +75,6 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('[blockchain/settle] Error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to settle payment' }, 500)
+    return NextResponse.json({ success: false, error: 'Failed to settle payment' }, { status: 500 })
   }
 }

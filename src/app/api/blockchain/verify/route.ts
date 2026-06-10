@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const { txHash } = body
 
     if (!txHash) {
-      return NextResponse.json({ success: false, error: 'txHash is required' }, 400)
+      return NextResponse.json({ success: false, error: 'txHash is required' }, { status: 400 })
     }
 
     const result = await proxyFetch('/api/contract/verify-evidence', {
@@ -28,6 +28,6 @@ export async function POST(request: Request) {
     return NextResponse.json(result)
   } catch (error) {
     console.error('[blockchain/verify] Error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to verify evidence' }, 500)
+    return NextResponse.json({ success: false, error: 'Failed to verify evidence' }, { status: 500 })
   }
 }

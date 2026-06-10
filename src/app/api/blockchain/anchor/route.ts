@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const { evidenceId, contentHash, metadata } = body
 
     if (!evidenceId) {
-      return NextResponse.json({ success: false, error: 'evidenceId is required' }, 400)
+      return NextResponse.json({ success: false, error: 'evidenceId is required' }, { status: 400 })
     }
 
     // Call blockchain service
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     })
 
     if (!result.success) {
-      return NextResponse.json(result, 400)
+      return NextResponse.json(result, { status: 400 })
     }
 
     // Update evidence status to 'onchain' in DB
@@ -77,6 +77,6 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('[blockchain/anchor] Error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to anchor evidence' }, 500)
+    return NextResponse.json({ success: false, error: 'Failed to anchor evidence' }, { status: 500 })
   }
 }

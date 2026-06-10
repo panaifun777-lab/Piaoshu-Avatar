@@ -37,6 +37,6 @@ export async function GET() {
     })
   } catch (error) {
     console.error('[blockchain/status] Error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to get blockchain status' }, 500)
+    return NextResponse.json({ success: false, error: 'Failed to get blockchain status' }, { status: 500 })
   }
 }

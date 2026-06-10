@@ -581,3 +581,317 @@ Work Log:
 
 - Blockchain service tested and confirmed stable on port 3005
 - Zero lint errors, all existing functionality preserved
+
+---
+Task ID: 15
+Agent: Settings Panel Developer
+Task: Add a Settings/Preferences panel with SOUL.md personality editor
+
+Work Log:
+- Created SOUL.md API route at `/home/z/my-project/src/app/api/cognitive/soul/route.ts`:
+  - GET: Fetches active SoulConfig from database, returns default SOUL.md content if none exists
+  - POST: Saves new SOUL.md content, deactivates previous active config, increments version, creates audit log
+  - Default SOUL.md content: 飘叔人格 (Chinese, matching the project's personality)
+- Added 2 React Query hooks to `/home/z/my-project/src/lib/api-hooks.ts`:
+  - `useSoulConfig()`: Query soul configuration from API
+  - `useUpdateSoulConfig()`: Mutation to save soul configuration
+- Created SettingsPanel component at `/home/z/my-project/src/components/piaoshu/settings-panel.tsx` (480+ lines):
+  - Sheet component sliding from right side, 480px wide on desktop, full width on mobile
+  - Three tabs with icons: 人格设定 (User), 系统配置 (Settings), 关于 (Info)
+  - Tab 1 - 人格设定 (SOUL.md Editor):
+    - Markdown editor textarea with violet-themed border
+    - Preview panel using react-markdown with styled prose
+    - Edit/Preview toggle button
+    - "重置默认" button to reset to default SOUL.md
+    - "保存" button with gradient (violet→emerald) and loading state
+    - Version badge and config name display
+    - Character count and line count indicator
+    - Unsaved changes warning indicator
+    - Personality preview card with sample 飘叔 dialogue
+    - Local edits tracked separately from server content (null = no edits, string = user changes)
+  - Tab 2 - 系统配置:
+    - Theme selection: 浅色/深色/跟随系统 (3-button grid with active check marks)
+    - Language preference: 中文/English (2-button grid)
+    - Notification preferences: 4 toggle switches (任务/分身/系统/对话)
+    - Auto-refresh interval slider (5s/15s/30s/60s) with clickable labels
+    - WebSocket auto-reconnect toggle
+    - All settings persisted to localStorage
+    - Lazy-loaded from localStorage on mount using useMemo (avoids lint issues)
+  - Tab 3 - 关于:
+    - App name/logo, version badge
+    - System info: 4 stat cards (数据表/数据记录/AI分身/向量维度)
+    - Tech stack badges (12 technologies with distinct colors)
+    - Related links section
+    - Credits footer
+- Updated `/home/z/my-project/src/app/page.tsx`:
+  - Added `onOpenSettings` prop to `SidebarContentProps` interface
+  - Added Settings2 icon button in sidebar bottom area (above theme toggle)
+  - Added `settingsPanelOpen` state in Home component
+  - Rendered SettingsPanel component with open/onOpenChange props
+  - Both desktop and mobile sidebars pass onOpenSettings callback
+- All lint checks pass with zero errors (resolved react-hooks/set-state-in-effect by using derived state and lazy initialization patterns)
+
+Stage Summary:
+- Full Settings/Preferences panel with SOUL.md personality editor
+- SOUL.md API route with database persistence and audit logging
+- 3-tab settings interface: 人格设定, 系统配置, 关于
+- Theme, language, notification, refresh interval, and WebSocket settings
+- All settings persisted to localStorage
+- violet/emerald accent colors matching project theme
+- Zero lint errors, all existing functionality preserved
+
+---
+Task ID: 14
+Agent: UI Polish Developer
+Task: Polish UI consistency, add error boundaries, fix responsive issues, and improve overall UX
+
+Work Log:
+- Created Error Boundary component (/src/components/piaoshu/error-boundary.tsx):
+  - ModuleErrorBoundary class component wrapping each module view
+  - Emerald/teal themed error illustration using Lucide AlertTriangle icon
+  - Shows friendly Chinese error message with "重试" button
+  - Displays error details in amber warning box
+  - Logs error details to console with module name context
+  - Optional moduleName prop for contextual error messages
+  - All 7 modules in page.tsx wrapped with ModuleErrorBoundary
+
+- Created Top Loading Bar component (/src/components/piaoshu/top-loading-bar.tsx):
+  - Thin emerald gradient progress bar at top during module transitions
+  - NProgress-like behavior: slow trickle (0→80%), then fast completion (80→100%)
+  - Uses DOM manipulation via refs instead of useState to avoid lint issues
+  - requestAnimationFrame-based animation for smooth progress
+  - Fade-out transition when loading completes
+  - Fixed at z-[100] to appear above all content
+
+- Improved Page Layout (/src/app/page.tsx):
+  - Footer properly sticky to bottom using flex-col + mt-auto pattern
+  - Page transition animation with framer-motion AnimatePresence (fade + slide)
+  - Fixed setMounted lint issue: replaced useState+useEffect with useMounted() hook using useSyncExternalStore
+  - Created /src/hooks/use-mounted.ts: proper React pattern for client-side mount detection
+  - handleNavigate uses useTransition for smoother module switching
+  - Loading bar triggers on module navigation with 600ms window
+
+- Improved Responsive Design:
+  - Header compact on mobile: h-12 sm:h-14, smaller gaps and padding (px-3 sm:px-4 md:px-6)
+  - Auth button smaller on mobile: h-7 sm:h-8, smaller text and icons, "登录" text hidden on mobile
+  - Connection badge compact on mobile: text hidden on small screens, only icon shown
+  - Phase/Day info hidden on mobile
+  - User avatar pill smaller on mobile (h-4 w-4 vs h-5 w-5, px-1.5 vs px-2.5)
+  - Module sublabel badge hidden on mobile
+  - Footer text smaller on mobile (text-[10px] sm:text-xs)
+  - Mobile sidebar closes automatically on navigation
+
+- Consistent Card Styling Audit:
+  - Removed min-h-screen bg-background from cognitive-engine.tsx and avatar-clone.tsx root divs (they're embedded in page layout which already provides these)
+  - Verified Card padding consistency: most cards use p-4 or p-6, with p-0 for list/table layouts (intentional)
+  - Section titles mostly consistent with text-lg font-semibold/bold pattern
+  - Badge usage consistent with variant="outline" for type/status, variant="secondary" for counts
+
+- Fixed Lint Errors:
+  - page.tsx: setMounted in useEffect → useMounted() hook with useSyncExternalStore
+  - settings-panel.tsx: setMounted(true) in useEffect → useMounted() hook
+  - settings-panel.tsx: localStorage loading in useEffect → lazy initializers in useState
+  - settings-panel.tsx: SoulEditorTab sync from server → derived state pattern (currentContent)
+  - top-loading-bar.tsx: setState in useEffect → DOM manipulation via refs
+  - All 3 pre-existing lint errors fixed, zero lint errors now
+
+Stage Summary:
+- ModuleErrorBoundary wraps all 7 module views for graceful error handling
+- TopLoadingBar shows emerald progress bar during module transitions
+- Page transitions animate with framer-motion (fade + slide)
+- Footer properly sticky to viewport bottom
+- Mobile-first responsive design with compact header and auth
+- useMounted hook properly replaces setState-in-effect pattern
+- Fixed all 3 pre-existing lint errors (5 total errors resolved)
+- Zero lint errors, all existing functionality preserved
+Task ID: 13
+Agent: Dashboard Enhancement Developer
+Task: Enhance the Dashboard view with real-time stats, improved charts, and a live activity feed
+
+Work Log:
+- Read and analyzed existing dashboard.tsx (780 lines) with 5 sections: hero banner, overview stats, engine cards, health metrics, VC trend chart, activity timeline, roadmap
+- Read worklog.md to understand full project history: 10+ previous tasks covering avatar system, blockchain, vector search, WebSocket, Three.js, DnD kanban
+- Read api-hooks.ts to identify all available hooks (49 hooks total) including useCloneAgents, useBlockchainStatus, useCloneActivities, useSimulations
+- Read use-websocket.ts for WebSocket integration pattern
+- Read page.tsx for ModuleId type and navigation structure
+
+- Complete rewrite of dashboard.tsx with 6 enhanced sections:
+
+  1. Real-time Stats Cards (replaces old overview stats):
+     - 今日AI周期 (total cycles from clone agents) with emerald sparkline
+     - 活跃智能体 (working agents count) with violet sparkline
+     - 链上证据 (onchain verified evidence) with teal sparkline
+     - 开放任务 (open tasks) with amber sparkline
+     - Each card has: gradient icon, value + unit, 7-day sparkline mini-chart (Recharts LineChart), "近7天趋势" label
+     - Uses useCloneAgents, useBlockchainStatus, useCloneActivities hooks for real data
+
+  2. System Health Dashboard (replaces old health metrics + engine cards):
+     - 4 health indicator cards: 认知引擎, 向量搜索, 区块链网络, WebSocket
+     - Each card has: colored icon, health percentage bar (green/amber/red), status label, detail text
+     - Uses useWebSocket for real-time WebSocket connection status
+     - Uses useBlockchainStatus for blockchain network info (block height, gas price, wallet status)
+     - Combined health overview bar showing all 4 metrics with compact progress bars
+
+  3. Activity Timeline (replaces old static activity list):
+     - Combined feed from ALL modules: clone activities, evidences, tasks, shards
+     - Each entry has: type-specific icon, title, description, module badge (color-coded), relative timestamp
+     - Module badges: 分身系统 (violet), 认知引擎 (emerald), 证据链 (teal), 协作调度 (cyan)
+     - ScrollArea with max-h-96, sorted by timestamp, max 20 items
+     - Auto-refreshes via React Query hooks (useCloneActivities, useEvidences, useTasks, useShards)
+
+  4. Quick Action Cards (new section):
+     - 6 clickable gradient cards: 启动AI周期→avatar, 提交新证据→evidence, 发布协作任务→collaboration, 运行红蓝对抗→cognitive, 查看路线图→roadmap, 查看沙盒→sandbox
+     - Each card: gradient background overlay, icon, title, description, arrow indicator
+     - framer-motion whileHover scale + whileTap scale animations
+     - Calls onNavigate with target module on click
+
+  5. Data Analytics Charts (replaces old single VC trend chart):
+     - Agent Activity Bar Chart (2/3 width): cycles + outputs per agent role (CEO/CTO/Growth/Engineer)
+     - Task Completion Donut (1/3 width): 4 states with color legend
+     - Evidence Chain Growth Area Chart (full width): total + verified evidence over 18 days
+     - All charts use Recharts with theme-compatible styling (hsl var backgrounds, border)
+
+  6. 90-day Roadmap Overview (preserved from original):
+     - Same 3-phase cards with active indicator, progress bars
+     - Added framer-motion entrance animations
+
+- Design changes:
+  - Responsive grid: 1 col on sm, 2 on md, 4 on xl for stat cards and health cards
+  - framer-motion cardVariants (staggered entrance with 0.08s delay per card)
+  - framer-motion sectionVariants for section entrance
+  - Skeleton loading states preserved for all data sections
+  - emerald/teal/cyan color scheme maintained throughout
+  - Preserved hero banner at top with motion animation
+
+- Removed old sections: engine cards section, old VC trend line chart, old static activity list
+- Added new imports: framer-motion, ScrollArea, additional Lucide icons, additional Recharts components (BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area), additional API hooks
+- Preserved all existing props: onNavigate with ModuleId type
+- No other component files modified, no API routes created, no Prisma schema changes
+- Dashboard-only lint check passes with zero errors
+- Pre-existing lint errors in page.tsx, settings-panel.tsx, top-loading-bar.tsx remain unchanged
+
+Stage Summary:
+- Dashboard completely rewritten from 780 lines to ~650 lines with 6 enhanced sections
+- Real-time stats with sparkline mini-charts showing 7-day trends
+- System health dashboard with colored indicators (green/yellow/red) for all services
+- Combined activity timeline from all modules with module badges and scrollable container
+- 6 quick action cards with gradient backgrounds and framer-motion animations
+- 3 comprehensive Recharts charts: agent activity bar, task completion donut, evidence growth area
+- All data sourced from real API hooks (useCloneAgents, useBlockchainStatus, useCloneActivities, useSimulations, useWebSocket)
+- Preserved hero banner, onNavigate prop, roadmap section, and fallback data patterns
+- Zero new lint errors introduced
+
+---
+Task ID: 12
+Agent: Notification Center Developer
+Task: Add a Notification Center dropdown in the header bar
+
+Work Log:
+- Created `/home/z/my-project/src/lib/notification-store.ts`:
+  - Zustand store for notifications with full CRUD actions
+  - Actions: addNotification, markAsRead, markAllAsRead, clearAll, removeNotification
+  - Computed: unreadCount (filters by read state)
+  - Auto-prune: max 50 notifications, oldest removed first
+  - 9 notification types: agent:status, agent:cycle, agent:output, clone:activity, task:updated, task:created, shard:updated, simulation:completed, node:status
+  - mapWSEventToNotification: maps WS event type + data to notification partial with Chinese titles/descriptions
+
+- Created `/home/z/my-project/src/components/piaoshu/notification-center.tsx`:
+  - Bell icon button with rose-500 badge showing unread count (99+ overflow)
+  - Popover (shadcn/ui) with 380px width, shadow-xl, rounded-xl
+  - Header: title + unread count badge + "全部已读" + "清空" buttons
+  - Notification list with ScrollArea (max-h-[420px])
+  - Color-coded left border per type (9 distinct colors)
+  - Type-specific icons: Cpu, RefreshCw, FileText, CheckSquare, Brain, Zap, Network
+  - Relative timestamps in Chinese: 刚刚, X分钟前, X小时前, X天前
+  - Unread dot indicator, click to navigate + mark as read + close popover
+  - Empty state with Inbox icon
+  - Delete button per notification, footer hint about max 50
+
+- Updated `/home/z/my-project/src/app/page.tsx`:
+  - Added NotificationCenter component in header bar (before auth button)
+  - Connected WebSocket events to notification store via mapWSEventToNotification
+  - onNavigate callback connects to setActiveModule for module navigation
+
+Stage Summary:
+- Complete notification center with bell icon + popover dropdown in header
+- Zustand store with 5 actions + computed unreadCount
+- 9 notification types mapped from WebSocket events with Chinese labels
+- Real-time: WS events automatically create notifications
+- Click notification → navigate to module + close popover + mark as read
+- Zero new lint errors (all new files pass lint cleanly)
+
+---
+Task ID: 11
+Agent: Command Palette Developer
+Task: Add a Command Palette (Cmd+K / Ctrl+K) feature
+
+Work Log:
+- Created `/home/z/my-project/src/components/piaoshu/command-palette.tsx`:
+  - Uses shadcn/ui CommandDialog as the base component
+  - `Cmd+K` / `Ctrl+K` keyboard shortcut to open/close (listens on document keydown)
+  - Custom event `open-command-palette` for button-triggered opening (⌘K badge in header)
+  - Search input with fuzzy matching (built into cmdk library)
+  - Grouped results in 3 sections:
+    - Navigation (导航): All 7 modules with emerald accent, numbered shortcuts 1-7
+    - Quick Actions (快捷操作): 4 actions with violet accent (启动全部周期, 创建证据, 发布任务, 运行红蓝对抗)
+    - Settings (设置): 2 theme options with amber accent (切换深色模式, 切换浅色模式)
+  - Each item has: icon in colored container, Chinese label, English subtitle in mono font, optional keyboard shortcut
+  - Empty state with search icon and Chinese message
+  - Footer with keyboard navigation hints (↑↓ 导航, ↵ 选择, esc 关闭) and brand badge
+  - Background blur overlay on open (backdrop-blur-sm + bg-black/40)
+  - ESC to close (built into Dialog)
+  - Arrow key navigation (built into Command component)
+  - Chinese labels with English subtitles throughout
+  - Responsive - works on mobile (tap ⌘K badge or use keyboard)
+
+- Updated `/home/z/my-project/src/app/page.tsx`:
+  - Added `Command` icon import from lucide-react
+  - Added `CommandPalette` import from command-palette component
+  - Added ⌘K badge button in header bar (between connection badge and Phase/Day info)
+  - Badge dispatches `open-command-palette` custom event on click
+  - Added `<CommandPalette>` component with `onNavigate={handleNavigate}` and `onToggleTheme={toggleTheme}` callbacks
+  - Uses `handleNavigate` (existing useCallback with loading transition) for module switching
+
+- Design:
+  - Emerald accent for Navigation group (matching app's primary color)
+  - Violet accent for Quick Actions group (matching avatar module color)
+  - Amber accent for Settings group (warm distinct color)
+  - Each item has colored icon container with 8x8 rounded-md background
+  - Keyboard shortcut badges in muted style (kbd + border)
+  - Group headings with colored icons and Chinese + English labels
+  - Clean, modern UI matching the rest of the app
+
+Stage Summary:
+- Command Palette fully functional with Cmd+K/Ctrl+K shortcut
+- 7 navigation items, 4 quick actions, 2 settings items
+- Custom event system for header ⌘K badge click
+- Background blur overlay when palette is open
+- Emerald/Violet/Amber accent color scheme per group
+- Zero new lint errors (command-palette.tsx and page.tsx pass lint cleanly)
+- All existing functionality preserved
+
+---
+Task ID: 11-15 (Parallel Sprint)
+Agent: Main Orchestrator
+Task: Speed up development with parallel agent execution - 5 features simultaneously
+
+Work Log:
+- Task 11: Command Palette (⌘K) - Search, navigate, quick actions, theme toggle. Uses shadcn/ui Command component. Keyboard shortcut ⌘K/Ctrl+K.
+- Task 12: Notification Center - Bell icon with unread badge, Popover dropdown, Zustand store, WebSocket event→notification mapping, Chinese relative timestamps
+- Task 13: Dashboard Enhancement - Real-time stats with sparklines, System Health Dashboard (4 services), Activity Timeline, Quick Action Cards (6 gradients), Data Analytics (Bar+Donut+Area charts), Roadmap overview
+- Task 14: UI Polish - Error Boundary component, Top Loading Bar (emerald gradient), useMounted hook (useSyncExternalStore), Footer sticky fix (flex-col+mt-auto), AnimatePresence page transitions, Mobile compact header, All modules wrapped with ErrorBoundary
+- Task 15: Settings Panel - Sheet from right, 3 tabs (SOUL.md editor with preview, System Config, About), SOUL.md API route (GET/POST with versioning), React Query hooks
+- Fixed: NextResponse.json({ ... }, NNN) → NextResponse.json({ ... }, { status: NNN }) across 5 blockchain API routes
+- Fixed: NotificationCenter not integrated into page.tsx (added import + component in header)
+- All 3 mini-services restarted and verified: Blockchain (3005), Vector (3004), WebSocket (3003)
+- Zero lint errors, zero browser errors
+
+Stage Summary:
+- 5 features built in parallel by 5 agents simultaneously
+- Command Palette: ⌘K navigation + actions + theme
+- Notification Center: Real-time notification tracking with Zustand store
+- Enhanced Dashboard: Health panel, activity timeline, quick actions, analytics charts
+- UI Polish: Error boundaries, loading bar, page transitions, responsive fixes
+- Settings Panel: SOUL.md personality editor, system config, about page
+- Blockchain API fixes: Proper NextResponse status codes
+- All features verified via Agent Browser with zero errors

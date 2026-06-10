@@ -16,7 +16,7 @@ export async function GET() {
     const data = await proxyFetch('/api/wallet/status')
     return NextResponse.json(data)
   } catch {
-    return NextResponse.json({ success: false, error: 'Blockchain service unavailable' }, 502)
+    return NextResponse.json({ success: false, error: 'Blockchain service unavailable' }, { status: 502 })
   }
 }
 
@@ -26,6 +26,6 @@ export async function POST() {
     const data = await proxyFetch('/api/wallet/connect', { method: 'POST', body: JSON.stringify({}) })
     return NextResponse.json(data)
   } catch {
-    return NextResponse.json({ success: false, error: 'Blockchain service unavailable' }, 502)
+    return NextResponse.json({ success: false, error: 'Blockchain service unavailable' }, { status: 502 })
   }
 }
