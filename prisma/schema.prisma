@@ -853,3 +853,58 @@ model PaymentSession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+// ===== 联邦信任层 (Federation Trust Network) =====
+model FederationDID {
+  id          String   @id @default(cuid())
+  did         String   @unique
+  avatarName  String
+  avatarType  String   @default("clone")
+  trustLevel  String   @default("bronze")  // bronze, silver, gold, platinum
+  publicKey   String?
+  status      String   @default("active")  // active, suspended, revoked
+  didDocument String?  // JSON: full DID document
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  credentials         FederationVC[]       @relation("DIDCredentials")
+  sentConnections     TrustConnection[]    @relation("SenderDID")
+  receivedConnections TrustConnection[]    @relation("ReceiverDID")
+}
+
+model FederationVC {
+  id             String    @id @default(cuid())
+  vcType         String    // SkillProof, AchievementProof, TrustAttestation, CollaborationRecord
+  issuerDid      String
+  subjectDid     String
+  credentialHash String    @unique
+  claims         String    // JSON: credential claims
+  status         String    @default("active") // active, pending, revoked
+  expiresAt      DateTime?
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  issuer FederationDID @relation("DIDCredentials", fields: [issuerDid], references: [did])
+}
+
+model TrustConnection {
+  id              String   @id @default(cuid())
+  senderDid       String
+  receiverDid     String
+  strength        Float    @default(0.5)  // 0.0 - 1.0
+  connectionType  String   @default("collaboration") // collaboration, mentorship, delegation, verification
+  createdAt       DateTime @default(now())
+
+  sender   FederationDID @relation("SenderDID", fields: [senderDid], references: [did])
+  receiver FederationDID @relation("ReceiverDID", fields: [receiverDid], references: [did])
+}
+
+model CrossAvatarMessage {
+  id          String   @id @default(cuid())
+  senderDid   String
+  receiverDid String
+  messageType String   // task_assignment, knowledge_share, collaboration_invite, trust_request
+  content     String   // JSON: message payload
+  status      String   @default("pending") // pending, delivered, acknowledged, failed
+  createdAt   DateTime @default(now())
+}

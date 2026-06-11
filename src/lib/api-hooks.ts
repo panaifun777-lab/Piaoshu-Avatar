@@ -1365,3 +1365,151 @@ export function useSendSwarmMessage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['swarmMessages'] }),
   })
 }
+
+// ===== SONA Self-Learning Evolution Loop =====
+export function useSonaStatus() {
+  return useQuery({
+    queryKey: ['sona-status'],
+    queryFn: () => apiFetch<{
+      success: boolean
+      data: {
+        metrics: {
+          totalCycles: number
+          memoriesProcessed: number
+          insightsGenerated: number
+          pruningRate: number
+          avgQualityScore: number
+          qualityTrend: number[]
+          lastCycleAt: string | null
+        }
+        history: Array<{
+          id: string
+          cycleId: string
+          timestamp: string
+          mode: string
+          steps: Array<{ name: string; status: string; duration: number }>
+          memoriesProcessed: number
+          insightsGenerated: number
+          pruned: number
+          duration: number
+          qualityScore: number
+        }>
+        currentCycle: {
+          id: string
+          phase: string
+          mode: string
+          startedAt: string
+          log: Array<{ timestamp: string; phase: string; message: string }>
+        } | null
+      }
+    }>('/api/memory/sona/status'),
+    refetchInterval: 10000,
+  })
+}
+
+export function useTriggerSonaCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { mode?: string; targetWing?: string; autoCycle?: boolean }) =>
+      apiFetch('/api/memory/sona/cycle', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sona-status'] })
+      qc.invalidateQueries({ queryKey: ['memory-drawers'] })
+      qc.invalidateQueries({ queryKey: ['memory-palace'] })
+    },
+  })
+}
+
+// ===== Federation Trust Layer =====
+export function useFederationDIDs() {
+  return useQuery({
+    queryKey: ['federationDIDs'],
+    queryFn: () => apiFetch<{ success: boolean; data: { dids: unknown[]; stats: { total: number; active: number; trustLevels: { bronze: number; silver: number; gold: number; platinum: number } } } }>('/api/federation/dids'),
+  })
+}
+
+export function useCreateDID() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { avatarName: string; avatarType?: string; trustLevel?: string }) =>
+      apiFetch('/api/federation/dids', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['federationDIDs'] }),
+  })
+}
+
+export function useFederationVCs(filters?: { vcType?: string; status?: string; issuerDid?: string }) {
+  return useQuery({
+    queryKey: ['federationVCs', filters],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters?.vcType) params.set('vcType', filters.vcType)
+      if (filters?.status) params.set('status', filters.status)
+      if (filters?.issuerDid) params.set('issuerDid', filters.issuerDid)
+      const qs = params.toString()
+      return apiFetch<{ success: boolean; data: { vcs: unknown[]; stats: { total: number; active: number; pending: number; revoked: number; byType: { SkillProof: number; AchievementProof: number; TrustAttestation: number; CollaborationRecord: number } } } }>(`/api/federation/vcs${qs ? `?${qs}` : ''}`)
+    },
+  })
+}
+
+export function useIssueVC() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { vcType: string; issuerDid: string; subjectDid: string; claims?: Record<string, unknown>; expiresAt?: string }) =>
+      apiFetch('/api/federation/vcs', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['federationVCs'] }),
+  })
+}
+
+export function useTrustConnections(filters?: { senderDid?: string; receiverDid?: string }) {
+  return useQuery({
+    queryKey: ['trustConnections', filters],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters?.senderDid) params.set('senderDid', filters.senderDid)
+      if (filters?.receiverDid) params.set('receiverDid', filters.receiverDid)
+      const qs = params.toString()
+      return apiFetch<{ success: boolean; data: { connections: unknown[]; stats: { total: number; avgStrength: number; byType: { collaboration: number; mentorship: number; delegation: number; verification: number } } } }>(`/api/federation/connections${qs ? `?${qs}` : ''}`)
+    },
+  })
+}
+
+export function useCreateTrustConnection() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { senderDid: string; receiverDid: string; strength?: number; connectionType?: string }) =>
+      apiFetch('/api/federation/connections', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trustConnections'] }),
+  })
+}
+
+export function useVerifyVC() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { credentialHash: string; subjectDid?: string }) =>
+      apiFetch('/api/federation/verify', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['federationVCs'] })
+      qc.invalidateQueries({ queryKey: ['federationDIDs'] })
+    },
+  })
+}
+
+export function useCrossAvatarMessages() {
+  return useQuery({
+    queryKey: ['crossAvatarMessages'],
+    queryFn: () => apiFetch<{ success: boolean; data: { messages: unknown[] } }>('/api/federation/messages'),
+  })
+}
+
+export function useSeedFederation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch('/api/federation/seed', { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['federationDIDs'] })
+      qc.invalidateQueries({ queryKey: ['federationVCs'] })
+      qc.invalidateQueries({ queryKey: ['trustConnections'] })
+      qc.invalidateQueries({ queryKey: ['crossAvatarMessages'] })
+    },
+  })
+}

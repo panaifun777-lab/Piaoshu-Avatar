@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -19,7 +19,9 @@ import {
   Brain, Building2, FileText, Network, Eye, Plus, Search,
   Star, Tag, ArrowRight, Zap, ChevronRight, ChevronDown,
   RefreshCw, Layers, DoorOpen, Sparkles, Link2, GitBranch,
-  AlertCircle, Trash2, Edit3, X, Check
+  AlertCircle, Trash2, Edit3, X, Check, Play, Activity,
+  TrendingUp, Clock, BarChart3, Filter, Timer, CircleDot,
+  Database, Flame, ArrowDownToLine, ArrowUpFromLine, Scissors
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -27,7 +29,7 @@ import {
   useMemoryPalace, useMemoryDrawers, useMemoryWake,
   useMemoryTunnels, useKGEntities, useKGTriples,
   useCreateDrawer, useUpdateDrawer, useDiscoverTunnels,
-  useAddKGTriple
+  useAddKGTriple, useSonaStatus, useTriggerSonaCycle
 } from '@/lib/api-hooks'
 
 // ===== Color & Label Maps =====
@@ -1191,6 +1193,441 @@ function WakePreviewTab() {
   )
 }
 
+// ===== Tab 6: SONA Evolution Loop =====
+const SONA_STEPS = [
+  { name: 'RETRIEVE', label: '检索', icon: Database, color: 'cyan', desc: '从宫殿中检索相关记忆' },
+  { name: 'JUDGE', label: '评估', icon: Eye, color: 'amber', desc: 'LLM评估记忆质量与相关性' },
+  { name: 'DISTILL', label: '蒸馏', icon: Flame, color: 'violet', desc: '压缩为AAAk高阶洞察' },
+  { name: 'CONSOLIDATE', label: '整合', icon: Scissors, color: 'emerald', desc: '合并强化或修剪记忆' },
+] as const
+
+const SONA_STEP_COLORS: Record<string, { bg: string; border: string; text: string; glow: string; badge: string }> = {
+  RETRIEVE: { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-700 dark:text-cyan-400', glow: 'shadow-cyan-500/20', badge: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400' },
+  JUDGE: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-700 dark:text-amber-400', glow: 'shadow-amber-500/20', badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
+  DISTILL: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-700 dark:text-violet-400', glow: 'shadow-violet-500/20', badge: 'bg-violet-500/10 text-violet-700 dark:text-violet-400' },
+  CONSOLIDATE: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-400', glow: 'shadow-emerald-500/20', badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
+}
+
+const MODE_ESTIMATES: Record<string, { time: string; memory: string }> = {
+  '轻量': { time: '~6s', memory: '6-8条' },
+  '标准': { time: '~12s', memory: '10-16条' },
+  '深度': { time: '~20s', memory: '20-30条' },
+}
+
+const FALLBACK_SONA_HISTORY = [
+  { id: 'h1', cycleId: 'SONA-2024-023', timestamp: new Date(Date.now() - 3600000).toISOString(), mode: '标准', steps: [{ name: 'RETRIEVE', status: 'completed', duration: 2.3 }, { name: 'JUDGE', status: 'completed', duration: 4.1 }, { name: 'DISTILL', status: 'completed', duration: 3.7 }, { name: 'CONSOLIDATE', status: 'completed', duration: 1.8 }], memoriesProcessed: 12, insightsGenerated: 3, pruned: 2, duration: 11.9, qualityScore: 0.85 },
+  { id: 'h2', cycleId: 'SONA-2024-022', timestamp: new Date(Date.now() - 7200000).toISOString(), mode: '深度', steps: [{ name: 'RETRIEVE', status: 'completed', duration: 3.8 }, { name: 'JUDGE', status: 'completed', duration: 6.2 }, { name: 'DISTILL', status: 'completed', duration: 5.1 }, { name: 'CONSOLIDATE', status: 'completed', duration: 2.9 }], memoriesProcessed: 24, insightsGenerated: 6, pruned: 5, duration: 18.0, qualityScore: 0.83 },
+  { id: 'h3', cycleId: 'SONA-2024-021', timestamp: new Date(Date.now() - 14400000).toISOString(), mode: '轻量', steps: [{ name: 'RETRIEVE', status: 'completed', duration: 1.2 }, { name: 'JUDGE', status: 'completed', duration: 2.4 }, { name: 'DISTILL', status: 'completed', duration: 1.8 }, { name: 'CONSOLIDATE', status: 'completed', duration: 0.9 }], memoriesProcessed: 6, insightsGenerated: 1, pruned: 1, duration: 6.3, qualityScore: 0.78 },
+  { id: 'h4', cycleId: 'SONA-2024-020', timestamp: new Date(Date.now() - 28800000).toISOString(), mode: '标准', steps: [{ name: 'RETRIEVE', status: 'completed', duration: 2.1 }, { name: 'JUDGE', status: 'completed', duration: 3.9 }, { name: 'DISTILL', status: 'completed', duration: 3.2 }, { name: 'CONSOLIDATE', status: 'completed', duration: 1.5 }], memoriesProcessed: 14, insightsGenerated: 4, pruned: 3, duration: 10.7, qualityScore: 0.81 },
+  { id: 'h5', cycleId: 'SONA-2024-019', timestamp: new Date(Date.now() - 43200000).toISOString(), mode: '深度', steps: [{ name: 'RETRIEVE', status: 'completed', duration: 4.1 }, { name: 'JUDGE', status: 'completed', duration: 5.8 }, { name: 'DISTILL', status: 'completed', duration: 4.6 }, { name: 'CONSOLIDATE', status: 'completed', duration: 2.3 }], memoriesProcessed: 28, insightsGenerated: 7, pruned: 4, duration: 16.8, qualityScore: 0.79 },
+]
+
+const FALLBACK_SONA_METRICS = {
+  totalCycles: 23,
+  memoriesProcessed: 147,
+  insightsGenerated: 34,
+  pruningRate: 0.18,
+  avgQualityScore: 0.82,
+  qualityTrend: [0.65, 0.68, 0.71, 0.73, 0.75, 0.78, 0.76, 0.79, 0.80, 0.82],
+  lastCycleAt: new Date(Date.now() - 3600000).toISOString(),
+}
+
+function SonaEvolutionTab() {
+  const { data: sonaData, isLoading, refetch } = useSonaStatus()
+  const triggerCycle = useTriggerSonaCycle()
+  const [mode, setMode] = useState('标准')
+  const [targetWing, setTargetWing] = useState('all')
+  const [autoCycle, setAutoCycle] = useState(false)
+  const logEndRef = useRef<HTMLDivElement>(null)
+
+  const metrics = sonaData?.data?.metrics || FALLBACK_SONA_METRICS
+  const history = sonaData?.data?.history || FALLBACK_SONA_HISTORY
+  const currentCycle = sonaData?.data?.currentCycle || null
+
+  // Auto-refresh when cycle is running
+  useEffect(() => {
+    if (!currentCycle) return
+    const interval = setInterval(() => refetch(), 2000)
+    return () => clearInterval(interval)
+  }, [currentCycle, refetch])
+
+  // Scroll log to bottom
+  useEffect(() => {
+    if (currentCycle?.log?.length) {
+      logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [currentCycle?.log?.length])
+
+  const handleStartCycle = async () => {
+    try {
+      await triggerCycle.mutateAsync({ mode, targetWing, autoCycle })
+      toast.success('进化周期已启动')
+      setTimeout(() => refetch(), 1000)
+    } catch (err: any) {
+      toast.error(err?.message || '启动失败')
+    }
+  }
+
+  const getStepStatus = (stepName: string): 'idle' | 'running' | 'completed' => {
+    if (!currentCycle) return 'idle'
+    const stepIndex = SONA_STEPS.findIndex(s => s.name === stepName)
+    const currentStepIndex = SONA_STEPS.findIndex(s => s.name === currentCycle.phase)
+    if (stepIndex < currentStepIndex) return 'completed'
+    if (stepIndex === currentStepIndex) return 'running'
+    return 'idle'
+  }
+
+  const estimate = MODE_ESTIMATES[mode] || MODE_ESTIMATES['标准']
+
+  return (
+    <div className="space-y-5">
+      {/* Section 1: Evolution Pipeline */}
+      <Card className="rounded-lg border overflow-hidden">
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Activity className="h-4 w-4 text-teal-500" /> 进化管线
+            <Badge variant="outline" className="text-[10px] font-mono">4-Phase Cycle</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className="flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto pb-2">
+            {SONA_STEPS.map((step, idx) => {
+              const status = getStepStatus(step.name)
+              const colors = SONA_STEP_COLORS[step.name]
+              const StepIcon = step.icon
+              return (
+                <div key={step.name} className="flex items-center gap-1 sm:gap-2 shrink-0">
+                  <motion.div
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 p-2 sm:p-3 rounded-lg border transition-all min-w-[70px] sm:min-w-[90px]',
+                      status === 'running' && `${colors.bg} ${colors.border} shadow-lg ${colors.glow}`,
+                      status === 'completed' && `${colors.bg} ${colors.border}`,
+                      status === 'idle' && 'bg-muted/30 border-muted/50'
+                    )}
+                    animate={status === 'running' ? { scale: [1, 1.03, 1] } : {}}
+                    transition={status === 'running' ? { repeat: Infinity, duration: 1.5 } : {}}
+                  >
+                    <div className={cn(
+                      'p-1.5 rounded-full',
+                      status === 'running' && colors.bg,
+                      status === 'completed' && colors.bg,
+                      status === 'idle' && 'bg-muted/50'
+                    )}>
+                      <StepIcon className={cn(
+                        'h-4 w-4',
+                        status === 'running' && colors.text,
+                        status === 'completed' && colors.text,
+                        status === 'idle' && 'text-muted-foreground'
+                      )} />
+                    </div>
+                    <span className={cn(
+                      'text-[10px] sm:text-xs font-bold',
+                      status === 'running' && colors.text,
+                      status === 'completed' && colors.text,
+                      status === 'idle' && 'text-muted-foreground'
+                    )}>
+                      {step.label}
+                    </span>
+                    <span className="text-[8px] sm:text-[10px] text-muted-foreground text-center leading-tight hidden sm:block">
+                      {step.desc}
+                    </span>
+                    {status === 'running' && (
+                      <motion.div
+                        className={cn('h-1 rounded-full', colors.bg.replace('/10', '/40'))}
+                        initial={{ width: 0 }}
+                        animate={{ width: '100%' }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        style={{ maxWidth: 60 }}
+                      />
+                    )}
+                    {status === 'completed' && (
+                      <Badge className={cn('text-[8px] border-0', colors.badge)}>✓</Badge>
+                    )}
+                    {status === 'idle' && (
+                      <div className="h-1 w-6 rounded-full bg-muted/50" />
+                    )}
+                  </motion.div>
+                  {idx < SONA_STEPS.length - 1 && (
+                    <ArrowRight className={cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      status === 'completed' ? 'text-emerald-400' : 'text-muted-foreground/40'
+                    )} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 2: Cycle Control */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="rounded-lg border lg:col-span-2">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Play className="h-4 w-4 text-teal-500" /> 周期控制
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">目标翼</Label>
+                <Select value={targetWing} onValueChange={setTargetWing}>
+                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全宫殿</SelectItem>
+                    <SelectItem value="个人身份">个人身份</SelectItem>
+                    <SelectItem value="战略决策">战略决策</SelectItem>
+                    <SelectItem value="工程架构">工程架构</SelectItem>
+                    <SelectItem value="增长运营">增长运营</SelectItem>
+                    <SelectItem value="人脉关系">人脉关系</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">模式</Label>
+                <Select value={mode} onValueChange={setMode}>
+                  <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="轻量">轻量模式</SelectItem>
+                    <SelectItem value="标准">标准模式</SelectItem>
+                    <SelectItem value="深度">深度模式</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">自动循环</Label>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={() => setAutoCycle(!autoCycle)}
+                    className={cn(
+                      'relative w-10 h-5 rounded-full transition-colors',
+                      autoCycle ? 'bg-teal-500' : 'bg-muted'
+                    )}
+                  >
+                    <div className={cn(
+                      'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                      autoCycle ? 'translate-x-5' : 'translate-x-0.5'
+                    )} />
+                  </button>
+                  <span className="text-xs text-muted-foreground">{autoCycle ? '开启' : '关闭'}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                onClick={handleStartCycle}
+                disabled={!!currentCycle || triggerCycle.isPending}
+                className="gap-2 bg-gradient-to-r from-teal-500 via-cyan-500 to-emerald-600 hover:from-teal-600 hover:via-cyan-600 hover:to-emerald-700 text-white border-0 shadow-lg shadow-teal-500/20"
+              >
+                {currentCycle ? (
+                  <>
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                      <RefreshCw className="h-4 w-4" />
+                    </motion.div>
+                    运行中...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4" />
+                    启动进化周期
+                  </>
+                )}
+              </Button>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><Timer className="h-3 w-3" /> 预计 {estimate.time}</span>
+                <span className="flex items-center gap-1"><Database className="h-3 w-3" /> 影响 {estimate.memory}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Metrics Panel */}
+        <Card className="rounded-lg border">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-teal-500" /> 进化指标
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full rounded" />)}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {[
+                  { label: '总周期', value: metrics.totalCycles, icon: BarChart3, color: 'text-teal-600' },
+                  { label: '已处理', value: metrics.memoriesProcessed, icon: Database, color: 'text-cyan-600' },
+                  { label: '洞察生成', value: metrics.insightsGenerated, icon: Flame, color: 'text-violet-600' },
+                  { label: '修剪率', value: `${(metrics.pruningRate * 100).toFixed(0)}%`, icon: Scissors, color: 'text-amber-600' },
+                ].map(m => (
+                  <div key={m.label} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <m.icon className={cn('h-3.5 w-3.5', m.color)} />
+                      <span className="text-xs text-muted-foreground">{m.label}</span>
+                    </div>
+                    <span className="text-sm font-bold">{m.value}</span>
+                  </div>
+                ))}
+                <Separator className="my-1" />
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">平均质量</span>
+                    <span className="text-sm font-bold text-emerald-600">{(metrics.avgQualityScore * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {metrics.qualityTrend.slice(-10).map((v: number, i: number) => (
+                      <div
+                        key={i}
+                        className="flex-1 rounded-sm transition-all"
+                        style={{
+                          height: `${Math.max(4, v * 28)}px`,
+                          background: `linear-gradient(to top, rgb(20 184 166 / 0.3), rgb(16 185 129 / ${0.3 + v * 0.7}))`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {metrics.lastCycleAt && (
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-1">
+                    <Clock className="h-3 w-3" />
+                    上次周期: {new Date(metrics.lastCycleAt).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Section 3: Live Monitor + History */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Live Monitor */}
+        <Card className="rounded-lg border">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <CircleDot className="h-4 w-4 text-teal-500" /> 实时监控
+              {currentCycle && (
+                <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] border-0 animate-pulse">
+                  LIVE
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {currentCycle ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs">
+                  <Badge className={cn('text-[10px] border-0', SONA_STEP_COLORS[currentCycle.phase]?.badge || 'bg-muted')}>
+                    {currentCycle.phase}
+                  </Badge>
+                  <span className="text-muted-foreground">{currentCycle.id}</span>
+                  <Badge variant="outline" className="text-[10px] ml-auto">{currentCycle.mode}</Badge>
+                </div>
+                <ScrollArea className="max-h-64">
+                  <div className="space-y-1.5">
+                    {currentCycle.log.map((entry: { timestamp: string; phase: string; message: string }, idx: number) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className={cn(
+                          'p-2 rounded-md text-xs border-l-2',
+                          SONA_STEP_COLORS[entry.phase]?.border || 'border-l-muted',
+                          SONA_STEP_COLORS[entry.phase]?.bg || 'bg-muted/20'
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {new Date(entry.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                          <Badge className={cn('text-[8px] border-0', SONA_STEP_COLORS[entry.phase]?.badge || 'bg-muted')}>
+                            {entry.phase}
+                          </Badge>
+                        </div>
+                        <p className="mt-0.5 text-muted-foreground">{entry.message}</p>
+                      </motion.div>
+                    ))}
+                    <div ref={logEndRef} />
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="p-3 rounded-full bg-muted/50 mb-3">
+                  <CircleDot className="h-6 w-6 text-muted-foreground/30" />
+                </div>
+                <p className="text-sm text-muted-foreground">无运行中的周期</p>
+                <p className="text-xs text-muted-foreground mt-1">点击"启动进化周期"开始</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* History Timeline */}
+        <Card className="rounded-lg border">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4 text-teal-500" /> 进化历史
+              <Badge variant="secondary" className="text-[10px]">{history.length} 周期</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded" />)}
+              </div>
+            ) : (
+              <ScrollArea className="max-h-64">
+                <div className="space-y-2">
+                  {history.map((h: any, idx: number) => (
+                    <motion.div
+                      key={h.id}
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15, delay: idx * 0.04 }}
+                      className="p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold">{h.cycleId}</span>
+                          <Badge variant="outline" className="text-[10px]">{h.mode}</Badge>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(h.timestamp).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        {h.steps.map((s: any, si: number) => (
+                          <div key={si} className="flex items-center gap-1">
+                            <Badge className={cn('text-[8px] border-0', SONA_STEP_COLORS[s.name]?.badge || 'bg-muted')}>
+                              {s.name.slice(0, 1)}{s.duration.toFixed(1)}s
+                            </Badge>
+                            {si < h.steps.length - 1 && <ArrowRight className="h-2 w-2 text-muted-foreground/30" />}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                        <span>处理 {h.memoriesProcessed}条</span>
+                        <span>洞察 {h.insightsGenerated}条</span>
+                        <span>修剪 {h.pruned}条</span>
+                        <span className="ml-auto font-bold text-emerald-600">{(h.qualityScore * 100).toFixed(0)}%</span>
+                        <span className="text-muted-foreground">{h.duration.toFixed(1)}s</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
 // ===== Main Component =====
 export function MemoryPalace() {
   return (
@@ -1234,6 +1671,11 @@ export function MemoryPalace() {
             <span className="hidden sm:inline">唤醒预览</span>
             <span className="sm:hidden">唤醒</span>
           </TabsTrigger>
+          <TabsTrigger value="sona" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-teal-500/10 data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">SONA 进化回路</span>
+            <span className="sm:hidden">SONA</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="map" className="mt-4">
@@ -1254,6 +1696,10 @@ export function MemoryPalace() {
 
         <TabsContent value="wake" className="mt-4">
           <WakePreviewTab />
+        </TabsContent>
+
+        <TabsContent value="sona" className="mt-4">
+          <SonaEvolutionTab />
         </TabsContent>
       </Tabs>
     </div>

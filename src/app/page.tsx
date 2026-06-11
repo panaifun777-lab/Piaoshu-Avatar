@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Brain,
   Shield,
+  ShieldCheck,
   Network,
   Box,
   Target,
@@ -102,6 +103,10 @@ const SwarmCoordinatorView = dynamic(
   () => import('@/components/piaoshu/swarm-coordinator').then(m => ({ default: m.SwarmCoordinator })),
   { loading: () => <ModuleSkeleton /> }
 )
+const FederationLayerView = dynamic(
+  () => import('@/components/piaoshu/federation-layer').then(m => ({ default: m.FederationLayerView })),
+  { loading: () => <ModuleSkeleton /> }
+)
 
 function ModuleSkeleton() {
   return (
@@ -118,7 +123,7 @@ function ModuleSkeleton() {
   )
 }
 
-type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'memory' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo' | 'manifesto' | 'swarm'
+type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'memory' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo' | 'manifesto' | 'swarm' | 'federation'
 
 interface NavItem {
   id: ActiveModule
@@ -128,23 +133,52 @@ interface NavItem {
   color: string
 }
 
-const navItems: NavItem[] = [
-  { id: 'dashboard', label: '总览', sublabel: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
-  { id: 'avatar', label: '分身系统', sublabel: 'Avatar Clone', icon: UserCircle2, color: 'text-violet-500' },
-  { id: 'media', label: '媒体矩阵', sublabel: 'Media Matrix', icon: Radio, color: 'text-emerald-600' },
-  { id: 'bd', label: '合作伙伴管线', sublabel: 'BD Pipeline', icon: Handshake, color: 'text-amber-600' },
-  { id: 'geo', label: 'GEO优化中心', sublabel: 'GEO Center', icon: Search, color: 'text-teal-600' },
-  { id: 'email', label: '邮件跟踪', sublabel: 'Email Tracking', icon: Mail, color: 'text-emerald-500' },
-  { id: 'cognitive', label: '认知分片引擎', sublabel: 'Cognitive Sharding', icon: Brain, color: 'text-emerald-600' },
-  { id: 'memory', label: '记忆宫殿', sublabel: 'Memory Palace', icon: Brain, color: 'text-teal-500' },
-  { id: 'evidence', label: '可信证据链', sublabel: 'Evidence Chain', icon: Shield, color: 'text-teal-600' },
-  { id: 'collaboration', label: '流体协作调度', sublabel: 'Fluid Router', icon: Network, color: 'text-cyan-600' },
-  { id: 'sandbox', label: '虚实共生沙盒', sublabel: 'XDP Sandbox', icon: Box, color: 'text-amber-600' },
-  { id: 'roadmap', label: '90天路线图', sublabel: 'Roadmap', icon: Target, color: 'text-rose-500' },
-  { id: 'subscription', label: '订阅方案', sublabel: 'AFC Plans', icon: CreditCard, color: 'text-amber-500' },
-  { id: 'manifesto', label: '创始人致辞', sublabel: 'Founder Manifesto', icon: Quote, color: 'text-amber-500' },
-  { id: 'swarm', label: '蜂群协作', sublabel: 'Swarm Coordinator', icon: Network, color: 'text-cyan-500' },
+// Navigation grouped by function (OS-style launcher categories)
+const navGroups = [
+  {
+    label: '核心',
+    items: [
+      { id: 'dashboard' as ActiveModule, label: '总控台', sublabel: 'Mission Control', icon: LayoutDashboard, color: 'text-emerald-500' },
+      { id: 'avatar' as ActiveModule, label: '分身系统', sublabel: 'Avatar Clone', icon: UserCircle2, color: 'text-violet-500' },
+    ]
+  },
+  {
+    label: '引擎',
+    items: [
+      { id: 'cognitive' as ActiveModule, label: '认知引擎', sublabel: 'Cognitive Engine', icon: Brain, color: 'text-emerald-600' },
+      { id: 'memory' as ActiveModule, label: '记忆宫殿', sublabel: 'Memory Palace', icon: Brain, color: 'text-teal-500' },
+      { id: 'evidence' as ActiveModule, label: '可信证据链', sublabel: 'Evidence Chain', icon: Shield, color: 'text-teal-600' },
+      { id: 'federation' as ActiveModule, label: '联邦信任层', sublabel: 'Federation Trust', icon: ShieldCheck, color: 'text-emerald-600' },
+    ]
+  },
+  {
+    label: '业务',
+    items: [
+      { id: 'media' as ActiveModule, label: '媒体矩阵', sublabel: 'Media Matrix', icon: Radio, color: 'text-emerald-600' },
+      { id: 'bd' as ActiveModule, label: '合作管线', sublabel: 'BD Pipeline', icon: Handshake, color: 'text-amber-600' },
+      { id: 'geo' as ActiveModule, label: 'GEO优化', sublabel: 'GEO Center', icon: Search, color: 'text-teal-600' },
+      { id: 'email' as ActiveModule, label: '邮件跟踪', sublabel: 'Email Tracking', icon: Mail, color: 'text-emerald-500' },
+    ]
+  },
+  {
+    label: '协作',
+    items: [
+      { id: 'collaboration' as ActiveModule, label: '流体调度', sublabel: 'Fluid Router', icon: Network, color: 'text-cyan-600' },
+      { id: 'swarm' as ActiveModule, label: '蜂群协作', sublabel: 'Swarm', icon: Network, color: 'text-cyan-500' },
+      { id: 'sandbox' as ActiveModule, label: '共生沙盒', sublabel: 'XDP Sandbox', icon: Box, color: 'text-amber-600' },
+    ]
+  },
+  {
+    label: '规划',
+    items: [
+      { id: 'roadmap' as ActiveModule, label: '路线图', sublabel: 'Roadmap', icon: Target, color: 'text-rose-500' },
+      { id: 'subscription' as ActiveModule, label: '订阅方案', sublabel: 'AFC Plans', icon: CreditCard, color: 'text-amber-500' },
+      { id: 'manifesto' as ActiveModule, label: '创始人致辞', sublabel: 'Manifesto', icon: Quote, color: 'text-amber-500' },
+    ]
+  },
 ]
+
+const navItems = navGroups.flatMap(g => g.items)
 
 // Extracted sidebar component to avoid render-time component creation
 interface SidebarContentProps {
@@ -178,83 +212,99 @@ function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavi
 
       <Separator className="mx-3 my-2" />
 
-      {/* Navigation Items */}
-      <nav className="flex-1 px-2 py-2 space-y-1 overflow-y-auto">
+      {/* Navigation Items — Grouped (OS Launcher Style) */}
+      <nav className="flex-1 px-2 py-2 overflow-y-auto">
         <TooltipProvider delayDuration={0}>
-          {navItems.map((item) => {
-            const isActive = activeModule === item.id
-            return (
-              <Tooltip key={item.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      onNavigate(item.id)
-                      onMobileClose?.()
-                    }}
-                    className={cn(
-                      "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      isActive
-                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 shadow-sm"
-                        : "text-muted-foreground border border-transparent",
-                      sidebarCollapsed && "justify-center px-2"
-                    )}
-                  >
-                    <item.icon className={cn("h-5 w-5 shrink-0", isActive ? item.color : '')} />
-                    {!sidebarCollapsed && (
-                      <div className="flex flex-col items-start min-w-0">
-                        <span className="truncate text-sm">{item.label}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono truncate">{item.sublabel}</span>
-                      </div>
-                    )}
-                    {!sidebarCollapsed && isActive && (
-                      <Badge variant="secondary" className="ml-auto text-[10px] h-5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-0">
-                        Active
-                      </Badge>
-                    )}
-                  </button>
-                </TooltipTrigger>
-                {sidebarCollapsed && (
-                  <TooltipContent side="right" className="font-medium">
-                    {item.label}
-                    <span className="block text-xs text-muted-foreground">{item.sublabel}</span>
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            )
-          })}
+          {navGroups.map((group) => (
+            <div key={group.label} className="mb-2">
+              {/* Group Label */}
+              {!sidebarCollapsed && (
+                <div className="flex items-center gap-2 px-3 py-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">{group.label}</span>
+                  <div className="flex-1 h-px bg-border/50" />
+                </div>
+              )}
+              {sidebarCollapsed && <div className="my-1 h-px bg-border/30" />}
+              {/* Group Items */}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = activeModule === item.id
+                  return (
+                    <Tooltip key={item.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => {
+                            onNavigate(item.id)
+                            onMobileClose?.()
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-200",
+                            "hover:bg-accent hover:text-accent-foreground",
+                            isActive
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 shadow-sm"
+                              : "text-muted-foreground",
+                            sidebarCollapsed && "justify-center px-2 py-2.5"
+                          )}
+                        >
+                          <div className={cn(
+                            "flex items-center justify-center rounded-md h-7 w-7 shrink-0 transition-colors",
+                            isActive ? "bg-emerald-500/15" : "bg-transparent"
+                          )}>
+                            <item.icon className={cn("h-4 w-4", isActive ? item.color : 'text-muted-foreground/60')} />
+                          </div>
+                          {!sidebarCollapsed && (
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className="flex flex-col items-start min-w-0">
+                                <span className="truncate leading-tight">{item.label}</span>
+                                <span className="text-[9px] text-muted-foreground font-mono truncate leading-tight">{item.sublabel}</span>
+                              </div>
+                              {isActive && (
+                                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      {sidebarCollapsed && (
+                        <TooltipContent side="right" className="font-medium">
+                          {item.label}
+                          <span className="block text-xs text-muted-foreground">{item.sublabel}</span>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </TooltipProvider>
       </nav>
 
       <Separator className="mx-3 my-2" />
 
-      {/* System Status */}
+      {/* System Status — OS-style system tray */}
       {!sidebarCollapsed && (
         <div className="px-3 pb-2">
-          <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">系统状态</span>
-              <Badge variant="secondary" className="h-5 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-0">
-                运行中
-              </Badge>
+          <div className="rounded-lg border bg-card/80 p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">System</span>
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Online</span>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex flex-col">
-                <span className="text-muted-foreground">Phase</span>
-                <span className="font-semibold">1/3</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-muted-foreground">Day</span>
-                <span className="font-semibold">18/90</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-muted-foreground">分身</span>
-                <span className="font-semibold text-emerald-600">3 Active</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-muted-foreground">凭证</span>
-                <span className="font-semibold text-teal-600">12 Verified</span>
-              </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { label: 'Ph1', value: '1/3', color: 'text-emerald-600' },
+                { label: 'Day', value: '18', color: 'text-amber-600' },
+                { label: 'AI', value: '4', color: 'text-violet-600' },
+                { label: 'VC', value: '12', color: 'text-teal-600' },
+              ].map(s => (
+                <div key={s.label} className="flex flex-col items-center p-1 rounded bg-muted/40">
+                  <span className="text-[8px] text-muted-foreground font-mono">{s.label}</span>
+                  <span className={cn('text-[11px] font-bold font-mono', s.color)}>{s.value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -311,21 +361,22 @@ const EVENT_LABELS: Record<WSEventType, string> = {
 
 // Module name mapping for error boundary
 const MODULE_NAMES: Record<ActiveModule, string> = {
-  dashboard: '总览 Dashboard',
+  dashboard: '总控台 Mission Control',
   avatar: '分身系统 Avatar Clone',
   media: '媒体矩阵 Media Matrix',
-  bd: '合作伙伴管线 BD Pipeline',
-  geo: 'GEO优化中心 GEO Center',
+  bd: '合作管线 BD Pipeline',
+  geo: 'GEO优化 GEO Center',
   email: '邮件跟踪 Email Tracking',
-  cognitive: '认知分片引擎 Cognitive Engine',
+  cognitive: '认知引擎 Cognitive Engine',
   memory: '记忆宫殿 Memory Palace',
   evidence: '可信证据链 Evidence Chain',
-  collaboration: '流体协作调度 Collaboration Router',
-  sandbox: '虚实共生沙盒 XDP Sandbox',
-  roadmap: '90天路线图 Roadmap',
+  collaboration: '流体调度 Fluid Router',
+  sandbox: '共生沙盒 XDP Sandbox',
+  roadmap: '路线图 Roadmap',
   subscription: '订阅方案 AFC Plans',
-  manifesto: '创始人致辞 Founder Manifesto',
-  swarm: '蜂群协作 Swarm Coordinator',
+  manifesto: '创始人致辞 Manifesto',
+  swarm: '蜂群协作 Swarm',
+  federation: '联邦信任层 Federation Trust',
 }
 
 // Page transition animation variants
@@ -473,6 +524,12 @@ export default function Home() {
         return (
           <ModuleErrorBoundary moduleName={moduleName}>
             <SwarmCoordinatorView />
+          </ModuleErrorBoundary>
+        )
+      case 'federation':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <FederationLayerView />
           </ModuleErrorBoundary>
         )
       default:
@@ -662,17 +719,21 @@ export default function Home() {
           </main>
 
           {/* Footer - sticky to bottom */}
-          <footer className="mt-auto border-t bg-card px-3 sm:px-4 md:px-6 py-2 sm:py-3">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="text-sm sm:text-base" role="img" aria-label="Piaoshu">🧬</span>
-                <span className="font-medium">飘叔 Piaoshu · AI分身操作系统</span>
-                <span className="font-mono">v0.1.0-alpha</span>
+          <footer className="mt-auto border-t bg-card/80 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2">
+            <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400">ONLINE</span>
+                </div>
+                <span className="text-border">|</span>
+                <span className="font-medium">Piaoshu Avatar OS</span>
+                <span className="font-mono">v0.1</span>
               </div>
-              <div className="flex items-center gap-2 sm:gap-3">
-                <span>Web4.0 AI-Native</span>
-                <span>·</span>
-                <span>将AI从执行者升维为共生体</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono">Phase 1/3 · Day 18</span>
+                <span className="text-border">|</span>
+                <span>AI分身 · 认知引擎 · 可信证据链</span>
               </div>
             </div>
           </footer>

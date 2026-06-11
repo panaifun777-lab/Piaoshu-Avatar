@@ -2148,3 +2148,239 @@ Stage Summary:
 - Cyan/teal accent color, full dark mode, responsive, Framer Motion animations
 - Fallback data ensures component renders even without backend
 - Zero lint errors
+
+---
+Task ID: 1
+Agent: Dashboard Redesign Agent
+Task: Redesign Dashboard from "backend admin interface" to "Live Mission Control + Avatar Live Square" style
+
+Work Log:
+- Complete rewrite of /src/components/piaoshu/dashboard.tsx (~1000 lines → ~1080 lines redesigned)
+- Replaced static "欢迎回来" hero banner with dynamic Mission Control header:
+  - Pulsing LIVE badge with animated green dot
+  - System status bar: active avatars count, current cycles, real-time uptime counter, WebSocket connection status
+  - "Mission Control" title with Radio icon, emerald/teal gradient background
+  - God Mode orange CTA button preserved
+- Added Live Activity Ticker at top:
+  - Horizontal scrolling news ticker showing recent activities across all avatars
+  - AnimatePresence transitions (slide in from right, slide out to left)
+  - Color-coded by agent role (amber/CEO, cyan/CTO, emerald/Growth, teal/Engineer)
+  - LIVE badge with pulsing dot on the left
+- Created "分身实时广场" (Avatar Live Square) section:
+  - 4-column responsive grid of live agent cards (inspired by Polsia's live dashboard)
+  - Each card shows: role-colored icon, agent name, status (working/idle/sleeping), current task, progress bar, cycle count
+  - Working agents have: animated pulse glow background, LiveDot indicator on icon, progress bar
+  - Top accent line per role color (amber CEO, cyan CTO, emerald Growth, teal Engineer)
+  - Current task panel with Terminal icon and "CURRENT TASK" label
+  - Simulated "other users' avatars" (张伟/李明/王芳/赵磊) for multi-avatar ecosystem feel
+  - "远程" badge on non-own avatars
+  - Badge showing count of running agents
+- Redesigned Stat Cards as OS-like widgets:
+  - Blinking LiveDot on active metrics (AI周期, 活跃智能体)
+  - Hover glow border animation (group-hover opacity transition)
+  - Monospace font for values, "7D TREND" label
+  - Sparkline trend charts preserved
+- Added Quick System Status Bar:
+  - 5 service badges: WebSocket, 向量搜索, 区块链, 记忆宫殿, 认知引擎
+  - Green/red dots for online/offline status
+  - Block height and gas price display
+- Enhanced AI Activity Feed:
+  - Timeline with connecting vertical line (emerald gradient)
+  - Smaller dot indicators on timeline nodes
+  - Staggered entrance animations (delay per item)
+  - Module badges (分身系统/证据链/协作调度/认知引擎)
+- Restructured layout to 5-column grid (2+3):
+  - Left (2 cols): Enhanced Activity Feed
+  - Right (3 cols): Agent Activity Bar Chart, Task Completion Donut, Evidence Growth Area Chart, Quick Actions, Roadmap, Engine Health
+- Preserved all existing functionality:
+  - All React Query hooks (useShards, useEvidences, useTasks, useProjects, useRoadmap, useCloneAgents, useBlockchainStatus, useCloneActivities)
+  - WebSocket connection status
+  - All data computations (cognitive health, evidence integrity, etc.)
+  - Module navigation via onNavigate prop
+- Color scheme: emerald/teal primary, violet for avatar elements, amber/amber for CEO, cyan for CTO
+- Removed unused imports: Eye, Box, Globe, Circle, Pause, useSimulations, useCallback
+- Added BarChart3 import from lucide-react
+- All lint checks pass with zero errors
+- Dev server compiles successfully (200)
+
+Stage Summary:
+- Dashboard completely redesigned from static admin panel to live Mission Control OS
+- 6 major new/modified sections: Live Ticker, Mission Control Header, OS Stat Widgets, Avatar Live Square, System Status Bar, Enhanced Activity Feed
+- Avatar Live Square shows 8 agents (4 real + 4 simulated) in real-time grid with pulse/glow animations
+- Live Activity Ticker scrolls recent events with AnimatePresence transitions
+- System uptime counter, WebSocket status, and 5 service health badges
+- Dark, techy command center aesthetic with emerald/teal color scheme
+- Full responsive design (mobile single-column, desktop grid)
+- Framer Motion animations throughout
+- Zero lint errors, all existing functionality preserved
+
+---
+Task ID: 3
+Agent: Federation Layer Developer
+Task: Add Federation Layer - DID+VC Cross-Avatar Trust Communication Module
+
+Work Log:
+- Prisma Schema: Added 4 new models:
+  - FederationDID: Decentralized identifier with DID document, trust level (bronze/silver/gold/platinum), status, public key
+  - FederationVC: Verifiable credentials with type (SkillProof/AchievementProof/TrustAttestation/CollaborationRecord), issuer/subject DID, credential hash, claims, verification status
+  - TrustConnection: Trust relationships between DIDs with strength (0-1), connection type (collaboration/mentorship/delegation/verification)
+  - CrossAvatarMessage: Cross-avatar communication log with message type, status, and content
+- Ran `bun run db:push` to sync schema and regenerate Prisma Client
+
+- API Routes Created:
+  - /api/federation/dids (GET + POST): List DIDs with stats (total/active/trust level distribution), create new DID with auto-generated did:piaoshu:xxx identifier and DID document
+  - /api/federation/vcs (GET + POST): List VCs with stats (total/active/pending/revoked/by type), issue new VC with credential hash and claims
+  - /api/federation/connections (GET + POST): List trust connections with stats (total/avg strength/by type), create new trust connection between DIDs
+  - /api/federation/verify (POST): Verify a VC by credential hash with 6-step verification checks (status, expiration, issuer trust level, issuer status, subject match, history), returns trust score and detailed check results
+  - /api/federation/messages (GET + POST): Cross-avatar messages with type and content
+  - /api/federation/seed (POST): Seed demo data (4 DIDs, 8 VCs, 5 connections, 5 messages)
+
+- React Query Hooks (6 new hooks):
+  - useFederationDIDs(): Query all DIDs with stats
+  - useCreateDID(): Create new DID with auto-invalidation
+  - useFederationVCs(filters?): Query VCs with type/status/issuer filtering
+  - useIssueVC(): Issue new verifiable credential
+  - useTrustConnections(filters?): Query trust connections with DID filtering
+  - useCreateTrustConnection(): Create trust connection
+  - useVerifyVC(): Verify credential and return trust score
+  - useCrossAvatarMessages(): Query cross-avatar messages
+  - useSeedFederation(): Seed demo data
+
+- Federation Layer Component (federation-layer.tsx, 700+ lines) with 6 sections:
+  1. FederationHeader: Title "联邦信任层 / Federation Trust Network", 4 stat cards (DID注册数, 活跃连接, VC已签发, 信任分), "Create DID" button
+  2. DIDIdentityCards: Grid of avatar DID cards with trust level badges (Bronze/Silver/Gold/Platinum with distinct colors and glow effects), DID identifier with copy button, VC count, expandable DID document viewer, status badges
+  3. VerifiableCredentialsPanel: Filterable VC list (by type, status, hash search), per-VC verification button with real-time trust score calculation, claims preview badges
+  4. TrustNetworkVisualization: SVG constellation graph showing avatar nodes (size/color by trust level), connection lines (thickness by strength, dashed for verification type), trust strength labels, legend
+  5. TrustVerificationFlow: 4-step animated flow diagram (出示DID → 请求VC → 凭证验证 → 信任计算)
+  6. CrossAvatarCommunicationLog: Recent messages between avatars with type badges (task_assignment/knowledge_share/collaboration_invite/trust_request), sender/receiver names, status badges
+
+- Color Scheme: Emerald/teal primary accent, trust levels: Bronze (amber), Silver (slate), Gold (yellow), Platinum (cyan)
+- Dark background cards with subtle glow matching trust level
+- All data uses fallback demo data when API returns empty
+- Full responsive design (mobile single-column, desktop grid)
+
+- Page Integration (page.tsx):
+  - Added ShieldCheck icon import from lucide-react
+  - Added 'federation' to ActiveModule type
+  - Added nav item: { id: 'federation', label: '联邦信任层', sublabel: 'Federation Trust', icon: ShieldCheck, color: 'text-emerald-600' }
+  - Added MODULE_NAMES entry for federation
+  - Added case 'federation': FederationLayerView in renderModule
+  - Dynamic import with lazy loading
+
+- Seed Data: 4 DIDs (飘叔CEO/Platinum, 技术总监CTO/Gold, 增长负责人/Silver, 工程师Agent/Bronze), 8 VCs, 5 trust connections, 5 cross-avatar messages
+- All lint checks pass with zero errors
+- Seed API tested successfully: 4 DIDs, 8 VCs, 5 connections, 5 messages created
+
+Stage Summary:
+- Full DID+VC Federation Trust Layer with 4 new Prisma models
+- 6 API routes across 5 endpoint groups (DIDs, VCs, connections, verify, messages, seed)
+- 9 new React Query hooks for federation module
+- Complete UI with 6 sections: header, DID cards, VC panel, network graph, verification flow, communication log
+- SVG constellation visualization for trust network topology
+- Trust level system: Bronze → Silver → Gold → Platinum
+- VC verification with 6-step checks and trust score calculation
+- Emerald/teal color scheme, no indigo/blue
+- Zero lint errors, seed data verified working
+
+---
+Task ID: 2
+Agent: SONA Evolution Loop Developer
+Task: Add SONA Self-Learning Evolution Loop to Memory Palace
+
+Work Log:
+- Read existing memory-palace.tsx (1261 lines) to understand structure: 5 tabs (PalaceMap, MemoryDrawers, KnowledgeGraph, Tunnels, WakePreview) with teal/emerald color scheme
+- Verified existing SONA API routes already exist:
+  - /api/memory/sona/status (GET) - returns metrics, history, currentCycle with in-memory state
+  - /api/memory/sona/cycle (POST) - triggers 4-phase evolution cycle (RETRIEVE→JUDGE→DISTILL→CONSOLIDATE) using z-ai-web-dev-sdk
+- Verified existing React Query hooks already exist:
+  - useSonaStatus() - queries /api/memory/sona/status
+  - useTriggerSonaCycle() - mutation to POST /api/memory/sona/cycle, invalidates sona-status + memory-drawers + memory-palace
+- Updated imports in memory-palace.tsx:
+  - Added useEffect, useRef from React
+  - Added Lucide icons: Play, Activity, TrendingUp, Clock, BarChart3, Filter, Timer, CircleDot, Database, Flame, ArrowDownToLine, ArrowUpFromLine, Scissors
+  - Added useSonaStatus, useTriggerSonaCycle from @/lib/api-hooks
+- Created SonaEvolutionTab component (~435 lines) with 3 major sections:
+  - Section 1: Evolution Pipeline - Horizontal 4-step pipeline (RETRIEVE→JUDGE→DISTILL→CONSOLIDATE) with:
+    - Step cards with icon, label, description per phase
+    - Status indicators: idle (muted), running (colored glow + pulse animation), completed (colored + checkmark)
+    - Animated progress bars for running steps
+    - Arrow connectors between steps (emerald when completed, muted otherwise)
+    - Color scheme: RETRIEVE=cyan, JUDGE=amber, DISTILL=violet, CONSOLIDATE=emerald
+  - Section 2: Cycle Control + Metrics (2-column layout):
+    - Control Panel (2/3 width): target wing selector, mode selector (轻量/标准/深度), auto-cycle toggle, "启动进化周期" gradient button (teal→cyan→emerald), estimated time and memory impact
+    - Metrics Panel (1/3 width): total cycles, memories processed, insights generated, pruning rate, average quality score, quality trend bar chart (10 bars with teal→emerald gradient), last cycle timestamp
+  - Section 3: Live Monitor + History Timeline (2-column layout):
+    - Live Monitor: real-time log display with auto-scroll, phase-colored log entries with timestamps, LIVE badge when cycle running, empty state when idle
+    - History Timeline: recent cycles with cycleId, mode, step durations (color-coded badges), memories processed/insights/pruned, quality score, duration
+- Added fallback demo data: 5 evolution history entries, 10-point quality trend, metrics
+- Auto-refresh every 2s when cycle is running via useEffect interval
+- Log auto-scroll to bottom on new entries via useRef + useEffect
+- Added new tab "SONA 进化回路" with Sparkles icon to MemoryPalace component:
+  - Tab trigger: teal-themed active state, Sparkles icon, responsive label
+  - Tab content: renders SonaEvolutionTab
+- All 5 existing tabs preserved: 宫殿地图, 记忆抽屉, 知识图谱, 隧道关联, 唤醒预览
+- All lint checks pass with zero errors
+
+Stage Summary:
+- SONA Evolution Loop tab added to Memory Palace as 6th tab
+- Full 4-phase pipeline visualization with color-coded step cards and animated status
+- Cycle control panel with wing/mode/auto-cycle selectors and gradient start button
+- Evolution metrics with quality trend bar chart and key stats
+- Live monitor with real-time log and auto-scroll
+- History timeline with 5 recent cycles showing step durations and metrics
+- API routes and React Query hooks were pre-existing, no backend changes needed
+- Teal/emerald/cyan color scheme consistent with Memory Palace theme
+- Fallback demo data ensures beautiful rendering without backend
+- All existing tabs and functionality preserved
+- Zero lint errors
+
+---
+Task ID: UI-REDESIGN-1
+Agent: Main Orchestrator
+Task: UI/UX Redesign - Polsia-inspired Live Mission Control + Avatar Live Square + SONA Evolution + Federation Trust Layer
+
+Work Log:
+- Dashboard redesigned from static admin panel to Live Mission Control:
+  - Added Live Activity Ticker (horizontal scrolling news ticker with LIVE badge)
+  - Replaced hero banner with Mission Control header (4 real-time metrics + LIVE indicator)
+  - Enhanced stat cards with OS-like widgets (blinking LiveDot indicators, hover glow)
+  - Added "分身实时广场" (Avatar Live Square) - 4-column grid of live agent cards with pulse animations
+  - Added simulated "other users' avatars" for Polsia-inspired multi-avatar ecosystem feel
+  - Added Quick System Status Bar with 5 service indicators (WebSocket, Vector, Blockchain, Memory, Cognitive)
+  - Enhanced AI Activity Feed with vertical timeline connecting lines
+
+- Memory Palace enhanced with SONA Self-Learning Evolution Loop:
+  - Added "SONA 进化回路" tab with 4-phase pipeline: RETRIEVE→JUDGE→DISTILL→CONSOLIDATE
+  - Each phase has distinct color (cyan/amber/violet/emerald) with animated status
+  - Cycle Control Panel with target wing selector, mode selector (轻量/标准/深度), auto-cycle toggle
+  - Evolution Metrics: total cycles, memories processed, insights generated, pruning rate, quality score trend
+  - Live Evolution Monitor with real-time log
+  - Evolution History Timeline with mode badges and step durations
+  - Backend API: /api/memory/sona/status (GET) and /api/memory/sona/cycle (POST)
+
+- Federation Trust Layer module created:
+  - Prisma models: FederationDID, FederationVC, TrustConnection, CrossAvatarMessage
+  - API routes: /api/federation/dids, /api/federation/vcs, /api/federation/connections, /api/federation/verify, /api/federation/messages
+  - Frontend: 6 sections - Header, DID Identity Cards, VC Panel, Trust Network SVG, Verification Flow, Communication Log
+  - Seed data: 4 DIDs (Platinum CEO, Gold CTO, Silver Growth, Bronze Engineer), 8 VCs, 5 connections
+
+- Overall UI style optimization (OS operating system feel):
+  - Sidebar navigation reorganized into 5 groups: 核心/引擎/业务/协作/规划
+  - Group labels with dividers (OS Launcher style)
+  - Active items show animated dot indicator instead of "Active" badge
+  - Nav items show icon in rounded square container
+  - System Status widget redesigned as OS system tray with compact 4-cell grid
+  - Footer redesigned as OS taskbar: ONLINE indicator + Phase/Day + system modules
+  - Navigation labels shortened for cleaner sidebar
+
+- All lint checks pass (zero errors)
+- All API endpoints tested and returning 200
+- Agent Browser verified: Dashboard loads correctly with grouped navigation and Mission Control layout
+
+Stage Summary:
+- Complete Polsia-inspired UI redesign from admin panel to OS-style operating system
+- 3 major new features: Avatar Live Square, SONA Evolution Loop, Federation Trust Layer
+- Navigation reorganized into logical groups (核心/引擎/业务/协作/规划)
+- Footer and System Status redesigned as OS-style widgets
+- Colors preserved: emerald/teal primary, violet for avatar module
+- All 17 modules accessible via sidebar navigation
