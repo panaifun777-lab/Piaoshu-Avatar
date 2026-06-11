@@ -334,6 +334,8 @@ model AvatarClone {
   skills        CloneSkill[]
   activities    CloneActivity[]
   dailySchedules DailySchedule[]
+  memoryWings   MemoryWing[]
+  kgEntities    KGEntity[]
 }
 
 // ===== 分身代理 (Polsia角色) =====
@@ -728,4 +730,126 @@ model AgentAPIEndpoint {
   status      String   @default("active") // active, deprecated, maintenance
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ===== Memory Palace 分层记忆系统 (MemPalace-inspired) =====
+
+model MemoryWing {
+  id          String   @id @default(cuid())
+  cloneId     String
+  name        String   // domain: "product", "engineering", "relationships", "identity"
+  wingType    String   @default("topic") // topic, person, project, agent
+  description String?
+  priority    Int      @default(5)  // 1-10, determines L1 inclusion
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clone   AvatarClone @relation(fields: [cloneId], references: [id], onDelete: Cascade)
+  rooms   MemoryRoom[]
+}
+
+model MemoryRoom {
+  id          String   @id @default(cuid())
+  wingId      String
+  name        String   // sub-topic: "auth", "billing", "deploy", "general"
+  hallType    String   @default("facts") // facts, events, discoveries, preferences, advice
+  drawerCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  wing     MemoryWing   @relation(fields: [wingId], references: [id], onDelete: Cascade)
+  drawers  MemoryDrawer[]
+  tunnelsA MemoryTunnel[] @relation("TunnelA")
+  tunnelsB MemoryTunnel[] @relation("TunnelB")
+}
+
+model MemoryDrawer {
+  id           String    @id @default(cuid())
+  roomId       String
+  content      String    // Original text content
+  aaaakSummary String?   // AAAK-compressed summary
+  chunkIndex   Int       @default(0)
+  sourceType   String    // simulation, chat, decision, manual, evidence, external, cycle
+  sourceId     String?
+  importance   Float     @default(3.0)  // 1-5, determines L1 loading
+  emotionalWeight Float  @default(0.0)
+  contentHash  String?   // MD5 for dedup
+  accessCount  Int       @default(0)
+  lastAccessed DateTime?
+  validFrom    DateTime  @default(now())
+  validTo      DateTime? // NULL = still valid
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  room    MemoryRoom   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tags    DrawerTag[]
+}
+
+model DrawerTag {
+  id       String @id @default(cuid())
+  drawerId String
+  tag      String
+  createdAt DateTime @default(now())
+
+  drawer MemoryDrawer @relation(fields: [drawerId], references: [id], onDelete: Cascade)
+}
+
+model MemoryTunnel {
+  id          String   @id @default(cuid())
+  roomAId     String
+  roomBId     String
+  sharedTheme String   // e.g., "authentication", "deployment"
+  strength    Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  roomA MemoryRoom @relation("TunnelA", fields: [roomAId], references: [id], onDelete: Cascade)
+  roomB MemoryRoom @relation("TunnelB", fields: [roomBId], references: [id], onDelete: Cascade)
+}
+
+// ===== Temporal Knowledge Graph =====
+
+model KGEntity {
+  id         String   @id @default(cuid())
+  cloneId    String
+  name       String
+  entityType String   // person, project, technology, concept, organization
+  properties String?  // JSON blob
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  clone           AvatarClone @relation(fields: [cloneId], references: [id], onDelete: Cascade)
+  subjectTriples  KGTriple[]  @relation("Subject")
+  objectTriples   KGTriple[]  @relation("Object")
+}
+
+model KGTriple {
+  id          String    @id @default(cuid())
+  cloneId     String
+  subjectId   String
+  predicate   String    // works_on, reports_to, prefers, decided, owns, etc.
+  objectId    String
+  validFrom   DateTime  @default(now())
+  validTo     DateTime? // NULL = currently valid
+  confidence  Float     @default(1.0)
+  sourceDrawerId String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  subject KGEntity @relation("Subject", fields: [subjectId], references: [id], onDelete: Cascade)
+  object  KGEntity @relation("Object", fields: [objectId], references: [id], onDelete: Cascade)
+}
+
+// ===== Stripe 支付会话 =====
+model PaymentSession {
+  id            String   @id @default(cuid())
+  sessionId     String   @unique  // Stripe session ID
+  userId        String?
+  planId        String?
+  amount        Float
+  currency      String   @default("usd")
+  status        String   @default("pending") // pending, paid, failed, expired
+  paymentMethod String   @default("stripe")  // stripe, stripe_link, crypto
+  metadata      String?  // JSON blob for additional info
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

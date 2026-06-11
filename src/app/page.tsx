@@ -94,6 +94,10 @@ const FounderManifestoView = dynamic(
   () => import('@/components/piaoshu/founder-manifesto').then(m => ({ default: m.FounderManifestoView })),
   { loading: () => <ModuleSkeleton /> }
 )
+const MemoryPalaceView = dynamic(
+  () => import('@/components/piaoshu/memory-palace').then(m => ({ default: m.MemoryPalace })),
+  { loading: () => <ModuleSkeleton /> }
+)
 
 function ModuleSkeleton() {
   return (
@@ -110,7 +114,7 @@ function ModuleSkeleton() {
   )
 }
 
-type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo' | 'manifesto'
+type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'memory' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo' | 'manifesto'
 
 interface NavItem {
   id: ActiveModule
@@ -128,6 +132,7 @@ const navItems: NavItem[] = [
   { id: 'geo', label: 'GEO优化中心', sublabel: 'GEO Center', icon: Search, color: 'text-teal-600' },
   { id: 'email', label: '邮件跟踪', sublabel: 'Email Tracking', icon: Mail, color: 'text-emerald-500' },
   { id: 'cognitive', label: '认知分片引擎', sublabel: 'Cognitive Sharding', icon: Brain, color: 'text-emerald-600' },
+  { id: 'memory', label: '记忆宫殿', sublabel: 'Memory Palace', icon: Brain, color: 'text-teal-500' },
   { id: 'evidence', label: '可信证据链', sublabel: 'Evidence Chain', icon: Shield, color: 'text-teal-600' },
   { id: 'collaboration', label: '流体协作调度', sublabel: 'Fluid Router', icon: Network, color: 'text-cyan-600' },
   { id: 'sandbox', label: '虚实共生沙盒', sublabel: 'XDP Sandbox', icon: Box, color: 'text-amber-600' },
@@ -308,6 +313,7 @@ const MODULE_NAMES: Record<ActiveModule, string> = {
   geo: 'GEO优化中心 GEO Center',
   email: '邮件跟踪 Email Tracking',
   cognitive: '认知分片引擎 Cognitive Engine',
+  memory: '记忆宫殿 Memory Palace',
   evidence: '可信证据链 Evidence Chain',
   collaboration: '流体协作调度 Collaboration Router',
   sandbox: '虚实共生沙盒 XDP Sandbox',
@@ -395,6 +401,12 @@ export default function Home() {
         return (
           <ModuleErrorBoundary moduleName={moduleName}>
             <CognitiveEngineView />
+          </ModuleErrorBoundary>
+        )
+      case 'memory':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <MemoryPalaceView />
           </ModuleErrorBoundary>
         )
       case 'evidence':

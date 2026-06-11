@@ -23,6 +23,7 @@ import {
   Gift,
   Sparkles,
   TrendingUp,
+  Shield,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
@@ -43,6 +44,7 @@ import {
   useAFCTransactions,
   type SubscriptionPlan,
 } from '@/lib/api-hooks'
+import { StripePayment } from '@/components/piaoshu/stripe-payment'
 
 // Fallback plans for demo
 const FALLBACK_PLANS: SubscriptionPlan[] = [
@@ -214,6 +216,10 @@ export function SubscriptionPlans() {
   const [creditTab, setCreditTab] = useState('onetime')
   const [selectedCreditPkg, setSelectedCreditPkg] = useState('pkg-50')
   const [selectedMonthlyPlan, setSelectedMonthlyPlan] = useState('monthly-100')
+
+  // Stripe payment dialog state
+  const [stripePayOpen, setStripePayOpen] = useState(false)
+  const [stripePayPlan, setStripePayPlan] = useState<SubscriptionPlan | null>(null)
 
   const plans = plansData?.data?.plans?.length ? plansData.data.plans : FALLBACK_PLANS
   const currentPlanName = subData?.data?.plan?.name ?? 'free'
@@ -512,34 +518,47 @@ export function SubscriptionPlans() {
                         <ArrowUpRight className="ml-1 h-4 w-4" />
                       </Button>
                     ) : (
-                      <Button
-                        className={`w-full ${
-                          isPopular
-                            ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:opacity-90'
-                            : ''
-                        }`}
-                        variant={isPopular ? 'default' : 'outline'}
-                        disabled={isSubscribing || subscribeMutation.isPending}
-                        onClick={() => handleSubscribe(plan)}
-                      >
-                        {isSubscribing ? (
-                          <>
-                            <motion.div
-                              animate={{ rotate: 360 }}
-                              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                              className="mr-2"
-                            >
-                              <Zap className="h-4 w-4" />
-                            </motion.div>
-                            处理中...
-                          </>
-                        ) : (
-                          <>
-                            {currentPlanName === 'free' ? '选择方案' : '升级'}
-                            <ArrowUpRight className="ml-1 h-4 w-4" />
-                          </>
-                        )}
-                      </Button>
+                      <div className="w-full space-y-2">
+                        <Button
+                          className={`w-full ${
+                            isPopular
+                              ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:opacity-90'
+                              : ''
+                          }`}
+                          variant={isPopular ? 'default' : 'outline'}
+                          disabled={isSubscribing || subscribeMutation.isPending}
+                          onClick={() => handleSubscribe(plan)}
+                        >
+                          {isSubscribing ? (
+                            <>
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                                className="mr-2"
+                              >
+                                <Zap className="h-4 w-4" />
+                              </motion.div>
+                              处理中...
+                            </>
+                          ) : (
+                            <>
+                              {currentPlanName === 'free' ? '选择方案' : '升级'}
+                              <ArrowUpRight className="ml-1 h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          className="w-full gap-1.5 text-xs"
+                          variant="outline"
+                          onClick={() => {
+                            setStripePayPlan(plan)
+                            setStripePayOpen(true)
+                          }}
+                        >
+                          <Shield className="h-3.5 w-3.5" />
+                          选择支付方式
+                        </Button>
+                      </div>
                     )}
                   </CardFooter>
                 </Card>
@@ -1034,6 +1053,27 @@ export function SubscriptionPlans() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Stripe Payment Dialog */}
+      <Dialog open={stripePayOpen} onOpenChange={setStripePayOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-purple-500" />
+              {stripePayPlan ? `${stripePayPlan.displayName} — 选择支付方式` : '选择支付方式'}
+            </DialogTitle>
+          </DialogHeader>
+          <StripePayment
+            planId={stripePayPlan?.id}
+            amount={stripePayPlan?.priceUSD ?? 0}
+            currency="usd"
+            onSuccess={() => {
+              setStripePayOpen(false)
+              setStripePayPlan(null)
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

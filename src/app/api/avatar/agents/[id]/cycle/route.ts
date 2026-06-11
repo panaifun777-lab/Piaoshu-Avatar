@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
 import { db } from '@/lib/db'
+import { compress, generateContentHash } from '@/lib/aaak-compressor'
+import { wakeUp } from '@/lib/memory-loader'
+import { seedDefaultWings } from '@/lib/memory-seed'
 
 let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null
 
@@ -17,6 +20,163 @@ async function getClonePersona(cloneId: string): Promise<string> {
     return clone?.persona || ''
   } catch {
     return ''
+  }
+}
+
+// Auto-classify content into a room using LLM
+async function classifyToRoom(
+  zai: Awaited<ReturnType<typeof ZAI.create>>,
+  cloneId: string,
+  content: string,
+  agentRole: string
+): Promise<string | null> {
+  try {
+    // Ensure wings exist
+    await seedDefaultWings(cloneId)
+
+    // Get available rooms
+    const rooms = await db.memoryRoom.findMany({
+      where: { wing: { cloneId } },
+      include: { wing: { select: { name: true, priority: true } } },
+      orderBy: { wing: { priority: 'desc' } },
+    })
+
+    if (rooms.length === 0) return null
+
+    const roomOptions = rooms.map(r =>
+      `${r.id}: ${r.wing.name}/${r.name} (${r.hallType})`
+    ).join('\n')
+
+    const classifyPrompt = `你是一个记忆分类器。请将以下内容分类到最合适的记忆房间。
+
+可用房间：
+${roomOptions}
+
+内容来源代理角色: ${agentRole}
+内容摘要: ${content.substring(0, 300)}
+
+只输出最合适的房间ID，不要其他文字。`
+
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'assistant', content: classifyPrompt },
+        { role: 'user', content: '请分类' },
+      ],
+      thinking: { type: 'disabled' },
+    })
+
+    const roomId = completion.choices[0]?.message?.content?.trim() || ''
+
+    // Verify the room exists
+    const room = await db.memoryRoom.findFirst({
+      where: { id: roomId, wing: { cloneId } },
+    })
+    return room?.id || null
+  } catch {
+    // Classification is best-effort
+    return null
+  }
+}
+
+// Auto-extract KG entities and triples from cycle report
+async function extractKGFacts(
+  zai: Awaited<ReturnType<typeof ZAI.create>>,
+  cloneId: string,
+  reportContent: string,
+  drawerId: string
+): Promise<number> {
+  try {
+    const kgPrompt = `从以下代理周期报告中提取知识图谱三元组。每个三元组包含：主体、谓词、客体。
+
+报告内容：
+${reportContent.substring(0, 1500)}
+
+输出格式（严格JSON）：
+{
+  "triples": [
+    {"subject": "主体名称", "predicate": "谓词(如:works_on,decided,prefers,owns,reports_to)", "object": "客体名称", "entity_types": {"subject": "person|project|technology|concept|organization", "object": "person|project|technology|concept|organization"}, "confidence": 0.5-1.0}
+  ]
+}
+
+只提取明确的、事实性的关系，不要推断。最多5个三元组。`
+
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'assistant', content: kgPrompt },
+        { role: 'user', content: '请提取知识图谱三元组' },
+      ],
+      thinking: { type: 'disabled' },
+    })
+
+    const output = completion.choices[0]?.message?.content || ''
+    const json = JSON.parse(output)
+
+    if (!json.triples || !Array.isArray(json.triples)) return 0
+
+    let created = 0
+    for (const triple of json.triples.slice(0, 5)) {
+      if (!triple.subject || !triple.predicate || !triple.object) continue
+
+      // Upsert subject entity
+      const subject = await db.kGEntity.upsert({
+        where: { id: `kg_${cloneId}_${triple.subject}` },
+        create: {
+          cloneId,
+          name: triple.subject,
+          entityType: triple.entity_types?.subject || 'concept',
+        },
+        update: {},
+      })
+
+      // Upsert object entity
+      const object = await db.kGEntity.upsert({
+        where: { id: `kg_${cloneId}_${triple.object}` },
+        create: {
+          cloneId,
+          name: triple.object,
+          entityType: triple.entity_types?.object || 'concept',
+        },
+        update: {},
+      })
+
+      // Check for existing unexpired triple with same S+P (dedup / contradiction)
+      const existingTriple = await db.kGTriple.findFirst({
+        where: {
+          cloneId,
+          subjectId: subject.id,
+          predicate: triple.predicate,
+          validTo: null,
+        },
+      })
+
+      if (existingTriple) {
+        if (existingTriple.objectId === object.id) continue // Duplicate
+        // Contradiction: invalidate old
+        await db.kGTriple.update({
+          where: { id: existingTriple.id },
+          data: { validTo: new Date() },
+        })
+      }
+
+      // Create new triple
+      await db.kGTriple.create({
+        data: {
+          cloneId,
+          subjectId: subject.id,
+          predicate: triple.predicate,
+          objectId: object.id,
+          confidence: typeof triple.confidence === 'number'
+            ? Math.max(0, Math.min(1, triple.confidence))
+            : 0.7,
+          sourceDrawerId: drawerId,
+        },
+      })
+      created++
+    }
+
+    return created
+  } catch {
+    return 0
   }
 }
 
@@ -51,6 +211,18 @@ export async function POST(
       ? `\n\n你的分身核心人格：\n${clonePersona.substring(0, 1500)}`
       : ''
 
+    // === Memory Palace: Load L0+L1 for memory context ===
+    let memoryContext = ''
+    try {
+      await seedDefaultWings(agent.cloneId)
+      const wakeResult = await wakeUp(agent.cloneId)
+      if (wakeResult.combined) {
+        memoryContext = `\n\n【记忆宫殿·唤醒上下文】(~${wakeResult.totalTokens}tokens)\n${wakeResult.combined}`
+      }
+    } catch {
+      // Memory wake-up is best-effort
+    }
+
     // Fetch relevant shared knowledge for this agent's domain
     const agentDomainMap: Record<string, string[]> = {
       CEO: ['strategy', 'growth', 'operations'],
@@ -78,9 +250,9 @@ export async function POST(
 
     // === Phase 1: Planning ===
     const planPrompt = `你是${agent.name}代理，角色类型: ${agent.role}。
-你的人格描述: ${agent.persona}${personalityContext}${knowledgeContext}
+你的人格描述: ${agent.persona}${personalityContext}${memoryContext}${knowledgeContext}
 
-作为Polsia自主代理，请基于你的角色制定本周期工作计划。你需要：
+作为Polsia自主代理，请基于你的角色和记忆上下文制定本周期工作计划。你需要：
 1. 评估当前状态和优先事项
 2. 制定3-5个可执行的行动项
 3. 为每个行动项设定预期成果和输出类型
@@ -259,7 +431,7 @@ ${sharedKnowledge.length > 0 ? '5. 在适当的地方融入共享知识库中的
       },
     })
 
-    // Create memory entry
+    // Create legacy memory entry (backward compatible)
     await db.memoryEntry.create({
       data: {
         sourceType: 'agent_cycle',
@@ -269,6 +441,80 @@ ${sharedKnowledge.length > 0 ? '5. 在适当的地方融入共享知识库中的
         relevanceScore: 0.85,
       },
     })
+
+    // === Memory Palace: Auto-create MemoryDrawer from cycle output ===
+    let drawerCreated = false
+    let drawerId = ''
+    try {
+      // Build drawer content from cycle report
+      const drawerContent = [
+        `[${agent.name}·${agent.role}] 周期#${agent.cycleCount + 1}`,
+        `聚焦: ${planOutput.substring(0, 100)}`,
+        `报告: ${reportOutput.substring(0, 500)}`,
+      ].join('\n')
+
+      // Auto-classify into appropriate room
+      const targetRoomId = await classifyToRoom(zai, agent.cloneId, drawerContent, agent.role)
+
+      if (targetRoomId) {
+        // Generate AAAK summary
+        const aaaakResult = compress(drawerContent, {
+          importance: 4.0,
+          sourceType: 'cycle',
+          entities: [agent.name, agent.role],
+          topic: agent.role,
+          flags: ['DECISION'],
+        })
+
+        // Generate content hash for dedup
+        const contentHash = generateContentHash(drawerContent)
+
+        // Get next chunk index
+        const lastDrawer = await db.memoryDrawer.findFirst({
+          where: { roomId: targetRoomId },
+          orderBy: { chunkIndex: 'desc' },
+          select: { chunkIndex: true },
+        })
+
+        const drawer = await db.memoryDrawer.create({
+          data: {
+            roomId: targetRoomId,
+            content: drawerContent,
+            aaaakSummary: aaaakResult.summary,
+            chunkIndex: (lastDrawer?.chunkIndex || 0) + 1,
+            sourceType: 'cycle',
+            sourceId: cycle.id,
+            importance: 4.0,
+            contentHash,
+          },
+        })
+
+        // Add tags
+        const tags = [agent.role, '代理周期', `周期#${agent.cycleCount + 1}`]
+        for (const tag of tags) {
+          await db.drawerTag.create({
+            data: { drawerId: drawer.id, tag },
+          })
+        }
+
+        // Increment room drawer count
+        await db.memoryRoom.update({
+          where: { id: targetRoomId },
+          data: { drawerCount: { increment: 1 } },
+        })
+
+        drawerCreated = true
+        drawerId = drawer.id
+      }
+    } catch {
+      // Memory drawer creation is best-effort
+    }
+
+    // === Memory Palace: Auto-extract KG entities/triples ===
+    let kgTriplesCreated = 0
+    if (drawerId) {
+      kgTriplesCreated = await extractKGFacts(zai, agent.cloneId, reportOutput, drawerId)
+    }
 
     // === Extract insights for SharedKnowledge ===
     try {
@@ -326,6 +572,8 @@ ${reportOutput.substring(0, 1500)}
           agentName: agent.name,
           cycleCount: agent.cycleCount + 1,
           outputsCreated,
+          drawerCreated,
+          kgTriplesCreated,
         }),
         performedBy: agent.name,
       },
@@ -337,6 +585,11 @@ ${reportOutput.substring(0, 1500)}
         cycle: completedCycle,
         outputsCreated,
         report: reportOutput,
+        memoryPalace: {
+          drawerCreated,
+          drawerId,
+          kgTriplesCreated,
+        },
       },
     }, { status: 201 })
   } catch (error) {

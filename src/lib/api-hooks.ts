@@ -1101,3 +1101,174 @@ export function useSeedAgentAPI() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agentAPIEndpoints'] }),
   })
 }
+
+// ===== Memory Palace =====
+export function useMemoryPalace(cloneId?: string) {
+  return useQuery({
+    queryKey: ['memory-palace', cloneId],
+    queryFn: async () => {
+      const res = await fetch('/api/memory/palace')
+      return res.json()
+    },
+  })
+}
+
+export function useMemoryDrawers(filters?: { roomId?: string; wingId?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ['memory-drawers', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (filters?.roomId) params.set('roomId', filters.roomId)
+      if (filters?.wingId) params.set('wingId', filters.wingId)
+      if (filters?.limit) params.set('limit', String(filters.limit))
+      const res = await fetch(`/api/memory/drawers?${params}`)
+      return res.json()
+    },
+  })
+}
+
+export function useCreateDrawer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: { roomId: string; content: string; sourceType: string; importance?: number; tags?: string[] }) => {
+      const res = await fetch('/api/memory/drawers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['memory-drawers'] })
+      qc.invalidateQueries({ queryKey: ['memory-palace'] })
+    },
+  })
+}
+
+export function useUpdateDrawer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; [key: string]: unknown }) => {
+      const res = await fetch(`/api/memory/drawers/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['memory-drawers'] })
+      qc.invalidateQueries({ queryKey: ['memory-palace'] })
+    },
+  })
+}
+
+export function useMemoryTunnels() {
+  return useQuery({
+    queryKey: ['memory-tunnels'],
+    queryFn: async () => {
+      const res = await fetch('/api/memory/tunnels')
+      return res.json()
+    },
+  })
+}
+
+export function useMemoryWake(cloneId?: string) {
+  return useQuery({
+    queryKey: ['memory-wake', cloneId],
+    queryFn: async () => {
+      const res = await fetch('/api/memory/wake')
+      return res.json()
+    },
+  })
+}
+
+export function useKGEntities(entityType?: string) {
+  return useQuery({
+    queryKey: ['kg-entities', entityType],
+    queryFn: async () => {
+      const params = entityType ? `?entityType=${entityType}` : ''
+      const res = await fetch(`/api/memory/kg/entities${params}`)
+      return res.json()
+    },
+  })
+}
+
+export function useKGTriples(entityName?: string) {
+  return useQuery({
+    queryKey: ['kg-triples', entityName],
+    queryFn: async () => {
+      const params = entityName ? `?subject=${encodeURIComponent(entityName)}` : ''
+      const res = await fetch(`/api/memory/kg${params}`)
+      return res.json()
+    },
+  })
+}
+
+export function useAddKGTriple() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: { subjectName: string; predicate: string; objectName: string; confidence?: number }) => {
+      const res = await fetch('/api/memory/kg', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kg-triples'] })
+      qc.invalidateQueries({ queryKey: ['kg-entities'] })
+    },
+  })
+}
+
+export function useDiscoverTunnels() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/memory/tunnels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autoDiscover: true }) })
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['memory-tunnels'] }),
+  })
+}
+
+// ===== Stripe Payment =====
+export function useCreateStripeSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { planId?: string; userId?: string; amount: number; currency?: string; paymentMethod?: string }) =>
+      apiFetch<{ success: boolean; data: { sessionId: string; checkoutUrl: string; amount: number; currency: string; expiresAt: string } }>(
+        '/api/payments/stripe/create-session',
+        { method: 'POST', body: JSON.stringify(data) }
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['currentSubscription'] })
+      qc.invalidateQueries({ queryKey: ['afcTransactions'] })
+    },
+  })
+}
+
+export function useVerifyStripePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { sessionId: string }) =>
+      apiFetch<{ success: boolean; data: { sessionId: string; status: string; amount: number; currency: string; paymentMethod: string; paidAt?: string } }>(
+        '/api/payments/stripe/verify',
+        { method: 'POST', body: JSON.stringify(data) }
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['currentSubscription'] })
+      qc.invalidateQueries({ queryKey: ['afcTransactions'] })
+      qc.invalidateQueries({ queryKey: ['subscriptionPlans'] })
+    },
+  })
+}
+
+export function useStripeLinkStatus(userId?: string) {
+  return useQuery({
+    queryKey: ['stripeLinkStatus', userId],
+    queryFn: () => apiFetch<{ success: boolean; data: { linkEnabled: boolean; email: string | null; savedPaymentMethods: Array<{ id: string; type: string; last4?: string; brand?: string; email?: string; isDefault: boolean }>; phone: string | null; country: string } }>(
+      userId ? `/api/payments/stripe/link-status?userId=${userId}` : '/api/payments/stripe/link-status'
+    ),
+    enabled: !!userId,
+  })
+}
+
+export function usePaymentMethods() {
+  return useQuery({
+    queryKey: ['paymentMethods'],
+    queryFn: () => apiFetch<{ success: boolean; data: { methods: Array<{ id: string; name: string; label: string; description: string; icon: string; badge: string | null; badgeColor: string | null; supported: boolean; oneClick: boolean; currencies: string[]; processingTime: string }>; defaultMethod: string } }>(
+      '/api/payments/methods'
+    ),
+  })
+}
