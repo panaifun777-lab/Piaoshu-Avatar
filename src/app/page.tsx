@@ -29,6 +29,7 @@ import {
   Radio,
   Handshake,
   Search,
+  Quote,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useWebSocket, type WSEventType } from '@/lib/use-websocket'
@@ -89,6 +90,10 @@ const GEOCenterView = dynamic(
   () => import('@/components/piaoshu/geo-center').then(m => ({ default: m.GEOCenterView })),
   { loading: () => <ModuleSkeleton /> }
 )
+const FounderManifestoView = dynamic(
+  () => import('@/components/piaoshu/founder-manifesto').then(m => ({ default: m.FounderManifestoView })),
+  { loading: () => <ModuleSkeleton /> }
+)
 
 function ModuleSkeleton() {
   return (
@@ -105,7 +110,7 @@ function ModuleSkeleton() {
   )
 }
 
-type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo'
+type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo' | 'manifesto'
 
 interface NavItem {
   id: ActiveModule
@@ -128,6 +133,7 @@ const navItems: NavItem[] = [
   { id: 'sandbox', label: '虚实共生沙盒', sublabel: 'XDP Sandbox', icon: Box, color: 'text-amber-600' },
   { id: 'roadmap', label: '90天路线图', sublabel: 'Roadmap', icon: Target, color: 'text-rose-500' },
   { id: 'subscription', label: '订阅方案', sublabel: 'AFC Plans', icon: CreditCard, color: 'text-amber-500' },
+  { id: 'manifesto', label: '创始人致辞', sublabel: 'Founder Manifesto', icon: Quote, color: 'text-amber-500' },
 ]
 
 // Extracted sidebar component to avoid render-time component creation
@@ -307,6 +313,7 @@ const MODULE_NAMES: Record<ActiveModule, string> = {
   sandbox: '虚实共生沙盒 XDP Sandbox',
   roadmap: '90天路线图 Roadmap',
   subscription: '订阅方案 AFC Plans',
+  manifesto: '创始人致辞 Founder Manifesto',
 }
 
 // Page transition animation variants
@@ -437,6 +444,12 @@ export default function Home() {
         return (
           <ModuleErrorBoundary moduleName={moduleName}>
             <SubscriptionPlans />
+          </ModuleErrorBoundary>
+        )
+      case 'manifesto':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <FounderManifestoView />
           </ModuleErrorBoundary>
         )
       default:

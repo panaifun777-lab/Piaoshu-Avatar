@@ -1330,3 +1330,69 @@ Stage Summary:
   1. HTTPS with PAT: git remote set-url origin https://<TOKEN>@github.com/panaifun777-lab/Piaoshu-Avatar.git
   2. SSH Key: Generate key, add to GitHub, set remote to git@github.com:...
   3. GitHub CLI: gh auth login
+
+---
+Task ID: 3
+Agent: Founder Manifesto Developer
+Task: Create "创始人致辞" (Founder's Manifesto) navigation module
+
+Work Log:
+- Created /src/components/piaoshu/founder-manifesto.tsx (~400 lines) with FounderManifestoView component:
+  - Hero Section: Dark gradient (slate-900) background with decorative geometric lines, corner accents, ambient glow orbs; gradient title text (amber-400); subtitle with author attribution; share + Web4.0 badge
+  - Opening Section (认知危机): White/slate card with Eye icon, 3 paragraphs about cognitive crisis, Web2.0 broken promise, AI making things worse; decorative dot grid
+  - Core Question: Amber-themed card with Quote icon, styled as "核心追问" badge, highlighted text about AI companions being a stopgap
+  - Big Question (Hero-style): Dark gradient (slate-900→violet-950) centered section with animated pulsing radial glow effects (violet + amber), gradient text (amber→violet), animated textShadow pulse, bouncing arrow indicator
+  - Mirrome.me Section: Violet-themed card with Fingerprint icon, M-Pata Protocol highlight box, left border accent for philosophical question, core philosophy callout with Sparkles icon, 5 concept badges
+  - panai.fun Section: Emerald/teal-themed card with Users icon, fluid democracy + ECE highlights, "高维度的灵魂筛选" emerald box with Zap icon, AI Spark mechanism description, 6 concept badges
+  - Controversy Section: Amber/orange-themed card with Shield icon, 3 bullet points with amber dots, Socratic question in left-border accent quote, bridge statement
+  - Future Vision Section: Teal/cyan-themed card with Rocket icon, 3 numbered breakthrough cards (each with distinct gradient icon: teal→cyan, violet→purple, amber→orange), XDP + consciousness backup details
+  - Closing Section: Dark gradient (slate-900→amber-950) centered with Flame icon, animated ambient glow, gradient closing text (amber→emerald), share + resonate (Heart) buttons
+  - Dual Engine Overview: Neutral card with Layers icon, 2-column grid (Mirrome.me violet + panai.fun emerald), feature bullet points, external links, connection line visualization (Brain→双核驱动→Globe)
+- Scroll-based reveal animations using Framer Motion useInView with AnimatedSection wrapper component
+- Decorative elements: DecorativeDots component (3x3 grid), geometric corner lines, ambient glow orbs
+- Share functionality: navigator.share API with clipboard fallback + toast notification
+- Updated /src/app/page.tsx:
+  - Added Quote icon import from lucide-react
+  - Added FounderManifestoView dynamic import with ModuleSkeleton fallback
+  - Added 'manifesto' to ActiveModule type union
+  - Added nav item { id: 'manifesto', label: '创始人致辞', sublabel: 'Founder Manifesto', icon: Quote, color: 'text-amber-500' } as last item
+  - Added case 'manifesto' with ModuleErrorBoundary wrapping FounderManifestoView
+  - Added manifesto: '创始人致辞 Founder Manifesto' to MODULE_NAMES
+- All lint checks pass with zero errors
+- Dev server compiles and serves page successfully (200)
+
+Stage Summary:
+- Complete "创始人致辞" (Founder's Manifesto) immersive reading experience
+- 7 distinct visual sections with themed color accents (amber, violet, emerald, teal)
+- Hero-style big question with animated glow/pulse effects
+- Scroll-based Framer Motion reveal animations on all sections
+- Share and resonate interactive buttons
+- Dual engine overview card with Mirrome.me + panai.fun side-by-side
+- Full dark mode support, responsive design
+- All existing modules and functionality preserved
+- Zero lint errors
+
+---
+Task ID: 5
+Agent: Main Orchestrator
+Task: Second Me analysis, GitHub sync, Founder Manifesto, SOUL.md v2.1
+
+Work Log:
+- Analyzed https://home.second.me/ using web-reader and web-search skills
+- Read founder letter page and GitHub README for Second Me project
+- Extracted key features: AI Identity/Digital Twin, AI-Native Memory, Decentralized network, Roleplay, Voice/Face/Expertise, Open-source
+- Mapped Second Me features to Piaoshu system: Mirrome.me > Second Me (upgraded with M-Pata Protocol, cognitive ownership), panai.fun > new layer (social square for AI avatars)
+- Set up GitHub remote: https://github.com/panaifun777-lab/Piaoshu-Avatar.git
+- Created .gitignore, committed code, created git-sync.sh for real-time sync (3 modes: one-time, watch, interval)
+- Push pending authentication (PAT/SSH/gh CLI needed)
+- Created FounderManifestoView component (740 lines) with immersive design
+- Added 'manifesto' module to page.tsx navigation (last item)
+- Updated SOUL.md from v1 to v2.1 with: 身份背景, 诚实原则, 技术选型, 核心底线, 危机处理, 核心追问, 当前项目, 双核哲学
+- Updated soul route API default content to match SOUL.md v2.1
+- All lint checks pass, dev server running cleanly
+
+Stage Summary:
+- Second Me analysis: Mirrome.me is a philosophical upgrade over Second Me (cognitive ownership vs data feeding), panai.fun adds social layer that Second Me lacks
+- GitHub: Remote configured, git-sync.sh ready, push needs auth
+- Founder Manifesto: Beautiful immersive page with hero section, animated core question, Mirrome.me/panai.fun/controversy/future vision sections
+- SOUL.md v2.1: Enhanced persona with identity, tech stack, principles, projects, dual-core philosophy
