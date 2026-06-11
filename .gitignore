@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 node_modules
 /.pnp
@@ -23,46 +21,50 @@ node_modules
 # misc
 .DS_Store
 *.pem
+*.log
+dev.log
+dev.out.log
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+!.env.example
 
 # vercel
 .vercel
 
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local dev
 local-*
 .claude
 .z-ai-config
-*.log
-dev.log
-dev.out.log
 test
 prompt
-
 server.log
-# Skills directory
+
+# Skills directory (SDK, not project code)
 /skills/
 
-# Project-specific ignores
-node_modules/
-.next/
-.env
+# Database files
 db/*.db
-screenshot*.png
+db/*.db-journal
+
+# Agent context (work logs)
 agent-ctx/
+
+# Mini services node_modules
 mini-services/*/node_modules/
-download/
-upload/*.pptx
+
+# Upload temp files
 upload/*.zip
+upload/*.pptx
+
+# Screenshots (temp)
+screenshot*.png
 second-me-*.json
 polsia-*.json
+
+# Download
+download/
