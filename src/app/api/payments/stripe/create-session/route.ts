@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-    const isLiveStripe = !!stripeSecretKey
+    let isLiveStripe = !!stripeSecretKey
 
     let sessionId: string
     let checkoutUrl: string
