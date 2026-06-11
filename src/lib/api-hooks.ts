@@ -196,7 +196,7 @@ export function useUpdateMilestone() {
 // ===== AI Chat =====
 export function useChat() {
   return useMutation({
-    mutationFn: (data: { message: string; systemPrompt?: string; context?: string; sessionId?: string; provider?: string }) =>
+    mutationFn: (data: { message: string; systemPrompt?: string; context?: string; sessionId?: string; provider?: string; apiKey?: string; modelName?: string }) =>
       apiFetch<{ success: boolean; response: string; provider?: string }>('/api/chat', { method: 'POST', body: JSON.stringify(data) }),
   })
 }

@@ -133,6 +133,8 @@ export function AIChatWidget() {
         message: messageContent,
         sessionId,
         provider: providerToSend,
+        apiKey: aiConfig.deepseekKey || undefined,
+        modelName: aiConfig.modelName || undefined,
       })
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),

@@ -40,11 +40,12 @@ const DEFAULT_SYSTEM_PROMPT = `你是飘叔(Piaoshu)AI分身操作系统的AI共
 // DeepSeek API call using standard fetch (OpenAI-compatible)
 async function callDeepSeek(
   messages: Array<{ role: string; content: string }>,
-  model: string = 'deepseek-chat'
+  model: string = 'deepseek-chat',
+  apiKeyOverride?: string
 ): Promise<{ content: string | null; provider: string }> {
-  const apiKey = process.env.DEEPSEEK_API_KEY
+  const apiKey = apiKeyOverride || process.env.DEEPSEEK_API_KEY
   if (!apiKey) {
-    throw new Error('DEEPSEEK_API_KEY not set')
+    throw new Error('DEEPSEEK_API_KEY not set. Please configure it in Settings > AI Model Config.')
   }
 
   const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -92,7 +93,7 @@ async function callZAI(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { message, systemPrompt, context, sessionId, provider: requestedProvider } = body
+    const { message, systemPrompt, context, sessionId, provider: requestedProvider, apiKey: clientApiKey, modelName: clientModelName } = body
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
@@ -154,29 +155,49 @@ export async function POST(req: NextRequest) {
     let usedProvider = 'z-ai-sdk'
     const deepseekKey = process.env.DEEPSEEK_API_KEY
 
+    // Determine effective DeepSeek key: client-provided > env var
+    const effectiveDeepseekKey = clientApiKey || deepseekKey
+    const effectiveModelName = clientModelName || 'deepseek-chat'
+
     if (requestedProvider === 'z-ai-sdk') {
       // Explicitly requested Z-AI
       const result = await callZAI(messages)
       aiResponse = result.content
       usedProvider = result.provider
-    } else if (requestedProvider === 'deepseek' || (!requestedProvider && deepseekKey)) {
+    } else if (requestedProvider === 'deepseek' || (!requestedProvider && effectiveDeepseekKey)) {
       // Try DeepSeek first (explicitly requested or auto mode with key available)
       try {
-        const result = await callDeepSeek(messages)
+        const result = await callDeepSeek(messages, effectiveModelName, effectiveDeepseekKey)
         aiResponse = result.content
         usedProvider = result.provider
       } catch (deepseekError) {
         console.warn('DeepSeek failed, falling back to Z-AI SDK:', deepseekError)
         // Fallback to Z-AI SDK
-        const result = await callZAI(messages)
-        aiResponse = result.content
-        usedProvider = 'z-ai-sdk (fallback)'
+        try {
+          const result = await callZAI(messages)
+          aiResponse = result.content
+          usedProvider = 'z-ai-sdk (fallback)'
+        } catch (zaiError) {
+          console.error('Both DeepSeek and Z-AI SDK failed:', zaiError)
+          return NextResponse.json(
+            { error: 'All AI providers failed. Please check your API key in Settings.' },
+            { status: 500 }
+          )
+        }
       }
     } else {
       // No DeepSeek key, use Z-AI SDK
-      const result = await callZAI(messages)
-      aiResponse = result.content
-      usedProvider = result.provider
+      try {
+        const result = await callZAI(messages)
+        aiResponse = result.content
+        usedProvider = result.provider
+      } catch (zaiError) {
+        console.error('Z-AI SDK failed:', zaiError)
+        return NextResponse.json(
+          { error: 'AI service unavailable. Please configure DeepSeek API key in Settings.' },
+          { status: 500 }
+        )
+      }
     }
 
     if (!aiResponse) {

@@ -188,11 +188,10 @@ interface SidebarContentProps {
   mounted: boolean
   onNavigate: (module: ActiveModule) => void
   onToggleTheme: () => void
-  onOpenSettings: () => void
   onMobileClose?: () => void
 }
 
-function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavigate, onToggleTheme, onOpenSettings, onMobileClose }: SidebarContentProps) {
+function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavigate, onToggleTheme, onMobileClose }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Logo & Brand */}
@@ -311,18 +310,7 @@ function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavi
       )}
 
       {/* Bottom Actions */}
-      <div className="p-3 space-y-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-center gap-2"
-          onClick={onOpenSettings}
-        >
-          <Settings2 className="h-4 w-4" />
-          {!sidebarCollapsed && (
-            <span className="text-xs">系统设置</span>
-          )}
-        </Button>
+      <div className="p-3">
         <Button
           variant="ghost"
           size="sm"
@@ -561,7 +549,6 @@ export default function Home() {
             mounted={mounted}
             onNavigate={handleNavigate}
             onToggleTheme={toggleTheme}
-            onOpenSettings={() => setSettingsPanelOpen(true)}
           />
           <div className="p-2 border-t">
             <Button
@@ -602,7 +589,6 @@ export default function Home() {
               mounted={mounted}
               onNavigate={handleNavigate}
               onToggleTheme={toggleTheme}
-              onOpenSettings={() => setSettingsPanelOpen(true)}
               onMobileClose={() => setMobileMenuOpen(false)}
             />
           </aside>
