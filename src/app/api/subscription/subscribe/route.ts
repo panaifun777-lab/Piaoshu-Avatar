@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     let txHash: string | null = null
     try {
       const blockchainRes = await fetch(
-        `http://localhost:3005/api/contract/settle-payment`,
+        `http://localhost:3006/api/contract/settle-payment`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -98,6 +98,10 @@ const MemoryPalaceView = dynamic(
   () => import('@/components/piaoshu/memory-palace').then(m => ({ default: m.MemoryPalace })),
   { loading: () => <ModuleSkeleton /> }
 )
+const SwarmCoordinatorView = dynamic(
+  () => import('@/components/piaoshu/swarm-coordinator').then(m => ({ default: m.SwarmCoordinator })),
+  { loading: () => <ModuleSkeleton /> }
+)
 
 function ModuleSkeleton() {
   return (
@@ -114,7 +118,7 @@ function ModuleSkeleton() {
   )
 }
 
-type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'memory' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo' | 'manifesto'
+type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'memory' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo' | 'manifesto' | 'swarm'
 
 interface NavItem {
   id: ActiveModule
@@ -139,6 +143,7 @@ const navItems: NavItem[] = [
   { id: 'roadmap', label: '90天路线图', sublabel: 'Roadmap', icon: Target, color: 'text-rose-500' },
   { id: 'subscription', label: '订阅方案', sublabel: 'AFC Plans', icon: CreditCard, color: 'text-amber-500' },
   { id: 'manifesto', label: '创始人致辞', sublabel: 'Founder Manifesto', icon: Quote, color: 'text-amber-500' },
+  { id: 'swarm', label: '蜂群协作', sublabel: 'Swarm Coordinator', icon: Network, color: 'text-cyan-500' },
 ]
 
 // Extracted sidebar component to avoid render-time component creation
@@ -320,6 +325,7 @@ const MODULE_NAMES: Record<ActiveModule, string> = {
   roadmap: '90天路线图 Roadmap',
   subscription: '订阅方案 AFC Plans',
   manifesto: '创始人致辞 Founder Manifesto',
+  swarm: '蜂群协作 Swarm Coordinator',
 }
 
 // Page transition animation variants
@@ -461,6 +467,12 @@ export default function Home() {
         return (
           <ModuleErrorBoundary moduleName={moduleName}>
             <FounderManifestoView />
+          </ModuleErrorBoundary>
+        )
+      case 'swarm':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <SwarmCoordinatorView />
           </ModuleErrorBoundary>
         )
       default:

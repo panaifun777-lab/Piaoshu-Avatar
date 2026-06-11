@@ -1272,3 +1272,96 @@ export function usePaymentMethods() {
     ),
   })
 }
+
+// ===== Swarm Coordinator =====
+export function useSwarmStatus() {
+  return useQuery({
+    queryKey: ['swarmStatus'],
+    queryFn: () => apiFetch<{ ok: boolean; data: { initialized: boolean; topologyType: string; agentCount: number; activeAgents: number; taskStats: { pending: number; assigned: number; inProgress: number; completed: number }; avgWorkload: number; messageCount: number; lastActivity: string } }>('/api/swarm/status'),
+    refetchInterval: 10000,
+  })
+}
+
+export function useSwarmAgents() {
+  return useQuery({
+    queryKey: ['swarmAgents'],
+    queryFn: () => apiFetch<{ ok: boolean; data: { agents: Array<{ id: string; name: string; role: string; status: string; workload: number; capabilities: string[]; domain: string; avatar: string; level: number; experience: number; lastActiveAt: string }> } }>('/api/swarm/agents'),
+    refetchInterval: 8000,
+  })
+}
+
+export function useRegisterSwarmAgent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; role: string; capabilities?: string[]; domain?: string }) =>
+      apiFetch('/api/swarm/agents', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['swarmAgents'] }),
+  })
+}
+
+export function useSwarmTasks() {
+  return useQuery({
+    queryKey: ['swarmTasks'],
+    queryFn: () => apiFetch<{ ok: boolean; data: { tasks: Array<{ id: string; title: string; description: string; priority: number; taskType: string; status: string; assignedTo: string | null; assignedAgentName: string | null; createdAt: string; updatedAt: string; completedAt: string | null; distributionReason: string | null }> } }>('/api/swarm/tasks'),
+    refetchInterval: 8000,
+  })
+}
+
+export function useCreateSwarmTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { title: string; description?: string; priority?: number; taskType?: string }) =>
+      apiFetch('/api/swarm/tasks', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['swarmTasks'] }),
+  })
+}
+
+export function useInitSwarm() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { topologyType: string }) =>
+      apiFetch('/api/swarm/init', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['swarmStatus'] })
+      qc.invalidateQueries({ queryKey: ['swarmTopology'] })
+    },
+  })
+}
+
+export function useDistributeTasks() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch('/api/swarm/distribute', { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['swarmTasks'] })
+      qc.invalidateQueries({ queryKey: ['swarmAgents'] })
+      qc.invalidateQueries({ queryKey: ['swarmMessages'] })
+      qc.invalidateQueries({ queryKey: ['swarmStatus'] })
+    },
+  })
+}
+
+export function useSwarmTopology() {
+  return useQuery({
+    queryKey: ['swarmTopology'],
+    queryFn: () => apiFetch<{ ok: boolean; data: { topology: { type: string; agents: string[]; connections: [string, string][]; createdAt: string } | null; agents: Array<{ id: string; name: string; role: string; status: string }> } }>('/api/swarm/topology'),
+    refetchInterval: 15000,
+  })
+}
+
+export function useSwarmMessages() {
+  return useQuery({
+    queryKey: ['swarmMessages'],
+    queryFn: () => apiFetch<{ ok: boolean; data: { messages: Array<{ id: string; from: string; fromName: string; to: string; toName: string; type: string; content: string; timestamp: string }>; total: number } }>('/api/swarm/messages'),
+    refetchInterval: 5000,
+  })
+}
+
+export function useSendSwarmMessage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { from: string; to: string; type: string; content: string }) =>
+      apiFetch('/api/swarm/messages', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['swarmMessages'] }),
+  })
+}

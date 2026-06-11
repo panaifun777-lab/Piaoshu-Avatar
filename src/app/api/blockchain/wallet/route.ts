@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const BLOCKCHAIN_PORT = '3005'
+const BLOCKCHAIN_PORT = '3006'
 
 async function proxyFetch(path: string, options?: RequestInit) {
   const res = await fetch(`http://localhost:${BLOCKCHAIN_PORT}${path}`, {

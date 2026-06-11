@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (paymentMethod === 'afc_base' || paymentMethod === 'usdt_base' || paymentMethod === 'usdc_base') {
       try {
         // Connect wallet first if needed
-        const walletRes = await fetch('http://localhost:3005/api/wallet/connect', {
+        const walletRes = await fetch('http://localhost:3006/api/wallet/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         })
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
         // Simulate on-chain payment
         const tokenSymbol = paymentMethod === 'afc_base' ? 'AFC' : paymentMethod === 'usdt_base' ? 'USDT' : 'USDC'
-        const blockchainRes = await fetch('http://localhost:3005/api/contract/settle-payment', {
+        const blockchainRes = await fetch('http://localhost:3006/api/contract/settle-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

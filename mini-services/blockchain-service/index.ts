@@ -1,9 +1,9 @@
 // Blockchain Mini-Service — Simulated Ethereum L2 Node
-// Port: 3005 | Network: Base Sepolia (L2 Testnet)
+// Port: 3006 | Network: Base Sepolia (L2 Testnet)
 
 import { createServer, IncomingMessage, ServerResponse } from 'http'
 
-const PORT = 3005
+const PORT = 3006
 
 // ─── State ──────────────────────────────────────────────────────────────────────
 
