@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
         include: { user: true },
       })
       if (!firstClone) {
-        return NextResponse.json({ success: true, data: null })
+        return NextResponse.json({ clone: null })
       }
       userId = firstClone.userId
     }
@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
     })
 
     if (!clone) {
-      return NextResponse.json({ success: true, data: null })
+      return NextResponse.json({ clone: null })
     }
 
-    return NextResponse.json({ success: true, data: clone })
+    return NextResponse.json({ clone: clone })
   } catch (error) {
     console.error('Failed to fetch avatar:', error)
     return NextResponse.json(
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, data: clone }, { status: 201 })
+    return NextResponse.json({ clone: clone }, { status: 201 })
   } catch (error) {
     console.error('Failed to create avatar:', error)
     return NextResponse.json(

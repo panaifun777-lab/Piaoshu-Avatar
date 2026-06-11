@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     if (!cloneId) {
       const firstClone = await db.avatarClone.findFirst({ orderBy: { createdAt: 'asc' } })
       if (!firstClone) {
-        return NextResponse.json({ success: true, data: null })
+        return NextResponse.json({ schedule: null })
       }
       cloneId = firstClone.id
     }
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, data: schedule })
+    return NextResponse.json({ schedule: schedule })
   } catch (error) {
     console.error('Failed to fetch schedule:', error)
     return NextResponse.json(
@@ -167,7 +167,7 @@ ${skillInfo}
       },
     })
 
-    return NextResponse.json({ success: true, data: schedule })
+    return NextResponse.json({ schedule: schedule })
   } catch (error) {
     console.error('Failed to generate schedule:', error)
     return NextResponse.json(

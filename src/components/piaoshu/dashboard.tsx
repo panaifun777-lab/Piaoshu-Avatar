@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -436,7 +436,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
   const cloneActivities = (cloneActivitiesQuery.data?.activities as ActivityData[] | undefined) ?? []
 
   const anyError = shardsQuery.isError || evidencesQuery.isError || tasksQuery.isError || projectsQuery.isError || roadmapQuery.isError
-  const allLoading = shardsQuery.isLoading && evidencesQuery.isLoading && tasksQuery.isLoading && projectsQuery.isLoading && roadmapQuery.isLoading
 
   // ── Compute stats ─────────────────────────────────────────────────────────
   const activeShards = shards.filter(s => s.status === 'active')
@@ -681,11 +680,10 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           transition={{ duration: 0.5 }}
           className="relative overflow-hidden rounded-2xl border border-emerald-500/20 p-6 sm:p-8"
         >
-          {/* Background image */}
-          <div className="absolute inset-0">
-            <img src="/piaoshu-hero.png" alt="" className="h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60" />
-          </div>
+          {/* Gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
           <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-2">
@@ -693,12 +691,12 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/15">
                   <Zap className="h-5 w-5 text-emerald-400" />
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  飘叔 Piaoshu · AI分身操作系统
-                </h1>
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                  欢迎回来，飘叔 👋
+                </h2>
               </div>
               <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-                Web4.0 AI原生智能分身操作系统 — 将AI从执行者升维为共生体
+                你的AI分身系统已就绪 · 3个认知分片活跃中 · 点击上帝模式开始指挥
               </p>
             </div>
 
@@ -745,16 +743,12 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                         <div className="min-w-0">
                           <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
                           <div className="text-xl font-bold sm:text-2xl">
-                            {allLoading ? (
-                              <Skeleton className="inline-block h-8 w-12" />
-                            ) : (
-                              <>
-                                {stat.value}
-                                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                                  {stat.unit}
-                                </span>
-                              </>
-                            )}
+                            <>
+                              {stat.value}
+                              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                {stat.unit}
+                              </span>
+                            </>
                           </div>
                         </div>
                       </div>
@@ -1018,14 +1012,10 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                               </span>
                             </div>
                             <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/10">
-                              {allLoading ? (
-                                <Skeleton className="h-full w-full rounded-full" />
-                              ) : (
-                                <div
-                                  className={`${healthBg(item.value)} h-full rounded-full transition-all duration-700`}
-                                  style={{ width: `${item.value}%` }}
-                                />
-                              )}
+                              <div
+                                className={`${healthBg(item.value)} h-full rounded-full transition-all duration-700`}
+                                style={{ width: `${item.value}%` }}
+                              />
                             </div>
                             <p className="text-[9px] text-muted-foreground mt-0.5">{item.detail}</p>
                           </div>

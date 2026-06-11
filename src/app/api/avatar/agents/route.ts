@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     if (!cloneId) {
       const firstClone = await db.avatarClone.findFirst({ orderBy: { createdAt: 'asc' } })
       if (!firstClone) {
-        return NextResponse.json({ success: true, data: [] })
+        return NextResponse.json({ agents: [] })
       }
       cloneId = firstClone.id
     }
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, data: agents })
+    return NextResponse.json({ agents: agents })
   } catch (error) {
     console.error('Failed to fetch agents:', error)
     return NextResponse.json(
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, data: agent }, { status: 201 })
+    return NextResponse.json({ agent: agent }, { status: 201 })
   } catch (error) {
     console.error('Failed to create agent:', error)
     return NextResponse.json(

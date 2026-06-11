@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     if (!cloneId) {
       const firstClone = await db.avatarClone.findFirst({ orderBy: { createdAt: 'asc' } })
       if (!firstClone) {
-        return NextResponse.json({ success: true, data: [] })
+        return NextResponse.json({ skills: [] })
       }
       cloneId = firstClone.id
     }
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     })
 
-    return NextResponse.json({ success: true, data: skills })
+    return NextResponse.json({ skills: skills })
   } catch (error) {
     console.error('Failed to fetch skills:', error)
     return NextResponse.json(
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, data: skill })
+    return NextResponse.json({ skill: skill })
   } catch (error) {
     console.error('Failed to manage skill:', error)
     return NextResponse.json(

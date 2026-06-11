@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     if (!cloneId) {
       const firstClone = await db.avatarClone.findFirst({ orderBy: { createdAt: 'asc' } })
       if (!firstClone) {
-        return NextResponse.json({ success: true, data: [], pagination: { total: 0, limit, offset } })
+        return NextResponse.json({ activities: [], pagination: { total: 0, limit, offset } })
       }
       cloneId = firstClone.id
     }
@@ -28,8 +28,7 @@ export async function GET(req: NextRequest) {
     ])
 
     return NextResponse.json({
-      success: true,
-      data: activities,
+      activities: activities,
       pagination: { total, limit, offset },
     })
   } catch (error) {

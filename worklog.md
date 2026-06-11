@@ -1419,3 +1419,91 @@ Stage Summary:
 - Next-auth warning resolved with env variables
 - All frontend-backend integrations confirmed working
 - Lint passes with zero errors
+
+---
+Task ID: 2
+Agent: API Fix Agent
+Task: Fix API Response Format Inconsistency for Avatar Clone system
+
+Work Log:
+- Fixed 6 avatar API routes to return the response format expected by frontend hooks
+- /api/avatar/agents: Changed GET `{success, data}` → `{agents}` and POST `{success, data}` → `{agent}`
+- /api/avatar/activities: Changed GET `{success, data, pagination}` → `{activities, pagination}`
+- /api/avatar: Changed GET `{success, data}` → `{clone}` and POST `{success, data}` → `{clone}`
+- /api/avatar/skills: Changed GET `{success, data}` → `{skills}` and POST `{success, data}` → `{skill}`
+- /api/avatar/outputs: Changed GET `{success, data, pagination}` → `{outputs, pagination}`
+- /api/avatar/schedule: Changed GET `{success, data}` → `{schedule}` and POST `{success, data}` → `{schedule}`
+- Verified /api/avatar/knowledge already matches useSharedKnowledge hook format (no change needed)
+- Error responses preserved as `{success: false, error: ...}` in all routes
+- No frontend code was modified
+- Lint check passes with zero errors
+
+Stage Summary:
+- 6 API routes fixed to match frontend hook expected response formats
+- Frontend hooks (useCloneAgents, useCloneActivities, useAvatarClone, useCloneSkills, useCloneOutputs, useCloneSchedule) will now receive correctly formatted data
+- Knowledge API already compatible - no changes needed
+- Zero lint errors
+
+---
+Task ID: 3
+Agent: Seed Data Agent
+Task: Create Master Seed Endpoint and Populate Demo Data
+
+Work Log:
+- Created /src/app/api/seed/route.ts with POST and GET methods
+- POST endpoint seeds 20 database tables in order respecting foreign key constraints:
+  1. Founder - "飘叔" (piaoshu@panai.fun) via upsert
+  2. User - "飘叔" (piaoshu@panai.fun, placeholder hash) via upsert
+  3. AvatarClone - "飘叔分身" (level 6, experience 85, totalCycles 114, status active) via upsert
+  4. CloneAgent - 4 agents: CEO (idle, 23 cycles, level 5), CTO (working, 31 cycles, level 4), Growth (idle, 18 cycles, level 3), Engineer (idle, 42 cycles, level 4)
+  5. CloneSkill - 13 skills across 4 categories matching FALLBACK_SKILLS (engineering: 架构设计/前端开发/后端开发/DevOps, marketing: 内容营销/用户增长/品牌建设, operations: 团队管理/项目管理/融资能力, design: UI设计/UX研究/产品设计)
+  6. CloneActivity - 10 activities (cycle_completed, output_created, skill_upgraded, agent_added) with agentId references
+  7. AgentCycle - 6 cycles (5 completed, 1 reporting) across agents with plan/execution/report JSON
+  8. AgentOutput - 6 outputs (email, code, analysis, deployment, task, design) linked to cycles
+  9. DailySchedule - Today's schedule with 5 time slots linked to agents
+  10. CognitiveShard - 3 shards (blue/active 0.87, red/active 0.72, neutral/training 0.65)
+  11. AgentRole - 4 agent roles (CEO/CTO/Growth/Engineer) with capabilities JSON
+  12. DailyCycle - 4 cycles for AgentRoles (3 completed, 1 reporting)
+  13. RedBlueSimulation - 2 simulations with red/blue/verdict content
+  14. DecisionLog - 5 decisions linked to founder
+  15. EvidenceItem - 5 items (verified, onchain, signed, draft)
+  16. CollaborationTask - 8 tasks (8 statuses: open, assigned, in_progress, review, completed)
+  17. SandboxProject - 3 projects (interactive, building, published) with interactions
+  18. RoadmapPhase - 3 phases (Phase 1 active, 2-3 pending) with 10 milestones
+  19. SubscriptionPlan - 4 plans (free/starter/pro/enterprise) via upsert
+  20. Notification - 5 notifications (success, info, warning)
+- GET endpoint returns current data counts for all tables
+- All seeding is idempotent: uses count() checks, upsert, and findFirst to avoid duplicates
+- Successfully called POST /api/seed - all 20 tables populated
+- Verified data via GET /api/seed, GET /api/cognitive/shards, GET /api/avatar/agents
+- Verified idempotency: second POST returns all 0 counts (skipped all existing data)
+- Fixed lint warning: removed unused eslint-disable directive
+- All lint checks pass with zero errors
+
+Stage Summary:
+- Master seed endpoint at /api/seed creates comprehensive demo data across 20 tables
+- Total records: 1 Founder + 1 User + 1 AvatarClone + 4 CloneAgents + 13 CloneSkills + 10 CloneActivities + 6 AgentCycles + 6 AgentOutputs + 1 DailySchedule + 3 CognitiveShards + 4 AgentRoles + 4 DailyCycles + 2 RedBlueSimulations + 5 DecisionLogs + 5 EvidenceItems + 8 CollaborationTasks + 3 SandboxProjects + 3 RoadmapPhases + 10 Milestones + 4 SubscriptionPlans + 5 Notifications
+- Idempotent: safe to call multiple times without data duplication
+- Dashboard and all module views now show real data instead of 0 values
+- Zero lint errors
+
+---
+Task ID: 4
+Agent: Dashboard Fix Agent
+Task: Fix Dashboard Hero Section Duplication and Missing Image
+
+Work Log:
+- Issue 1 (Duplicate h1 heading): Changed hero section `<h1>` to `<h2>` with welcome message "欢迎回来，飘叔 👋" instead of repeating brand name
+- Issue 1 (Subtitle): Updated subtitle from "Web4.0 AI原生智能分身操作系统 — 将AI从执行者升维为共生体" to "你的AI分身系统已就绪 · 3个认知分片活跃中 · 点击上帝模式开始指挥"
+- Issue 2 (Missing hero background image): Replaced `<img src="/piaoshu-hero.png">` and gradient overlay div with 3 CSS gradient/blur decorative elements (emerald gradient bg, blurred emerald circle, blurred teal circle)
+- Issue 3 (Stat cards showing 0 when loading): Removed `allLoading` check from stat card values — values now always show computed data (start at 0, update when API data arrives). Also removed `allLoading` from health indicator progress bars.
+- Removed unused `allLoading` variable definition and unused `Skeleton` import (no longer referenced after removing allLoading conditions)
+- All lint checks pass with zero errors
+
+Stage Summary:
+- Hero heading changed from h1 "飘叔 Piaoshu · AI分身操作系统" to h2 "欢迎回来，飘叔 👋"
+- Hero subtitle updated to actionable message with system status
+- Hero background replaced with CSS gradients (no image dependency)
+- Stat cards and health bars now show real-time values without skeleton flicker
+- Removed dead code (allLoading variable, Skeleton import)
+- Zero lint errors, all existing functionality preserved
