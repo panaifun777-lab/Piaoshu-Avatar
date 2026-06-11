@@ -50,8 +50,34 @@ export async function POST(request: NextRequest) {
     if (isLiveStripe) {
       // Real Stripe integration
       try {
-        const stripe = await import('stripe')
-        const stripeClient = new stripe.default(stripeSecretKey)
+        let StripeConstructor: any
+        try {
+          const stripeModule = await import('stripe')
+          StripeConstructor = stripeModule.default
+        } catch {
+          // stripe package not installed, fall back to demo mode
+          isLiveStripe = false
+          sessionId = generateSessionId()
+          checkoutUrl = `https://checkout.stripe.com/c/pay/${sessionId}#test`
+          // skip to database save
+          const session2 = await db.paymentSession.create({
+            data: {
+              sessionId,
+              userId: userId || null,
+              planId: planId || null,
+              amount: Number(amount),
+              currency,
+              status: 'pending',
+              paymentMethod: paymentMethod === 'stripe_link' ? 'stripe_link' : paymentMethod === 'crypto' ? 'crypto' : 'stripe',
+              metadata: JSON.stringify({ planId: planId || null, userId: userId || null, createdAt: new Date().toISOString(), paymentMethodTypes, isSubscription, mode: isSubscription ? 'subscription' : 'payment', stripeMode: 'test' }),
+            },
+          })
+          await db.auditLog.create({
+            data: { action: 'create', module: 'payments', entityType: 'PaymentSession', entityId: session2.id, details: JSON.stringify({ sessionId, amount, currency, paymentMethod, paymentMethodTypes, isSubscription }), performedBy: userId || 'anonymous' },
+          })
+          return NextResponse.json({ ok: true, data: { sessionId, url: checkoutUrl, amount: Number(amount), currency, paymentMethod, paymentMethodTypes, mode: isSubscription ? 'subscription' : 'payment', expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(), stripeMode: 'test' } })
+        }
+        const stripeClient = new StripeConstructor(stripeSecretKey)
 
         const session = await stripeClient.checkout.sessions.create({
           payment_method_types: paymentMethodTypes as ('card' | 'link')[],

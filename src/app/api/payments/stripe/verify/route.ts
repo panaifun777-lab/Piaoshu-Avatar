@@ -30,8 +30,17 @@ export async function GET(request: NextRequest) {
     if (stripeSecretKey) {
       // Real Stripe verification
       try {
-        const stripe = await import('stripe')
-        const stripeClient = new stripe.default(stripeSecretKey)
+        let StripeConstructor: any
+        try {
+          const stripeModule = await import('stripe')
+          StripeConstructor = stripeModule.default
+        } catch {
+          // stripe package not installed, fall through to demo mode
+        }
+        if (!StripeConstructor) {
+          // Fall through to demo mode
+        } else {
+        const stripeClient = new StripeConstructor(stripeSecretKey)
 
         const stripeSession = await stripeClient.checkout.sessions.retrieve(sessionId)
         const paymentStatus = stripeSession.payment_status // 'paid' | 'unpaid' | 'no_payment_required'
@@ -126,6 +135,7 @@ export async function GET(request: NextRequest) {
             paymentMethod: session.paymentMethod,
           },
         })
+      } // end if StripeConstructor
       } catch (stripeError) {
         console.error('Stripe verify error:', stripeError)
         return NextResponse.json(

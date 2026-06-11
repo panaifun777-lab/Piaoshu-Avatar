@@ -11,34 +11,42 @@ export async function GET(request: NextRequest) {
     if (isLiveStripe && userId) {
       // Real Stripe integration: check if user has Link-enabled payment methods
       try {
-        const stripe = await import('stripe')
-        const stripeClient = new stripe.default(stripeSecretKey)
+        let StripeConstructor: any
+        try {
+          const stripeModule = await import('stripe')
+          StripeConstructor = stripeModule.default
+        } catch {
+          // stripe package not installed, fall through to demo mode
+        }
+        if (StripeConstructor) {
+          const stripeClient = new StripeConstructor(stripeSecretKey)
 
-        // List payment methods for the customer
-        // In a real app, you'd look up the Stripe customer ID from your DB
-        const paymentMethods = await stripeClient.paymentMethods.list({
-          customer: userId, // This would be the Stripe customer ID in production
-          type: 'link',
-        })
+          // List payment methods for the customer
+          // In a real app, you'd look up the Stripe customer ID from your DB
+          const paymentMethods = await stripeClient.paymentMethods.list({
+            customer: userId, // This would be the Stripe customer ID in production
+            type: 'link',
+          })
 
-        const hasLink = paymentMethods.data.length > 0
+          const hasLink = paymentMethods.data.length > 0
 
-        return NextResponse.json({
-          ok: true,
-          data: {
-            linkAvailable: true,
-            linkEnabled: hasLink,
-            stripeMode: 'live',
-            savedPaymentMethods: paymentMethods.data.map((pm) => ({
-              id: pm.id,
-              type: pm.type,
-              last4: pm.card?.last4 || undefined,
-              brand: pm.card?.brand || undefined,
-              email: pm.link?.email || undefined,
-              isDefault: false,
-            })),
-          },
-        })
+          return NextResponse.json({
+            ok: true,
+            data: {
+              linkAvailable: true,
+              linkEnabled: hasLink,
+              stripeMode: 'live',
+              savedPaymentMethods: paymentMethods.data.map((pm: any) => ({
+                id: pm.id,
+                type: pm.type,
+                last4: pm.card?.last4 || undefined,
+                brand: pm.card?.brand || undefined,
+                email: pm.link?.email || undefined,
+                isDefault: false,
+              })),
+            },
+          })
+        }
       } catch (stripeError) {
         console.error('Stripe Link status error:', stripeError)
         // Fall back to demo mode on error

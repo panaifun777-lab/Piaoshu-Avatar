@@ -73,6 +73,10 @@ export async function seedDefaultWings(cloneId: string): Promise<void> {
   })
   if (existingWings > 0) return
 
+  // Verify the clone exists before seeding (foreign key constraint)
+  const clone = await db.avatarClone.findUnique({ where: { id: cloneId } })
+  if (!clone) return // Clone doesn't exist, skip seeding
+
   for (const wingDef of DEFAULT_WINGS) {
     const wing = await db.memoryWing.create({
       data: {
