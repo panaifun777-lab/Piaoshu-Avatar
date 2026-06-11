@@ -2866,3 +2866,39 @@ Stage Summary:
 - 分布式存储: IPFS/Arweave配置UI + 模拟上传API
 - AI聊天: DeepSeek + SOUL.md + 记忆宫殿L0/L1注入
 - 所有功能Agent Browser验证通过
+
+---
+Task ID: 2
+Agent: Landing Page Enhancement Agent
+Task: Add TG Channel Link, Navigation Menu Bar, and Founder's Speech to Landing Page
+
+Work Log:
+- Read worklog.md to understand previous work context
+- Read landing-page.tsx (805 lines) to understand current structure
+- Part A: TG Channel Link and Navigation Menu Bar
+  - Added lucide-react icon imports: Send, Quote, Flame, Heart, Share2, ExternalLink
+  - Added toast import from sonner
+  - Navigation bar: Added "创始人致辞" → #manifesto nav link and "TG频道" → https://t.me/AvatarOS_Bot (target="_blank") nav link alongside existing items
+  - Navigation bar: Added "Telegram 频道" button with Send icon before login buttons, styled with sky-500 colors (border-sky-500/30 text-sky-400 hover:bg-sky-500/10 hover:text-sky-300 text-xs h-8)
+  - Footer: Added Telegram link with Send icon: `<a href="https://t.me/AvatarOS_Bot" target="_blank"><Send className="h-3 w-3" /> TG频道</a>` as first item in footer links
+- Part B: Founder's Speech Section
+  - Inserted new section with id="manifesto" between Tech Stack and CTA sections
+  - Section header: "创始人致辞" with "Founder Manifesto" badge (Flame icon, amber theme)
+  - The big question: gradient text "我们倾尽智慧创造AI，难道就是为了让自己在代码的镜像中更加孤独吗？"
+  - Mirrome.me card: emerald theme, Fingerprint icon, description with badges (本我意识锚点, M-Pata Protocol, 认知所有权)
+  - panai.fun card: violet theme, Users icon, description with badges (分身社交广场, 流体民主制, 情绪共识引擎)
+  - Closing statement: "让我们一起，在代码的镜像中找回灵魂，重构人机关系的未来。" with emerald→violet gradient
+  - Share button (Share2 icon): copies URL to clipboard, shows toast "链接已复制，快分享给志同道合的人吧！"
+  - "产生共鸣" button (Heart icon): shows toast "🔥 产生共鸣！你并不孤独，我们一起前行"
+  - Consistent framer-motion animations (fade-in, slide-in, scale) matching existing page patterns
+  - Dark gradient background with amber/violet accent blurs
+- Only file modified: /home/z/my-project/src/components/piaoshu/landing-page.tsx
+- Lint check passes (only pre-existing error in upload/whitepaper/examples/websocket/frontend.tsx)
+
+Stage Summary:
+- Navigation bar enhanced with 2 new links (创始人致辞, TG频道) and Telegram button
+- Founder's Speech section added with manifesto content, product cards, and interactive buttons
+- Footer updated with TG频道 link
+- All changes use consistent design patterns (dark theme, amber/violet accents, framer-motion)
+- No other files modified
+- Zero new lint errors

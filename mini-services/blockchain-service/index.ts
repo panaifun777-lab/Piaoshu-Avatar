@@ -3,7 +3,7 @@
 
 import { createServer, IncomingMessage, ServerResponse } from 'http'
 
-const PORT = 3006
+const PORT = 3007
 
 // ─── State ──────────────────────────────────────────────────────────────────────
 

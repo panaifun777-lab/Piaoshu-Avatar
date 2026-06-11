@@ -21,10 +21,17 @@ import {
   Workflow,
   Server,
   GitBranch,
+  Send,
+  Quote,
+  Flame,
+  Heart,
+  Share2,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
 
 interface LandingPageProps {
   onLogin: () => void
@@ -360,9 +367,20 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             <a href="#features" className="hover:text-emerald-400 transition-colors">核心能力</a>
             <a href="#comparison" className="hover:text-emerald-400 transition-colors">Agent vs Avatar</a>
             <a href="#tech" className="hover:text-emerald-400 transition-colors">技术栈</a>
+            <a href="#manifesto" className="hover:text-emerald-400 transition-colors">创始人致辞</a>
+            <a href="https://t.me/AvatarOS_Bot" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1">TG频道 <ExternalLink className="h-2.5 w-2.5" /></a>
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-sky-500/30 text-sky-400 hover:bg-sky-500/10 hover:text-sky-300 text-xs h-8 gap-1"
+              onClick={() => window.open('https://t.me/AvatarOS_Bot', '_blank')}
+            >
+              <Send className="h-3 w-3" />
+              Telegram 频道
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -731,6 +749,166 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
+      {/* Founder's Speech / Manifesto Section */}
+      <section id="manifesto" className="py-16 sm:py-24 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-500/3 to-transparent" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <motion.div
+            className="text-center mb-12 sm:mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px] px-2.5 mb-3">
+              <Flame className="h-3 w-3 mr-1" /> Founder Manifesto
+            </Badge>
+            <h2 className="text-2xl sm:text-3xl font-bold">
+              创始人致辞
+            </h2>
+            <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+              在代码的镜像中找回灵魂，重构人机关系的未来
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="max-w-4xl mx-auto"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-br from-gray-900/60 via-[#0d1117] to-gray-900/60 p-6 sm:p-10 overflow-hidden">
+              {/* Background decorations */}
+              <div className="absolute -top-20 -right-20 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl" />
+              <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-violet-500/5 rounded-full blur-3xl" />
+
+              {/* Quote icon */}
+              <div className="relative z-10 mb-6">
+                <Quote className="h-8 w-8 text-amber-500/40" />
+              </div>
+
+              {/* The Big Question */}
+              <motion.div
+                className="relative z-10 mb-8"
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                <p className="text-lg sm:text-xl lg:text-2xl font-semibold leading-relaxed text-center">
+                  <span className="bg-gradient-to-r from-amber-300 via-amber-400 to-violet-400 bg-clip-text text-transparent">
+                    “我们倾尽智慧创造AI，难道就是为了让自己在代码的镜像中更加孤独吗？”
+                  </span>
+                </p>
+              </motion.div>
+
+              {/* Divider */}
+              <div className="relative z-10 flex items-center gap-3 my-8">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+                <Flame className="h-4 w-4 text-amber-500/40" />
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+              </div>
+
+              {/* Two products description */}
+              <div className="relative z-10 grid sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
+                {/* Mirrome.me */}
+                <motion.div
+                  className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5"
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Fingerprint className="h-4 w-4 text-emerald-400" />
+                    <span className="text-sm font-bold text-emerald-400">Mirrome.me</span>
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                    你的本我意识锚点。在AI泛滥的时代，守护"我是谁"的终极答案。
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px] px-1.5 py-0.5">本我意识锚点</Badge>
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px] px-1.5 py-0.5">M-Pata Protocol</Badge>
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px] px-1.5 py-0.5">认知所有权</Badge>
+                  </div>
+                </motion.div>
+
+                {/* panai.fun */}
+                <motion.div
+                  className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5"
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="h-4 w-4 text-violet-400" />
+                    <span className="text-sm font-bold text-violet-400">panai.fun</span>
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed mb-3">
+                    分身社交广场。让每个AI分身都拥有独立人格与社交能力，构建人机共生社区。
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20 text-[9px] px-1.5 py-0.5">分身社交广场</Badge>
+                    <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20 text-[9px] px-1.5 py-0.5">流体民主制</Badge>
+                    <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/20 text-[9px] px-1.5 py-0.5">情绪共识引擎</Badge>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Closing statement */}
+              <motion.div
+                className="relative z-10 text-center mb-8"
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+              >
+                <p className="text-sm sm:text-base text-gray-300 leading-relaxed max-w-lg mx-auto">
+                  让我们一起，在代码的镜像中找回灵魂，
+                  <span className="bg-gradient-to-r from-emerald-400 to-violet-400 bg-clip-text text-transparent font-semibold">
+                    重构人机关系的未来。
+                  </span>
+                </p>
+              </motion.div>
+
+              {/* Action buttons */}
+              <motion.div
+                className="relative z-10 flex flex-col sm:flex-row items-center justify-center gap-3"
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.6 }}
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 text-xs h-9 gap-1.5"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href)
+                    toast.success('链接已复制，快分享给志同道合的人吧！')
+                  }}
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  分享理念
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-gradient-to-r from-amber-500 to-violet-600 hover:opacity-90 text-white text-xs h-9 gap-1.5 shadow-lg shadow-amber-500/20"
+                  onClick={() => {
+                    toast.success('🔥 产生共鸣！你并不孤独，我们一起前行')
+                  }}
+                >
+                  <Heart className="h-3.5 w-3.5" />
+                  产生共鸣
+                </Button>
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-16 sm:py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -788,6 +966,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             </div>
 
             <div className="flex items-center gap-4 sm:gap-6 text-[10px] text-gray-600">
+              <a href="https://t.me/AvatarOS_Bot" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 cursor-pointer transition-colors flex items-center gap-1"><Send className="h-3 w-3" /> TG频道</a>
               <span className="hover:text-gray-400 cursor-pointer transition-colors">白皮书</span>
               <span className="hover:text-gray-400 cursor-pointer transition-colors">GitHub</span>
               <span className="hover:text-gray-400 cursor-pointer transition-colors">AFC公链</span>
