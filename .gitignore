@@ -68,3 +68,8 @@ polsia-*.json
 
 # Download
 download/
+
+# Verification screenshots
+verify-*.png
+screenshot-*.json
+mini-services/*/log.txt
