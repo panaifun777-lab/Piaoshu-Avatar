@@ -1507,3 +1507,30 @@ Stage Summary:
 - Stat cards and health bars now show real-time values without skeleton flicker
 - Removed dead code (allLoading variable, Skeleton import)
 - Zero lint errors, all existing functionality preserved
+
+---
+Task ID: 5
+Agent: Main Orchestrator
+Task: Fix UI duplication and frontend-backend integration issues
+
+Work Log:
+- Diagnosed dashboard duplication: hero section h1 "飘叔 Piaoshu · AI分身操作系统" duplicated the sidebar brand
+- Identified API response format inconsistency: avatar endpoints returned `{success, data}` but frontend hooks expected `{agents}`, `{activities}`, `{clone}`, etc.
+- Found all database tables were empty, causing dashboard to show 0 for all stats
+- Found missing hero background image /piaoshu-hero.png
+- Fixed 6 API routes to return correct format: /api/avatar/agents, /api/avatar/activities, /api/avatar, /api/avatar/skills, /api/avatar/outputs, /api/avatar/schedule
+- Created master seed endpoint /api/seed (POST) that populates 20 core tables with realistic demo data
+- Fixed dashboard hero: changed h1 to h2 "欢迎回来，飘叔 👋", replaced broken img with CSS gradient background
+- Removed allLoading check that caused 0 values during data loading
+- Seeded all data: 1 founder, 1 user, 1 avatar clone, 4 agents, 13 skills, 10 activities, 6 cycles, 6 outputs, 3 shards, 4 agent roles, 2 simulations, 5 decisions, 5 evidence items, 8 tasks, 3 sandbox projects, 3 roadmap phases with 10 milestones, 4 subscription plans, 5 notifications
+- Verified all 13 modules render correctly with real data in browser
+- Dashboard now shows: 114 AI cycles, 1 working agent, 1 verified evidence, 2 open tasks, 58% system health
+- Mobile responsive layout verified
+- Zero lint errors, zero browser errors
+
+Stage Summary:
+- All frontend-backend integration issues resolved
+- API response formats now consistent across all endpoints
+- Dashboard displays real data from database instead of 0s
+- UI duplication fixed with welcome message replacing repeated brand name
+- All 13 navigation modules verified working with real data
