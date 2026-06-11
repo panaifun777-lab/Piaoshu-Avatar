@@ -662,6 +662,25 @@ export default function Home() {
                 <span>Day 18</span>
               </div>
 
+              {/* Settings Button in Header */}
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground hover:bg-accent"
+                      onClick={() => setSettingsPanelOpen(true)}
+                    >
+                      <Settings2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>系统设置</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               {/* Notification Center */}
               <NotificationCenter onNavigate={handleNavigate} />
 

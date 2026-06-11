@@ -196,8 +196,25 @@ export function useUpdateMilestone() {
 // ===== AI Chat =====
 export function useChat() {
   return useMutation({
-    mutationFn: (data: { message: string; systemPrompt?: string; context?: string }) =>
-      apiFetch<{ success: boolean; response: string }>('/api/chat', { method: 'POST', body: JSON.stringify(data) }),
+    mutationFn: (data: { message: string; systemPrompt?: string; context?: string; sessionId?: string; provider?: string }) =>
+      apiFetch<{ success: boolean; response: string; provider?: string }>('/api/chat', { method: 'POST', body: JSON.stringify(data) }),
+  })
+}
+
+// ===== AI Chat Test =====
+export function useChatTest() {
+  return useMutation({
+    mutationFn: (data: { provider?: string; apiKey?: string }) =>
+      apiFetch<{ success: boolean; provider?: string; error?: string }>('/api/chat/test', { method: 'POST', body: JSON.stringify(data) }),
+  })
+}
+
+// ===== Chat History =====
+export function useChatHistory(sessionId: string | null) {
+  return useQuery({
+    queryKey: ['chatHistory', sessionId],
+    queryFn: () => apiFetch<{ messages: Array<{ id: string; role: string; content: string; createdAt: string }> }>(`/api/chat?sessionId=${sessionId}&limit=50`),
+    enabled: !!sessionId,
   })
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import ReactMarkdown from 'react-markdown'
 import {
@@ -43,9 +43,14 @@ import {
   ExternalLink,
   Check,
   Loader2,
+  Brain,
+  EyeOff,
+  Sparkles,
+  Plug,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useSoulConfig, useUpdateSoulConfig } from '@/lib/api-hooks'
+import { useSoulConfig, useUpdateSoulConfig, useChatTest } from '@/lib/api-hooks'
+import { Input } from '@/components/ui/input'
 
 // Default SOUL.md content
 const DEFAULT_SOUL_CONTENT = `# 飘叔 · SOUL.md
@@ -232,6 +237,7 @@ function loadSavedSettings() {
 function SystemConfigTab() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const saved = useMemo(() => loadSavedSettings(), [])
+  const chatTest = useChatTest()
 
   const [language, setLanguage] = useState<'zh' | 'en'>(saved?.language || 'zh')
   const [notifTask, setNotifTask] = useState(saved?.notifTask !== undefined ? saved.notifTask : true)
@@ -241,6 +247,31 @@ function SystemConfigTab() {
   const [refreshInterval, setRefreshInterval] = useState(saved?.refreshInterval || 30)
   const [wsReconnect, setWsReconnect] = useState(saved?.wsReconnect !== undefined ? saved.wsReconnect : true)
 
+  // AI Model Config state
+  const [aiProvider, setAiProvider] = useState<'auto' | 'deepseek' | 'z-ai-sdk'>(() => {
+    if (typeof window === 'undefined') return 'auto'
+    try {
+      const cfg = localStorage.getItem('piaoshu-ai-config')
+      return cfg ? JSON.parse(cfg).provider || 'auto' : 'auto'
+    } catch { return 'auto' }
+  })
+  const [deepseekKey, setDeepseekKey] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      const cfg = localStorage.getItem('piaoshu-ai-config')
+      return cfg ? JSON.parse(cfg).deepseekKey || '' : ''
+    } catch { return '' }
+  })
+  const [modelName, setModelName] = useState(() => {
+    if (typeof window === 'undefined') return 'deepseek-chat'
+    try {
+      const cfg = localStorage.getItem('piaoshu-ai-config')
+      return cfg ? JSON.parse(cfg).modelName || 'deepseek-chat' : 'deepseek-chat'
+    } catch { return 'deepseek-chat' }
+  })
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [testResult, setTestResult] = useState<{ success: boolean; provider?: string; error?: string } | null>(null)
+
   // Save to localStorage on change
   const saveSetting = useCallback((key: string, value: unknown) => {
     const raw = localStorage.getItem('piaoshu-settings')
@@ -249,6 +280,36 @@ function SystemConfigTab() {
     localStorage.setItem('piaoshu-settings', JSON.stringify(s))
     toast.success('设置已保存')
   }, [])
+
+  // Save AI config to localStorage
+  const saveAIConfig = useCallback((updates: Record<string, string>) => {
+    const raw = localStorage.getItem('piaoshu-ai-config')
+    const cfg = raw ? JSON.parse(raw) : {}
+    Object.assign(cfg, updates)
+    localStorage.setItem('piaoshu-ai-config', JSON.stringify(cfg))
+    toast.success('AI模型配置已保存')
+  }, [])
+
+  // Test API connection
+  const handleTestConnection = useCallback(async () => {
+    setTestResult(null)
+    try {
+      const result = await chatTest.mutateAsync({
+        provider: aiProvider === 'auto' ? undefined : aiProvider,
+        apiKey: deepseekKey || undefined,
+      })
+      setTestResult(result)
+      if (result.success) {
+        toast.success(`连接成功！使用 ${result.provider || '未知'} 提供商`)
+      } else {
+        toast.error(`连接失败: ${result.error || '未知错误'}`)
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : '未知错误'
+      setTestResult({ success: false, error: errorMsg })
+      toast.error(`测试失败: ${errorMsg}`)
+    }
+  }, [aiProvider, deepseekKey, chatTest])
 
   const themeOptions = [
     { value: 'light', label: '浅色', icon: Sun },
@@ -440,6 +501,135 @@ function SystemConfigTab() {
             checked={wsReconnect}
             onCheckedChange={(v) => { setWsReconnect(v); saveSetting('wsReconnect', v) }}
           />
+        </div>
+
+        <Separator />
+
+        {/* AI Model Configuration */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Brain className="h-4 w-4 text-violet-500" />
+            <Label className="text-sm font-medium">AI 模型配置</Label>
+          </div>
+
+          {/* Provider Selection */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">AI 提供商</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'auto' as const, label: '自动', desc: 'DeepSeek优先' },
+                { value: 'deepseek' as const, label: 'DeepSeek', desc: '强制使用' },
+                { value: 'z-ai-sdk' as const, label: 'Z-AI SDK', desc: '内置模型' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setAiProvider(opt.value)
+                    saveAIConfig({ provider: opt.value })
+                    setTestResult(null)
+                  }}
+                  className={`
+                    flex flex-col items-center gap-0.5 rounded-lg border p-2.5 transition-all text-xs
+                    ${aiProvider === opt.value
+                      ? 'border-violet-500 bg-violet-500/10 text-violet-700 dark:text-violet-400 shadow-sm'
+                      : 'border-border hover:border-violet-300 dark:hover:border-violet-700 text-muted-foreground'
+                    }
+                  `}
+                >
+                  <span className="font-medium">{opt.label}</span>
+                  <span className="text-[9px] text-muted-foreground">{opt.desc}</span>
+                  {aiProvider === opt.value && <Check className="h-3 w-3 text-violet-500" />}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              "自动"模式优先使用DeepSeek（需配置API Key），不可用时自动回退到Z-AI SDK
+            </p>
+          </div>
+
+          {/* DeepSeek API Key */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">DeepSeek API Key</Label>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={deepseekKey}
+                  onChange={(e) => {
+                    setDeepseekKey(e.target.value)
+                    saveAIConfig({ deepseekKey: e.target.value })
+                    setTestResult(null)
+                  }}
+                  placeholder="sk-..."
+                  className="pr-9 font-mono text-xs h-8 border-violet-200 dark:border-violet-800/50 focus-visible:ring-violet-500/30"
+                />
+                <button
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showApiKey ? '隐藏API Key' : '显示API Key'}
+                >
+                  {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              在 <span className="font-mono">deepseek.com</span> 获取API Key，存储在本地浏览器中
+            </p>
+          </div>
+
+          {/* Model Name */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">模型名称</Label>
+            <Input
+              value={modelName}
+              onChange={(e) => {
+                setModelName(e.target.value)
+                saveAIConfig({ modelName: e.target.value })
+              }}
+              placeholder="deepseek-chat"
+              className="font-mono text-xs h-8 border-violet-200 dark:border-violet-800/50 focus-visible:ring-violet-500/30"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              默认: deepseek-chat | 可选: deepseek-reasoner
+            </p>
+          </div>
+
+          {/* Test Connection */}
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-8 w-full border-violet-200 dark:border-violet-800/50 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+              onClick={handleTestConnection}
+              disabled={chatTest.isPending}
+            >
+              {chatTest.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plug className="h-3.5 w-3.5" />
+              )}
+              测试连接
+            </Button>
+            {testResult && (
+              <div className={`flex items-center gap-2 rounded-lg border p-2.5 text-xs ${
+                testResult.success
+                  ? 'border-emerald-200 dark:border-emerald-800/50 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+                  : 'border-red-200 dark:border-red-800/50 bg-red-500/5 text-red-700 dark:text-red-400'
+              }`}>
+                {testResult.success ? (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>连接成功 · 提供商: {testResult.provider || '未知'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-3.5 w-3.5" />
+                    <span>连接失败: {testResult.error || '未知错误'}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </ScrollArea>

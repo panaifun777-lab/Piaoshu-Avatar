@@ -2517,3 +2517,68 @@ Stage Summary:
 - All existing colors preserved (emerald/teal/violet/amber/cyan)
 - File: /home/z/my-project/src/components/piaoshu/dashboard.tsx (now 1773 lines)
 - File: /home/z/my-project/src/app/globals.css (added 4 keyframe animations)
+
+---
+Task ID: 1
+Agent: Full-Stack Developer
+Task: Add DeepSeek API support, header settings button, enhanced AI chat widget, and AI model configuration
+
+Work Log:
+- Added DEEPSEEK_API_KEY to /home/z/my-project/.env
+- Modified /api/chat/route.ts:
+  - Added DeepSeek API integration using standard fetch (OpenAI-compatible endpoint at api.deepseek.com)
+  - Model: deepseek-chat with temperature 0.7, max_tokens 2048
+  - Provider selection logic: requestedProvider > DeepSeek (if key set) > Z-AI SDK fallback
+  - DeepSeek failures gracefully fall back to Z-AI SDK
+  - System prompt changed from 'assistant' role to 'system' role for proper OpenAI compatibility
+  - History loading increased from 10 to 20 recent messages for better context
+  - Response now includes `provider` field indicating which AI was used
+  - All existing logic preserved: SOUL.md injection, DB save, memory creation, audit log
+- Moved Settings button to header top-right area in page.tsx:
+  - Added Settings2 icon button BEFORE NotificationCenter, AFTER Phase info display
+  - Button has "系统设置" tooltip on hover via TooltipProvider
+  - Compact size (h-7 w-7 on mobile, h-8 w-8 on desktop)
+  - Sidebar settings button preserved for desktop users
+- Enhanced AI Chat Widget (ai-chat-widget.tsx):
+  - Added multi-turn conversation support with sessionId (generated per session, sent to backend)
+  - Added "清空对话" (clear conversation) button with Trash2 icon in header
+  - Added model provider badge in header: "DeepSeek" (blue) or "Z-AI" (emerald) with Sparkles icon
+  - Added per-message provider indicator showing which AI model generated each response
+  - Increased messages area height: max-h-96 on mobile, max-h-[420px] on desktop
+  - Added session ID indicator bar showing last 8 chars of session ID + conversation turn count
+  - Chat now sends sessionId and provider preference to backend
+  - Reads AI config from localStorage (piaoshu-ai-config) for provider selection
+  - Widget height increased from 500px to 540px on desktop
+- Added AI model configuration to Settings Panel (settings-panel.tsx):
+  - New "AI 模型配置" section in System Config tab with Brain icon header
+  - AI Provider selector: Auto / DeepSeek / Z-AI SDK (3-button grid with active check marks)
+  - DeepSeek API Key input with show/hide toggle (Eye/EyeOff icons) for security
+  - Model name input (default: deepseek-chat, optional: deepseek-reasoner)
+  - "测试连接" (Test Connection) button with loading state
+  - Test result display: success (emerald) or failure (red) with provider info
+  - All AI config saved to localStorage as piaoshu-ai-config
+  - Added imports: Brain, EyeOff, Sparkles, Plug, Input, useChatTest
+- Created /api/chat/test endpoint (POST):
+  - Tests AI provider connectivity by sending a simple test message
+  - Supports provider parameter: deepseek, z-ai-sdk, or auto
+  - Supports custom apiKey parameter for testing user-provided keys
+  - Returns { success: boolean, provider?: string, error?: string }
+  - DeepSeek test: sends minimal chat completion request (max_tokens: 10)
+  - Z-AI SDK test: sends minimal completion request with disabled thinking
+  - Auto mode: tries DeepSeek first, falls back to Z-AI SDK
+- Updated api-hooks.ts:
+  - useChat() now accepts sessionId and provider parameters
+  - Added useChatTest() mutation for testing AI connections
+  - Added useChatHistory(sessionId) query for fetching chat history
+- All lint checks pass with zero errors
+- Dev server running successfully on port 3000
+
+Stage Summary:
+- DeepSeek API integrated as primary AI provider with Z-AI SDK fallback
+- Settings button now accessible from header top-right area (more discoverable)
+- AI Chat Widget supports multi-turn conversations with session continuity
+- Model provider badges show which AI is being used (DeepSeek/Z-AI)
+- AI model configuration in Settings Panel with provider selection, API key management, and connection testing
+- /api/chat/test endpoint for verifying API connectivity
+- All existing functionality preserved (SOUL.md injection, DB persistence, memory creation)
+- Zero lint errors, dev server compiling successfully

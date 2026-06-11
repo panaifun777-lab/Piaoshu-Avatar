@@ -37,17 +37,67 @@ const DEFAULT_SYSTEM_PROMPT = `你是飘叔(Piaoshu)AI分身操作系统的AI共
 
 当前处于Phase 1（D1-D30）：基建与协议验证阶段。`
 
+// DeepSeek API call using standard fetch (OpenAI-compatible)
+async function callDeepSeek(
+  messages: Array<{ role: string; content: string }>,
+  model: string = 'deepseek-chat'
+): Promise<{ content: string | null; provider: string }> {
+  const apiKey = process.env.DEEPSEEK_API_KEY
+  if (!apiKey) {
+    throw new Error('DEEPSEEK_API_KEY not set')
+  }
+
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 2048,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  return {
+    content: data.choices?.[0]?.message?.content || null,
+    provider: 'deepseek',
+  }
+}
+
+// Z-AI SDK call (fallback)
+async function callZAI(
+  messages: Array<{ role: string; content: string }>
+): Promise<{ content: string | null; provider: string }> {
+  const zai = await getZAI()
+  const completion = await zai.chat.completions.create({
+    messages: messages as Array<{ role: 'assistant' | 'user'; content: string }>,
+    thinking: { type: 'disabled' },
+  })
+  return {
+    content: completion.choices[0]?.message?.content || null,
+    provider: 'z-ai-sdk',
+  }
+}
+
 // POST /api/chat - AI-powered chat for the founder system
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { message, systemPrompt, context, sessionId } = body
+    const { message, systemPrompt, context, sessionId, provider: requestedProvider } = body
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    const zai = await getZAI()
     const soulContent = await getSoulConfig()
 
     // Build personality context from SOUL.md
@@ -58,9 +108,9 @@ export async function POST(req: NextRequest) {
     const effectiveSystemPrompt = (systemPrompt || DEFAULT_SYSTEM_PROMPT) + personalityContext
 
     // Build messages array
-    const messages: Array<{ role: 'assistant' | 'user'; content: string }> = [
+    const messages: Array<{ role: string; content: string }> = [
       {
-        role: 'assistant',
+        role: 'system',
         content: effectiveSystemPrompt,
       },
     ]
@@ -82,11 +132,11 @@ export async function POST(req: NextRequest) {
       const recentMessages = await db.chatMessage.findMany({
         where: { sessionId },
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 20,
       })
       // Reverse to get chronological order and add to messages
       const historyMessages = recentMessages.reverse().map((msg) => ({
-        role: (msg.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
         content: msg.content,
       }))
       // Insert history after system prompt but before the new message
@@ -98,12 +148,36 @@ export async function POST(req: NextRequest) {
       content: message,
     })
 
-    const completion = await zai.chat.completions.create({
-      messages,
-      thinking: { type: 'disabled' },
-    })
+    // Determine which provider to use
+    // Priority: requestedProvider > DeepSeek (if key set) > Z-AI SDK
+    let aiResponse: string | null = null
+    let usedProvider = 'z-ai-sdk'
+    const deepseekKey = process.env.DEEPSEEK_API_KEY
 
-    const aiResponse = completion.choices[0]?.message?.content
+    if (requestedProvider === 'z-ai-sdk') {
+      // Explicitly requested Z-AI
+      const result = await callZAI(messages)
+      aiResponse = result.content
+      usedProvider = result.provider
+    } else if (requestedProvider === 'deepseek' || (!requestedProvider && deepseekKey)) {
+      // Try DeepSeek first (explicitly requested or auto mode with key available)
+      try {
+        const result = await callDeepSeek(messages)
+        aiResponse = result.content
+        usedProvider = result.provider
+      } catch (deepseekError) {
+        console.warn('DeepSeek failed, falling back to Z-AI SDK:', deepseekError)
+        // Fallback to Z-AI SDK
+        const result = await callZAI(messages)
+        aiResponse = result.content
+        usedProvider = 'z-ai-sdk (fallback)'
+      }
+    } else {
+      // No DeepSeek key, use Z-AI SDK
+      const result = await callZAI(messages)
+      aiResponse = result.content
+      usedProvider = result.provider
+    }
 
     if (!aiResponse) {
       return NextResponse.json({ error: 'Empty AI response' }, { status: 500 })
@@ -127,13 +201,12 @@ export async function POST(req: NextRequest) {
         content: aiResponse,
         sessionId: sessionId || null,
         module: 'cognitive',
-        modelUsed: 'z-ai-web-dev-sdk',
-        metadata: JSON.stringify({ soulInjected: !!soulContent }),
+        modelUsed: usedProvider,
+        metadata: JSON.stringify({ soulInjected: !!soulContent, provider: usedProvider }),
       },
     })
 
     // Create memory entry for significant conversations
-    // Only create memory for messages that seem strategically important
     const isSignificant = message.length > 50 || 
       message.includes('决策') || 
       message.includes('战略') || 
@@ -162,6 +235,7 @@ export async function POST(req: NextRequest) {
           sessionId: sessionId || 'anonymous',
           soulInjected: !!soulContent,
           isSignificant,
+          provider: usedProvider,
         }),
         performedBy: 'system',
       },
@@ -170,9 +244,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       response: aiResponse,
+      provider: usedProvider,
       metadata: {
         soulInjected: !!soulContent,
         sessionId: sessionId || null,
+        provider: usedProvider,
       },
     })
   } catch (error) {
