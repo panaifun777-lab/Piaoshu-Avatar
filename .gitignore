@@ -52,3 +52,17 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Project-specific ignores
+node_modules/
+.next/
+.env
+db/*.db
+screenshot*.png
+agent-ctx/
+mini-services/*/node_modules/
+download/
+upload/*.pptx
+upload/*.zip
+second-me-*.json
+polsia-*.json
