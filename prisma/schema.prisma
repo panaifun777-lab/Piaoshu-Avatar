@@ -581,3 +581,151 @@ model AFCTransaction {
 
   user        User     @relation(fields: [userId], references: [id])
 }
+
+// ===== 媒体矩阵 =====
+model MediaVertical {
+  id          String   @id @default(cuid())
+  name        String   // 科技, 金融, 生活方式
+  slug        String   @unique // tech, finance, lifestyle
+  icon        String?  // emoji icon
+  color       String?  // theme color e.g. "emerald"
+  description String?
+  status      String   @default("active") // active, paused, archived
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  channels   MediaChannel[]
+  contents   MediaContent[]
+  partners   BDPartner[]
+  keywords   GEOKeyword[]
+}
+
+model MediaChannel {
+  id          String   @id @default(cuid())
+  verticalId  String
+  name        String   // channel name e.g. "微信公众号", "X/Twitter", "小红书"
+  platform    String   // wechat, twitter, xiaohongshu, douyin, youtube, discord, reddit
+  url         String?  // channel URL
+  followers   Int      @default(0)
+  avgReach    Int      @default(0)   // average reach per post
+  postFrequency String @default("daily") // daily, weekly, biweekly
+  status      String   @default("active") // active, paused, growth, declining
+  avatarUrl   String?
+  lastPostAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vertical MediaVertical @relation(fields: [verticalId], references: [id])
+}
+
+model MediaContent {
+  id            String   @id @default(cuid())
+  verticalId    String
+  channelId     String?
+  title         String
+  contentType   String   @default("article") // article, video, infographic, micro_content, citation_unit
+  status        String   @default("draft") // draft, published, indexed, verified
+  contentData   String?  // JSON: structured content
+  citationUrl   String?  // verifiable citation URL
+  contentHash   String?  // on-chain hash for verification
+  onChainTxId   String?  // on-chain transaction ID
+  schemaMarkup  String?  // JSON-LD structured data
+  reachCount    Int      @default(0)
+  citationCount Int      @default(0)  // how many times cited by AI
+  aiCitationCount Int    @default(0)  // cited by AI agents specifically
+  publishedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  vertical MediaVertical @relation(fields: [verticalId], references: [id])
+}
+
+// ===== 合作伙伴BD管线 =====
+model BDPartner {
+  id           String   @id @default(cuid())
+  verticalId   String?
+  name         String   // partner organization name
+  partnerType  String   @default("data_source") // data_source, distribution, tech_infra
+  tier         String   @default("c") // a (authority), b (platform), c (tech)
+  industry     String?  // e.g. "AI安全研究", "金融数据", "美妆检测"
+  website      String?
+  contactName  String?
+  contactEmail String?
+  contactWechat String?
+  status       String   @default("prospect") // prospect, outreach, negotiating, active, churned
+  stage        String   @default("identified") // identified, contacted, meeting, proposal, closed_won, closed_lost
+  valueScore   Int      @default(0) // 1-100 partnership value score
+  notes        String?  // BD notes
+  bdScriptUsed String?  // which BD script template was used
+  lastContactAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vertical    MediaVertical? @relation(fields: [verticalId], references: [id])
+  interactions BDInteraction[]
+}
+
+model BDInteraction {
+  id          String   @id @default(cuid())
+  partnerId   String
+  type        String   // email, wechat, meeting, call, proposal_sent, contract_signed
+  subject     String
+  content     String?  // interaction notes/content
+  outcome     String?  // outcome of interaction
+  nextAction  String?  // next step
+  followUpDate DateTime?
+  createdAt   DateTime @default(now())
+
+  partner BDPartner @relation(fields: [partnerId], references: [id])
+}
+
+// ===== GEO优化中心 =====
+model GEOKeyword {
+  id          String   @id @default(cuid())
+  verticalId  String?
+  keyword     String
+  keywordEn   String?  // English version
+  category    String   // core, long_tail, competitor, emerging
+  intent      String   @default("informational") // informational, transactional, navigational
+  searchVolume Int     @default(0)
+  difficulty  Int      @default(0) // 1-100
+  currentRank Int?     // current ranking position
+  targetRank  Int?     // target ranking
+  status      String   @default("tracked") // tracked, optimizing, ranked, lost
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vertical    MediaVertical? @relation(fields: [verticalId], references: [id])
+  rankings    GEORanking[]
+}
+
+model GEORanking {
+  id          String   @id @default(cuid())
+  keywordId   String
+  rank        Int      // position in search results
+  aiCitation  Boolean  @default(false) // whether AI agent cited our content
+  citationUrl String?  // URL that was cited
+  source      String   @default("google") // google, perplexity, chatgpt, bing
+  capturedAt  DateTime @default(now())
+
+  keyword GEOKeyword @relation(fields: [keywordId], references: [id])
+}
+
+// ===== Agent API管理 =====
+model AgentAPIEndpoint {
+  id          String   @id @default(cuid())
+  name        String   // endpoint name
+  path        String   // e.g. "/api/agent/citations"
+  method      String   @default("GET") // GET, POST
+  description String?
+  requestSchema  String? // JSON schema for request
+  responseSchema String? // JSON schema for response
+  authRequired   Boolean @default(true)
+  rateLimit      Int     @default(100) // requests per minute
+  callCount      Int     @default(0)
+  lastCalledAt   DateTime?
+  status      String   @default("active") // active, deprecated, maintenance
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

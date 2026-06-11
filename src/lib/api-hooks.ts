@@ -698,3 +698,406 @@ export function useAFCTransactions(userId?: string) {
     enabled: !!userId,
   })
 }
+
+// ===== Media Matrix - Verticals =====
+export function useMediaVerticals() {
+  return useQuery({
+    queryKey: ['mediaVerticals'],
+    queryFn: () => apiFetch<{ verticals: unknown[] }>('/api/media/verticals'),
+  })
+}
+
+export function useCreateMediaVertical() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; slug: string; icon?: string; color?: string; description?: string; status?: string; priority?: number }) =>
+      apiFetch('/api/media/verticals', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaVerticals'] }),
+  })
+}
+
+export function useMediaVertical(id: string) {
+  return useQuery({
+    queryKey: ['mediaVertical', id],
+    queryFn: () => apiFetch<{ vertical: unknown }>(`/api/media/verticals/${id}`),
+    enabled: !!id,
+  })
+}
+
+export function useUpdateMediaVertical() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/media/verticals/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaVerticals'] }),
+  })
+}
+
+export function useDeleteMediaVertical() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/media/verticals/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaVerticals'] }),
+  })
+}
+
+// ===== Media Matrix - Channels =====
+export function useMediaChannels(verticalId?: string) {
+  return useQuery({
+    queryKey: ['mediaChannels', verticalId],
+    queryFn: () => apiFetch<{ channels: unknown[] }>(
+      verticalId ? `/api/media/channels?verticalId=${verticalId}` : '/api/media/channels'
+    ),
+  })
+}
+
+export function useCreateMediaChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { verticalId: string; name: string; platform: string; url?: string; followers?: number; avgReach?: number; postFrequency?: string; status?: string; avatarUrl?: string }) =>
+      apiFetch('/api/media/channels', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaChannels'] }),
+  })
+}
+
+export function useMediaChannel(id: string) {
+  return useQuery({
+    queryKey: ['mediaChannel', id],
+    queryFn: () => apiFetch<{ channel: unknown }>(`/api/media/channels/${id}`),
+    enabled: !!id,
+  })
+}
+
+export function useUpdateMediaChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/media/channels/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaChannels'] }),
+  })
+}
+
+export function useDeleteMediaChannel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/media/channels/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaChannels'] }),
+  })
+}
+
+// ===== Media Matrix - Contents =====
+export function useMediaContents(filters?: { verticalId?: string; status?: string; contentType?: string }) {
+  return useQuery({
+    queryKey: ['mediaContents', filters],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters?.verticalId) params.set('verticalId', filters.verticalId)
+      if (filters?.status) params.set('status', filters.status)
+      if (filters?.contentType) params.set('contentType', filters.contentType)
+      const qs = params.toString()
+      return apiFetch<{ contents: unknown[] }>(`/api/media/contents${qs ? `?${qs}` : ''}`)
+    },
+  })
+}
+
+export function useCreateMediaContent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { verticalId: string; title: string; channelId?: string; contentType?: string; status?: string; contentData?: string; citationUrl?: string; contentHash?: string; onChainTxId?: string; schemaMarkup?: string; reachCount?: number; citationCount?: number; aiCitationCount?: number; publishedAt?: string }) =>
+      apiFetch('/api/media/contents', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaContents'] }),
+  })
+}
+
+export function useMediaContent(id: string) {
+  return useQuery({
+    queryKey: ['mediaContent', id],
+    queryFn: () => apiFetch<{ content: unknown }>(`/api/media/contents/${id}`),
+    enabled: !!id,
+  })
+}
+
+export function useUpdateMediaContent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/media/contents/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaContents'] }),
+  })
+}
+
+export function useDeleteMediaContent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/media/contents/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mediaContents'] }),
+  })
+}
+
+// ===== Media Matrix - Seed =====
+export function useSeedMedia() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      apiFetch('/api/media/seed', { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['mediaVerticals'] })
+      qc.invalidateQueries({ queryKey: ['mediaChannels'] })
+      qc.invalidateQueries({ queryKey: ['mediaContents'] })
+    },
+  })
+}
+
+// ===== BD Pipeline - Partners =====
+export function useBDPartners(filters?: { verticalId?: string; partnerType?: string; stage?: string; status?: string }) {
+  return useQuery({
+    queryKey: ['bdPartners', filters],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters?.verticalId) params.set('verticalId', filters.verticalId)
+      if (filters?.partnerType) params.set('partnerType', filters.partnerType)
+      if (filters?.stage) params.set('stage', filters.stage)
+      if (filters?.status) params.set('status', filters.status)
+      const qs = params.toString()
+      return apiFetch<{ partners: unknown[] }>(`/api/bd/partners${qs ? `?${qs}` : ''}`)
+    },
+  })
+}
+
+export function useCreateBDPartner() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; verticalId?: string; partnerType?: string; tier?: string; industry?: string; website?: string; contactName?: string; contactEmail?: string; contactWechat?: string; status?: string; stage?: string; valueScore?: number; notes?: string; bdScriptUsed?: string; lastContactAt?: string }) =>
+      apiFetch('/api/bd/partners', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bdPartners'] }),
+  })
+}
+
+export function useBDPartner(id: string) {
+  return useQuery({
+    queryKey: ['bdPartner', id],
+    queryFn: () => apiFetch<{ partner: unknown }>(`/api/bd/partners/${id}`),
+    enabled: !!id,
+  })
+}
+
+export function useUpdateBDPartner() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/bd/partners/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bdPartners'] }),
+  })
+}
+
+export function useDeleteBDPartner() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/bd/partners/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bdPartners'] }),
+  })
+}
+
+// ===== BD Pipeline - Interactions =====
+export function useBDInteractions(partnerId?: string) {
+  return useQuery({
+    queryKey: ['bdInteractions', partnerId],
+    queryFn: () => apiFetch<{ interactions: unknown[] }>(
+      partnerId ? `/api/bd/interactions?partnerId=${partnerId}` : '/api/bd/interactions'
+    ),
+  })
+}
+
+export function useCreateBDInteraction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { partnerId: string; type: string; subject: string; content?: string; outcome?: string; nextAction?: string; followUpDate?: string }) =>
+      apiFetch('/api/bd/interactions', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bdInteractions'] }),
+  })
+}
+
+export function useBDInteraction(id: string) {
+  return useQuery({
+    queryKey: ['bdInteraction', id],
+    queryFn: () => apiFetch<{ interaction: unknown }>(`/api/bd/interactions/${id}`),
+    enabled: !!id,
+  })
+}
+
+export function useUpdateBDInteraction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/bd/interactions/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bdInteractions'] }),
+  })
+}
+
+export function useDeleteBDInteraction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/bd/interactions/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bdInteractions'] }),
+  })
+}
+
+// ===== BD Pipeline - Seed =====
+export function useSeedBD() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      apiFetch('/api/bd/seed', { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['bdPartners'] })
+      qc.invalidateQueries({ queryKey: ['bdInteractions'] })
+    },
+  })
+}
+
+// ===== GEO Optimization - Keywords =====
+export function useGEOKeywords(filters?: { verticalId?: string; category?: string; status?: string }) {
+  return useQuery({
+    queryKey: ['geoKeywords', filters],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters?.verticalId) params.set('verticalId', filters.verticalId)
+      if (filters?.category) params.set('category', filters.category)
+      if (filters?.status) params.set('status', filters.status)
+      const qs = params.toString()
+      return apiFetch<{ keywords: unknown[] }>(`/api/geo/keywords${qs ? `?${qs}` : ''}`)
+    },
+  })
+}
+
+export function useCreateGEOKeyword() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { keyword: string; verticalId?: string; keywordEn?: string; category?: string; intent?: string; searchVolume?: number; difficulty?: number; currentRank?: number; targetRank?: number; status?: string }) =>
+      apiFetch('/api/geo/keywords', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['geoKeywords'] }),
+  })
+}
+
+export function useGEOKeyword(id: string) {
+  return useQuery({
+    queryKey: ['geoKeyword', id],
+    queryFn: () => apiFetch<{ keyword: unknown }>(`/api/geo/keywords/${id}`),
+    enabled: !!id,
+  })
+}
+
+export function useUpdateGEOKeyword() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/geo/keywords/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['geoKeywords'] }),
+  })
+}
+
+export function useDeleteGEOKeyword() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/geo/keywords/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['geoKeywords'] }),
+  })
+}
+
+// ===== GEO Optimization - Rankings =====
+export function useGEORankings(filters?: { keywordId?: string; source?: string }) {
+  return useQuery({
+    queryKey: ['geoRankings', filters],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters?.keywordId) params.set('keywordId', filters.keywordId)
+      if (filters?.source) params.set('source', filters.source)
+      const qs = params.toString()
+      return apiFetch<{ rankings: unknown[] }>(`/api/geo/rankings${qs ? `?${qs}` : ''}`)
+    },
+  })
+}
+
+export function useCreateGEORanking() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { keywordId: string; rank: number; aiCitation?: boolean; citationUrl?: string; source?: string; capturedAt?: string }) =>
+      apiFetch('/api/geo/rankings', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['geoRankings'] })
+      qc.invalidateQueries({ queryKey: ['geoKeywords'] })
+    },
+  })
+}
+
+// ===== GEO Optimization - Seed =====
+export function useSeedGEO() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      apiFetch('/api/geo/seed', { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['geoKeywords'] })
+      qc.invalidateQueries({ queryKey: ['geoRankings'] })
+    },
+  })
+}
+
+// ===== Agent API Management - Endpoints =====
+export function useAgentAPIEndpoints() {
+  return useQuery({
+    queryKey: ['agentAPIEndpoints'],
+    queryFn: () => apiFetch<{ endpoints: unknown[] }>('/api/agent-api/endpoints'),
+  })
+}
+
+export function useCreateAgentAPIEndpoint() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; path: string; method: string; description?: string; requestSchema?: string; responseSchema?: string; authRequired?: boolean; rateLimit?: number; status?: string }) =>
+      apiFetch('/api/agent-api/endpoints', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agentAPIEndpoints'] }),
+  })
+}
+
+export function useAgentAPIEndpoint(id: string) {
+  return useQuery({
+    queryKey: ['agentAPIEndpoint', id],
+    queryFn: () => apiFetch<{ endpoint: unknown }>(`/api/agent-api/endpoints/${id}`),
+    enabled: !!id,
+  })
+}
+
+export function useUpdateAgentAPIEndpoint() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; [key: string]: unknown }) =>
+      apiFetch(`/api/agent-api/endpoints/${data.id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agentAPIEndpoints'] }),
+  })
+}
+
+export function useDeleteAgentAPIEndpoint() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/agent-api/endpoints/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agentAPIEndpoints'] }),
+  })
+}
+
+// ===== Agent API Management - Seed =====
+export function useSeedAgentAPI() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      apiFetch('/api/agent-api/seed', { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agentAPIEndpoints'] }),
+  })
+}

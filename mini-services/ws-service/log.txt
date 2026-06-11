@@ -42,3 +42,194 @@
 [WS] Client disconnected: trP_xuW56Nv_xoMhAAAc (reason: client namespace disconnect, total: 3)
 [WS] Client connected: Ymivm7Ggby26CAXGAAAe (total: 4)
 [WS] Ymivm7Ggby26CAXGAAAe subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: dBuE7hz4kp-q50fvAAAO (reason: transport close, total: 3)
+[WS] Client disconnected: tmGkjJz8OxW8kIFSAAAP (reason: transport close, total: 2)
+[WS] Client disconnected: kuYxL-W0ColTTHGqAAAT (reason: transport close, total: 1)
+[WS] Client connected: puNEsJwAOLN7pEGNAAAh (total: 2)
+[WS] Client connected: vs0jgA7HzDGe_z0SAAAi (total: 3)
+[WS] puNEsJwAOLN7pEGNAAAh subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] vs0jgA7HzDGe_z0SAAAi subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: XRjSiyBUb_pm9DtmAAAk (total: 4)
+[WS] XRjSiyBUb_pm9DtmAAAk subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: Ymivm7Ggby26CAXGAAAe (reason: transport close, total: 3)
+[WS] Client connected: Jhj0el3kP4JNWMp1AAAm (total: 4)
+[WS] Jhj0el3kP4JNWMp1AAAm subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: puNEsJwAOLN7pEGNAAAh (reason: transport close, total: 3)
+[WS] Client disconnected: vs0jgA7HzDGe_z0SAAAi (reason: transport close, total: 2)
+[WS] Client disconnected: XRjSiyBUb_pm9DtmAAAk (reason: transport close, total: 1)
+[WS] Client connected: Z_YxFOx_6TjnlQtfAAAo (total: 2)
+[WS] Z_YxFOx_6TjnlQtfAAAo subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: Xjbm1VWcM8IxnVMOAAAq (total: 3)
+[WS] Xjbm1VWcM8IxnVMOAAAq subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: ST1h4N9Deb7Je33QAAAs (total: 4)
+[WS] ST1h4N9Deb7Je33QAAAs subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: Jhj0el3kP4JNWMp1AAAm (reason: transport close, total: 3)
+[WS] Client connected: qCIUPxR0w99RxBHHAAAu (total: 4)
+[WS] qCIUPxR0w99RxBHHAAAu subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: Z_YxFOx_6TjnlQtfAAAo (reason: transport close, total: 3)
+[WS] Client disconnected: Xjbm1VWcM8IxnVMOAAAq (reason: transport close, total: 2)
+[WS] Client disconnected: ST1h4N9Deb7Je33QAAAs (reason: transport close, total: 1)
+[WS] Client connected: uWYVlXC1gfWqDLp4AAAx (total: 2)
+[WS] Client connected: 07LIqhU-r0KKEw03AAAy (total: 3)
+[WS] uWYVlXC1gfWqDLp4AAAx subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] 07LIqhU-r0KKEw03AAAy subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: cutJpwXgOuQePzDnAAA0 (total: 4)
+[WS] cutJpwXgOuQePzDnAAA0 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: qCIUPxR0w99RxBHHAAAu (reason: transport close, total: 3)
+[WS] Client connected: a_h7M5M94PPiWCygAAA2 (total: 4)
+[WS] a_h7M5M94PPiWCygAAA2 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: cutJpwXgOuQePzDnAAA0 (reason: transport close, total: 3)
+[WS] Client disconnected: a_h7M5M94PPiWCygAAA2 (reason: transport close, total: 2)
+[WS] Client disconnected: 07LIqhU-r0KKEw03AAAy (reason: transport close, total: 1)
+[WS] Client disconnected: uWYVlXC1gfWqDLp4AAAx (reason: transport close, total: 0)
+[WS] Client connected: qEfqm0deE3uk3A_zAAA4 (total: 1)
+[WS] qEfqm0deE3uk3A_zAAA4 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: L9Mo9-Foa180M-1nAAA6 (total: 2)
+[WS] L9Mo9-Foa180M-1nAAA6 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: skXie5RdFHp6kLRKAAA8 (total: 3)
+[WS] skXie5RdFHp6kLRKAAA8 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: L9Mo9-Foa180M-1nAAA6 (reason: transport close, total: 2)
+[WS] Client disconnected: qEfqm0deE3uk3A_zAAA4 (reason: ping timeout, total: 1)
+[WS] Client disconnected: skXie5RdFHp6kLRKAAA8 (reason: transport close, total: 0)
+[WS] Client connected: dX4i7O-nSHx2DLLHAAA- (total: 1)
+[WS] dX4i7O-nSHx2DLLHAAA- subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: zqRPAL1KhNcqvu_TAABA (total: 2)
+[WS] zqRPAL1KhNcqvu_TAABA subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: zqRPAL1KhNcqvu_TAABA (reason: transport close, total: 1)
+[WS] Client connected: 1P3dbwF8CTDYYZGmAABD (total: 2)
+[WS] Client connected: AbOb7w9l5mkXscQ6AABE (total: 3)
+[WS] 1P3dbwF8CTDYYZGmAABD subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] AbOb7w9l5mkXscQ6AABE subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: AbOb7w9l5mkXscQ6AABE (reason: transport close, total: 2)
+[WS] Client disconnected: 1P3dbwF8CTDYYZGmAABD (reason: transport close, total: 1)
+[WS] Client connected: LnXMeTcNnCdznKyUAABH (total: 2)
+[WS] Client connected: HXualW73-Y5f1J1qAABI (total: 3)
+[WS] LnXMeTcNnCdznKyUAABH subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] HXualW73-Y5f1J1qAABI subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: oDve2nFG1wWtCPZ8AABK (total: 4)
+[WS] oDve2nFG1wWtCPZ8AABK subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: TKhL_6zyVfMevLzpAABN (total: 5)
+[WS] Client connected: W_9vQKGBv9avD99HAABO (total: 6)
+[WS] TKhL_6zyVfMevLzpAABN subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] W_9vQKGBv9avD99HAABO subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: dX4i7O-nSHx2DLLHAAA- (reason: transport close, total: 5)
+[WS] Client disconnected: LnXMeTcNnCdznKyUAABH (reason: ping timeout, total: 4)
+[WS] Client disconnected: HXualW73-Y5f1J1qAABI (reason: ping timeout, total: 3)
+[WS] Client connected: 9cq2iMFUQ8Qp0FahAABT (total: 4)
+[WS] Client connected: ymt-EOBTKjAcIDu-AABU (total: 5)
+[WS] Client connected: 6aGkibMxGUYutkjXAABV (total: 6)
+[WS] Client connected: RZpJ1Agy-cLNUUUpAABW (total: 7)
+[WS] 9cq2iMFUQ8Qp0FahAABT subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] 6aGkibMxGUYutkjXAABV subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] ymt-EOBTKjAcIDu-AABU subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] RZpJ1Agy-cLNUUUpAABW subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: oDve2nFG1wWtCPZ8AABK (reason: transport close, total: 6)
+[WS] Client disconnected: TKhL_6zyVfMevLzpAABN (reason: transport close, total: 5)
+[WS] Client disconnected: W_9vQKGBv9avD99HAABO (reason: transport close, total: 4)
+[WS] Client connected: gxD0dUi3G2R8UUmKAABb (total: 5)
+[WS] Client connected: eT-4uPiizaKcbA5jAABc (total: 6)
+[WS] Client connected: zaLfD1qHHeubCN5QAABd (total: 7)
+[WS] Client connected: yy76GuOClZm5OBt1AABe (total: 8)
+[WS] gxD0dUi3G2R8UUmKAABb subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] eT-4uPiizaKcbA5jAABc subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] zaLfD1qHHeubCN5QAABd subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] yy76GuOClZm5OBt1AABe subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: 9cq2iMFUQ8Qp0FahAABT (reason: transport close, total: 7)
+[WS] Client disconnected: ymt-EOBTKjAcIDu-AABU (reason: transport close, total: 6)
+[WS] Client disconnected: 6aGkibMxGUYutkjXAABV (reason: transport close, total: 5)
+[WS] Client disconnected: RZpJ1Agy-cLNUUUpAABW (reason: transport close, total: 4)
+[WS] Client disconnected: gxD0dUi3G2R8UUmKAABb (reason: client namespace disconnect, total: 3)
+[WS] Client disconnected: zaLfD1qHHeubCN5QAABd (reason: client namespace disconnect, total: 2)
+[WS] Client connected: hLFTJ0EIM5TtXaZnAABh (total: 3)
+[WS] Client connected: YyUn8AAuRieJwTc8AABi (total: 4)
+[WS] hLFTJ0EIM5TtXaZnAABh subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] YyUn8AAuRieJwTc8AABi subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: hLFTJ0EIM5TtXaZnAABh (reason: transport close, total: 3)
+[WS] Client disconnected: yy76GuOClZm5OBt1AABe (reason: transport close, total: 2)
+[WS] Client disconnected: eT-4uPiizaKcbA5jAABc (reason: transport close, total: 1)
+[WS] Client disconnected: YyUn8AAuRieJwTc8AABi (reason: transport close, total: 0)
+[WS] Client connected: vHAK21LZUIDYFLYdAABl (total: 1)
+[WS] Client connected: F8Dhi3WLgpXTVm0zAABm (total: 2)
+[WS] vHAK21LZUIDYFLYdAABl subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] F8Dhi3WLgpXTVm0zAABm subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: Ojbugyr91Gyoy2FsAABp (total: 3)
+[WS] Client connected: 7Rv7EuInGcT7xzupAABq (total: 4)
+[WS] Ojbugyr91Gyoy2FsAABp subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] 7Rv7EuInGcT7xzupAABq subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: Ex2hUBgP9tfBm10hAABt (total: 5)
+[WS] Client connected: 9uA43p413azeS32NAABu (total: 6)
+[WS] Ex2hUBgP9tfBm10hAABt subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] 9uA43p413azeS32NAABu subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: vHAK21LZUIDYFLYdAABl (reason: transport close, total: 5)
+[WS] Client disconnected: F8Dhi3WLgpXTVm0zAABm (reason: transport close, total: 4)
+[WS] Client disconnected: Ex2hUBgP9tfBm10hAABt (reason: transport close, total: 3)
+[WS] Client disconnected: 9uA43p413azeS32NAABu (reason: transport close, total: 2)
+[WS] Client connected: aaHLEVRyxsCZ-iHUAABx (total: 3)
+[WS] Client connected: ylIFLbbjeAx7QG7sAABy (total: 4)
+[WS] aaHLEVRyxsCZ-iHUAABx subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] ylIFLbbjeAx7QG7sAABy subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: ylIFLbbjeAx7QG7sAABy (reason: client namespace disconnect, total: 3)
+[WS] Client connected: v7mBvyTaJReOu3bAAAB0 (total: 4)
+[WS] v7mBvyTaJReOu3bAAAB0 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: v7mBvyTaJReOu3bAAAB0 (reason: client namespace disconnect, total: 3)
+[WS] Client connected: wl7LuVgJrtg8iMnLAAB2 (total: 4)
+[WS] wl7LuVgJrtg8iMnLAAB2 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: wl7LuVgJrtg8iMnLAAB2 (reason: client namespace disconnect, total: 3)
+[WS] Client connected: ZEzsi7JScH4o6zcVAAB5 (total: 4)
+[WS] Client connected: 4EF4vNcmh2C_tOJUAAB6 (total: 5)
+[WS] ZEzsi7JScH4o6zcVAAB5 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] 4EF4vNcmh2C_tOJUAAB6 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: Pgu4mdEnjEETew5HAAB8 (total: 6)
+[WS] Pgu4mdEnjEETew5HAAB8 subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: tMBRyLYaCZtV__KfAAB_ (total: 7)
+[WS] Client connected: 1BcvGYmPtHDA8CcsAACA (total: 8)
+[WS] tMBRyLYaCZtV__KfAAB_ subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] 1BcvGYmPtHDA8CcsAACA subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: bRf_vEuZOrjtRbPMAACC (total: 9)
+[WS] bRf_vEuZOrjtRbPMAACC subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: aaHLEVRyxsCZ-iHUAABx (reason: transport close, total: 8)
+[WS] Client disconnected: Ojbugyr91Gyoy2FsAABp (reason: transport close, total: 7)
+[WS] Client disconnected: 7Rv7EuInGcT7xzupAABq (reason: transport close, total: 6)
+[WS] Client disconnected: 4EF4vNcmh2C_tOJUAAB6 (reason: transport close, total: 5)
+[WS] Client connected: 6r0_fH5qS4TQCQAbAACF (total: 6)
+[WS] Client connected: OPMLjGBrtZKn9pwZAACG (total: 7)
+[WS] 6r0_fH5qS4TQCQAbAACF subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] OPMLjGBrtZKn9pwZAACG subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: ZEzsi7JScH4o6zcVAAB5 (reason: ping timeout, total: 6)
+[WS] Client connected: aTOPTKT4FahYh3tlAACI (total: 7)
+[WS] aTOPTKT4FahYh3tlAACI subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: Pgu4mdEnjEETew5HAAB8 (reason: transport close, total: 6)
+[WS] Client connected: dkNl2YMbdL3fVGi2AACK (total: 7)
+[WS] dkNl2YMbdL3fVGi2AACK subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: ZtKAjSNE4AQB6ZxSAACN (total: 8)
+[WS] Client connected: IelX83cfYjUwnk5pAACO (total: 9)
+[WS] Client disconnected: 1BcvGYmPtHDA8CcsAACA (reason: transport close, total: 8)
+[WS] ZtKAjSNE4AQB6ZxSAACN subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] IelX83cfYjUwnk5pAACO subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: tMBRyLYaCZtV__KfAAB_ (reason: transport close, total: 7)
+[WS] Client disconnected: bRf_vEuZOrjtRbPMAACC (reason: transport close, total: 6)
+[WS] Client disconnected: 6r0_fH5qS4TQCQAbAACF (reason: ping timeout, total: 5)
+[WS] Client disconnected: OPMLjGBrtZKn9pwZAACG (reason: ping timeout, total: 4)
+[WS] Client disconnected: aTOPTKT4FahYh3tlAACI (reason: client namespace disconnect, total: 3)
+[WS] Client connected: PVBjfnjM2425HQWlAACQ (total: 4)
+[WS] PVBjfnjM2425HQWlAACQ subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: Uvx5IjL0T7Y_MbA_AACS (total: 5)
+[WS] Uvx5IjL0T7Y_MbA_AACS subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: zb6tT5WKEuQ9GMOoAACU (total: 6)
+[WS] zb6tT5WKEuQ9GMOoAACU subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: PVBjfnjM2425HQWlAACQ (reason: transport close, total: 5)
+[WS] Client connected: v6W-z9oAO9Mtb3NPAACX (total: 6)
+[WS] Client connected: r9HqbpXjQZm2crTfAACY (total: 7)
+[WS] v6W-z9oAO9Mtb3NPAACX subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] r9HqbpXjQZm2crTfAACY subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: dkNl2YMbdL3fVGi2AACK (reason: ping timeout, total: 6)
+[WS] Client disconnected: ZtKAjSNE4AQB6ZxSAACN (reason: ping timeout, total: 5)
+[WS] Client disconnected: IelX83cfYjUwnk5pAACO (reason: ping timeout, total: 4)
+[WS] Client disconnected: r9HqbpXjQZm2crTfAACY (reason: client namespace disconnect, total: 3)
+[WS] Client disconnected: Uvx5IjL0T7Y_MbA_AACS (reason: client namespace disconnect, total: 2)
+[WS] Client connected: RozPBCcPpN30-s_mAACb (total: 3)
+[WS] RozPBCcPpN30-s_mAACb subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client connected: lxBRqm3RfPb_M-dKAACc (total: 4)
+[WS] lxBRqm3RfPb_M-dKAACc subscribed to: task:updated, task:created, shard:updated, simulation:completed, node:status, notification, agent:status, agent:cycle, agent:output, clone:activity
+[WS] Client disconnected: v6W-z9oAO9Mtb3NPAACX (reason: transport close, total: 3)
+[WS] Client disconnected: lxBRqm3RfPb_M-dKAACc (reason: transport close, total: 2)

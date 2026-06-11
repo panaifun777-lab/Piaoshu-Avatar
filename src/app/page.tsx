@@ -26,6 +26,9 @@ import {
   Settings2,
   Command,
   Mail,
+  Radio,
+  Handshake,
+  Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useWebSocket, type WSEventType } from '@/lib/use-websocket'
@@ -74,6 +77,18 @@ const EmailTrackingView = dynamic(
   () => import('@/components/piaoshu/email-tracking').then(m => ({ default: m.EmailTrackingView })),
   { loading: () => <ModuleSkeleton /> }
 )
+const MediaMatrixView = dynamic(
+  () => import('@/components/piaoshu/media-matrix').then(m => ({ default: m.MediaMatrixView })),
+  { loading: () => <ModuleSkeleton /> }
+)
+const BDPipelineView = dynamic(
+  () => import('@/components/piaoshu/bd-pipeline').then(m => ({ default: m.BDPipelineView })),
+  { loading: () => <ModuleSkeleton /> }
+)
+const GEOCenterView = dynamic(
+  () => import('@/components/piaoshu/geo-center').then(m => ({ default: m.GEOCenterView })),
+  { loading: () => <ModuleSkeleton /> }
+)
 
 function ModuleSkeleton() {
   return (
@@ -90,7 +105,7 @@ function ModuleSkeleton() {
   )
 }
 
-type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription'
+type ActiveModule = 'dashboard' | 'avatar' | 'email' | 'cognitive' | 'evidence' | 'collaboration' | 'sandbox' | 'roadmap' | 'subscription' | 'media' | 'bd' | 'geo'
 
 interface NavItem {
   id: ActiveModule
@@ -103,6 +118,9 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', label: '总览', sublabel: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
   { id: 'avatar', label: '分身系统', sublabel: 'Avatar Clone', icon: UserCircle2, color: 'text-violet-500' },
+  { id: 'media', label: '媒体矩阵', sublabel: 'Media Matrix', icon: Radio, color: 'text-emerald-600' },
+  { id: 'bd', label: '合作伙伴管线', sublabel: 'BD Pipeline', icon: Handshake, color: 'text-amber-600' },
+  { id: 'geo', label: 'GEO优化中心', sublabel: 'GEO Center', icon: Search, color: 'text-teal-600' },
   { id: 'email', label: '邮件跟踪', sublabel: 'Email Tracking', icon: Mail, color: 'text-emerald-500' },
   { id: 'cognitive', label: '认知分片引擎', sublabel: 'Cognitive Sharding', icon: Brain, color: 'text-emerald-600' },
   { id: 'evidence', label: '可信证据链', sublabel: 'Evidence Chain', icon: Shield, color: 'text-teal-600' },
@@ -279,6 +297,9 @@ const EVENT_LABELS: Record<WSEventType, string> = {
 const MODULE_NAMES: Record<ActiveModule, string> = {
   dashboard: '总览 Dashboard',
   avatar: '分身系统 Avatar Clone',
+  media: '媒体矩阵 Media Matrix',
+  bd: '合作伙伴管线 BD Pipeline',
+  geo: 'GEO优化中心 GEO Center',
   email: '邮件跟踪 Email Tracking',
   cognitive: '认知分片引擎 Cognitive Engine',
   evidence: '可信证据链 Evidence Chain',
@@ -392,6 +413,24 @@ export default function Home() {
         return (
           <ModuleErrorBoundary moduleName={moduleName}>
             <RoadmapTrackerView />
+          </ModuleErrorBoundary>
+        )
+      case 'media':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <MediaMatrixView />
+          </ModuleErrorBoundary>
+        )
+      case 'bd':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <BDPipelineView />
+          </ModuleErrorBoundary>
+        )
+      case 'geo':
+        return (
+          <ModuleErrorBoundary moduleName={moduleName}>
+            <GEOCenterView />
           </ModuleErrorBoundary>
         )
       case 'subscription':
