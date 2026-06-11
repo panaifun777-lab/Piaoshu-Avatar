@@ -2601,3 +2601,26 @@ Stage Summary:
 - Vercel 部署已成功：piaoshu-avatar.vercel.app 在线运行，HTTP 200
 - GitHub → Vercel 自动部署集成正常工作
 - 线上页面完整渲染：15个导航模块、系统状态、实时连接等均正常
+
+---
+Task ID: 17
+Agent: Main Orchestrator
+Task: 修复设置按钮位置 + AI聊天功能 + Vercel部署同步
+
+Work Log:
+- 从侧边栏底部移除"系统设置"按钮，只保留header右上角⚙️齿轮按钮
+- 清理SidebarContent组件中不再需要的onOpenSettings prop
+- 修复AI聊天后端：支持接收客户端传来的apiKey和modelName参数
+- 修复AI聊天前端：chat widget将localStorage中的DeepSeek配置发送到后端
+- 新增safeDbOp包装器：所有DB操作容错，Vercel无数据库时不影响聊天
+- DeepSeek失败时自动降级到Z-AI SDK，双重provider容错
+- 错误信息返回具体原因而非泛化"Failed to get AI response"
+- 推送3个commit到GitHub，Vercel自动部署全部成功
+- Agent Browser验证Vercel部署：设置按钮位置正确、AI聊天DeepSeek API调用成功
+
+Stage Summary:
+- 设置按钮：侧边栏底部已移除，只在header右上角(通知铃铛旁)
+- AI聊天：Vercel上使用DeepSeek API正常工作(需客户端配置apiKey)
+- DB容错：所有数据库操作不阻塞聊天功能，Vercel serverless环境可用
+- Vercel部署：piaoshu-avatar.vercel.app 已更新到最新代码 (SHA: 5d4a47b)
+- GitHub同步：https://github.com/panaifun777-lab/Piaoshu-Avatar 已同步
