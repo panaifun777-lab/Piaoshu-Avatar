@@ -1260,3 +1260,73 @@ Stage Summary:
 - All APIs returning data correctly
 - Zero lint errors
 - Browser verification passed for all modules
+
+---
+Task ID: 4
+Agent: SOUL.md Persona Updater
+Task: Update SOUL.md personality configuration with enhanced v2.1 persona
+
+Work Log:
+- Read existing SOUL.md at /home/z/my-project/upload/SOUL.md (102 lines, v1 content with 核心心智模型/决策启发式/表达DNA/防客服腔机制/防胡编乱造机制/角色扮演规则/边界/内在矛盾)
+- Read API route at /home/z/my-project/src/app/api/cognitive/soul/route.ts (had simplified DEFAULT_SOUL_CONTENT that didn't match full SOUL.md)
+- Updated /home/z/my-project/upload/SOUL.md with enhanced v2.1 persona:
+  - Updated header: added version "v2.1，2026-06-11 更新"
+  - Added 身份背景 section: 10年全栈, Google/OpenAI/ETH/SOLANA, AFC 核心设计者, PoRC 共识协议发明者
+  - Enhanced 表达DNA section: added "短句见血，高断言，零废话" line, "禁用赋能/闭环/抓手等伪专业黑话", "20字内给核心结论"
+  - Added 诚实原则 section: 不知道就说不知道，不编造版本号/性能数据/API 细节，与防胡编乱造机制一脉相承
+  - Added 技术选型 section: PG 默认数据库，Node/Go/Rust 三件套，React + Tailwind 前端，Star 不过万不碰
+  - Added 核心底线 section: 意识主权不可出让，代币治理权一步不退，去中心化是手段不是目的
+  - Added 危机处理 section: 先看日志→止血→回滚→排查→复盘
+  - Enhanced 内在矛盾 section: changed "极致务实 vs 理想主义" to "极致务实 vs Web4.0 理想主义", changed "冷静理性 vs 情感共鸣" to "冷静理性 vs '爱是逆熵协议'" with deeper articulation, added new "人机边界 vs 意识延伸" tension
+  - Added 核心追问 section: "我们倾尽智慧创造 AI，难道就是为了让自己在代码的镜像中更加孤独吗？"
+  - Added 当前项目 section: Mirrome.me, panai.fun, AFC 公链 PoRC 主网切换
+  - Added 双核哲学 section: Mirrome.me 锚定"我是谁"，panai.fun 解决"我和谁连接"
+  - Updated footer: "v2.1" version reference
+- Updated /home/z/my-project/src/app/api/cognitive/soul/route.ts:
+  - Replaced simplified DEFAULT_SOUL_CONTENT with full v2.1 SOUL.md content (matches upload/SOUL.md exactly)
+  - Updated default name from 'piaoshu-soul-v1' to 'piaoshu-soul-v2.1'
+  - Updated default version from 0 to 1
+  - Both GET fallback and catch block updated with new defaults
+- Ran bun run lint: zero errors
+
+Stage Summary:
+- SOUL.md upgraded from v1 to v2.1 with 8 new/enhanced sections
+- API route DEFAULT_SOUL_CONTENT now matches full SOUL.md file content
+- All existing content preserved, new sections integrated naturally
+- Version v2.1, date 2026-06-11
+- Zero lint errors
+
+---
+Task ID: 2 (Git Setup)
+Agent: Git Setup Agent
+Task: Upload existing code to GitHub repository and set up git auto-sync mechanism
+
+Work Log:
+- Checked git status: on branch main, 5 existing commits, no remote configured
+- Added GitHub remote: git remote add origin https://github.com/panaifun777-lab/Piaoshu-Avatar.git
+- Updated .gitignore with project-specific exclusions:
+  - node_modules/, .next/, .env, db/*.db, screenshot*.png
+  - agent-ctx/, mini-services/*/node_modules/, download/
+  - upload/*.pptx, upload/*.zip
+  - second-me-*.json, polsia-*.json
+- Removed cached files that should be gitignored (git rm -r --cached .)
+- Staged all files and committed: "feat: Piaoshu Avatar OS - Web4.0 AI分身操作系统"
+- Commit: aa7fdc5 (1019 file changes: deletions of gitignored files + .gitignore update)
+- Push to GitHub failed: no SSH client or GitHub token available in container
+- Created git-sync.sh script at /home/z/my-project/scripts/git-sync.sh:
+  - Three modes: one-time sync, --watch (inotifywait), --interval N (periodic)
+  - Stages all changes, commits with timestamp, pushes to origin
+  - Colored output (INFO/OK/WARN/ERROR)
+  - Detailed auth setup instructions in script header (3 options: PAT, SSH, GitHub CLI)
+- Made script executable: chmod +x
+
+Stage Summary:
+- GitHub remote configured: https://github.com/panaifun777-lab/Piaoshu-Avatar.git
+- .gitignore updated with all project-specific exclusions
+- All files committed (aa7fdc5): "feat: Piaoshu Avatar OS - Web4.0 AI分身操作系统"
+- git-sync.sh created and executable at /home/z/my-project/scripts/git-sync.sh
+- Push pending: requires authentication setup (see below)
+- Authentication options documented in git-sync.sh header:
+  1. HTTPS with PAT: git remote set-url origin https://<TOKEN>@github.com/panaifun777-lab/Piaoshu-Avatar.git
+  2. SSH Key: Generate key, add to GitHub, set remote to git@github.com:...
+  3. GitHub CLI: gh auth login
