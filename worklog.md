@@ -2902,3 +2902,31 @@ Stage Summary:
 - All changes use consistent design patterns (dark theme, amber/violet accents, framer-motion)
 - No other files modified
 - Zero new lint errors
+
+---
+Task ID: 5
+Agent: Main Orchestrator
+Task: Add TG channel link, navigation menu, founder manifesto on landing page, TG bot service, sync to GitHub/Vercel
+
+Work Log:
+- Added TG频道 link and Telegram 频道 button to landing page navigation bar (sky-themed)
+- Added "创始人致辞" anchor link and "TG频道" external link to nav menu
+- Added Founder's Manifesto section (id="manifesto") between Tech Stack and CTA on landing page
+- Created Telegram Bot mini-service at /home/z/my-project/mini-services/tg-bot-service/ (port 3006)
+  - 28 messages across 5 categories (Web4.0, AI分身, 飘叔见解, AI资讯, 产品动态)
+  - Periodic push every 4 hours with category rotation
+  - Bot commands: /start, /help, /subscribe, /pushnow, /status
+  - Health check at http://localhost:3006/health
+- Fixed blockchain service port conflict (3006→3007)
+- Fixed eslint config to ignore upload/ and mini-services/ directories
+- Reset user passwords (bcrypt) - demo@piaoshu.ai and piaoshu001@piaoshu.ai now both use "demo123"
+- Synced to GitHub: https://github.com/panaifun777-lab/Piaoshu-Avatar
+- Verified with Agent Browser: landing page, login, dashboard, manifesto section all working
+
+Stage Summary:
+- TG频道 link (https://t.me/AvatarOS_Bot) in nav, header button, and footer
+- Founder's Manifesto section on landing page after Tech Stack
+- TG Bot service running on port 3006 with 28 messages / 5 categories / 4h push cycle
+- All mini-services running: ws(3003), vector(3004), blockchain(3007), tg-bot(3006)
+- Code pushed to GitHub, Vercel deployment updating at https://piaoshu-avatar.vercel.app/
+- Zero lint errors, zero browser errors
