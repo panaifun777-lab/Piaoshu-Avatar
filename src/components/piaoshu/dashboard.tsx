@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -42,6 +42,14 @@ import {
   Terminal,
   Hexagon,
   BarChart3,
+  Eye,
+  FlaskConical,
+  Globe,
+  Fingerprint,
+  GitBranch,
+  Award,
+  Layers,
+  Circle,
 } from 'lucide-react'
 import {
   LineChart,
@@ -323,6 +331,30 @@ const TICKER_ITEMS = [
   { id: 't8', text: '协作任务 T-008 已完成', time: '25分钟前', color: 'text-cyan-400' },
 ]
 
+// ─── SONA Stages ─────────────────────────────────────────────────────────────
+
+const SONA_STAGES = [
+  { id: 'retrieve', name: '检索', nameEn: 'RETRIEVE', icon: Search, desc: '从记忆宫殿中检索相关经验', colorClass: 'text-emerald-400', bgClass: 'bg-emerald-500/15', borderClass: 'border-emerald-500/30', glowClass: 'shadow-emerald-500/20', fillHex: '#10b981' },
+  { id: 'judge', name: '判断', nameEn: 'JUDGE', icon: Eye, desc: '评估检索结果的相关性与质量', colorClass: 'text-amber-400', bgClass: 'bg-amber-500/15', borderClass: 'border-amber-500/30', glowClass: 'shadow-amber-500/20', fillHex: '#f59e0b' },
+  { id: 'distill', name: '蒸馏', nameEn: 'DISTILL', icon: FlaskConical, desc: '提炼高价值认知片段', colorClass: 'text-violet-400', bgClass: 'bg-violet-500/15', borderClass: 'border-violet-500/30', glowClass: 'shadow-violet-500/20', fillHex: '#8b5cf6' },
+  { id: 'consolidate', name: '巩固', nameEn: 'CONSOLIDATE', icon: Database, desc: '将蒸馏结果写入长期记忆', colorClass: 'text-teal-400', bgClass: 'bg-teal-500/15', borderClass: 'border-teal-500/30', glowClass: 'shadow-teal-500/20', fillHex: '#14b8a6' },
+]
+
+// ─── Federation fallback data ────────────────────────────────────────────────
+
+const FALLBACK_DIDS = [
+  { did: 'did:piaoshu:0x7a3b...f1c2', name: '飘叔', trustLevel: 95, avatar: 'CEO' },
+  { did: 'did:piaoshu:0x8e2d...a4b7', name: '张伟', trustLevel: 78, avatar: 'Engineer' },
+  { did: 'did:piaoshu:0x1f5c...9e3a', name: '王芳', trustLevel: 82, avatar: 'Growth' },
+  { did: 'did:piaoshu:0x4d8a...2c6f', name: '赵磊', trustLevel: 71, avatar: 'CTO' },
+]
+
+const FALLBACK_VCS = [
+  { id: 'vc-001', issuer: '飘叔', subject: '战略决策', type: 'DecisionProof', verifiedAt: '2分钟前' },
+  { id: 'vc-002', issuer: '张伟', subject: '代码审查', type: 'TaskCompletion', verifiedAt: '8分钟前' },
+  { id: 'vc-003', issuer: '王芳', subject: '增长报告', type: 'EvidenceChain', verifiedAt: '15分钟前' },
+]
+
 // ─── Helper: time ago ─────────────────────────────────────────────────────────
 
 function timeAgo(dateStr: string | null | undefined): string {
@@ -441,6 +473,22 @@ function taskLabel(agent: { role: string; status: string }): string {
   }
 }
 
+// ─── Agent network positions for SVG topology ─────────────────────────────────
+
+const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
+  CEO: { x: 200, y: 40 },
+  CTO: { x: 340, y: 100 },
+  Growth: { x: 60, y: 100 },
+  Engineer: { x: 200, y: 160 },
+}
+
+const ROLE_COLORS: Record<string, string> = {
+  CEO: '#f59e0b',
+  CTO: '#06b6d4',
+  Growth: '#10b981',
+  Engineer: '#14b8a6',
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function DashboardView({ onNavigate }: DashboardViewProps) {
@@ -468,6 +516,56 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     }, 4000)
     return () => clearInterval(interval)
   }, [])
+
+  // ── SONA Status hook ────────────────────────────────────────────────────────
+  const [sonaStatus, setSonaStatus] = useState<{
+    activeStage: string
+    totalMemories: number
+    knowledgeEntities: number
+    activeTunnels: number
+    lastConsolidation: string
+  } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/memory/sona/status')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setSonaStatus({
+            activeStage: data.activeStage || 'retrieve',
+            totalMemories: data.totalMemories || 42,
+            knowledgeEntities: data.knowledgeEntities || 156,
+            activeTunnels: data.activeTunnels || 3,
+            lastConsolidation: data.lastConsolidation || '2小时前',
+          })
+        }
+      })
+      .catch(() => {
+        setSonaStatus({
+          activeStage: 'retrieve',
+          totalMemories: 42,
+          knowledgeEntities: 156,
+          activeTunnels: 3,
+          lastConsolidation: '2小时前',
+        })
+      })
+  }, [])
+
+  // ── Federation DIDs hook ────────────────────────────────────────────────────
+  const [federationDIDs, setFederationDIDs] = useState(FALLBACK_DIDS)
+  const [federationVCs, setFederationVCs] = useState(FALLBACK_VCS)
+
+  const fetchFederation = useCallback(() => {
+    fetch('/api/federation/dids')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.dids) setFederationDIDs(data.dids)
+        if (data?.recentVCs) setFederationVCs(data.recentVCs)
+      })
+      .catch(() => { /* keep fallback */ })
+  }, [])
+
+  useEffect(() => { fetchFederation() }, [fetchFederation])
 
   // ── Fetch real API data ─────────────────────────────────────────────────────
   const shardsQuery = useShards()
@@ -511,10 +609,10 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
 
   // ── Real-time Stats Cards ───────────────────────────────────────────────────
   const realtimeStats = [
-    { label: '今日AI周期', value: String(totalCycles), unit: '已完成', icon: Zap, gradient: 'from-emerald-600 to-teal-500', sparkData: sparklineData.cycles, sparkColor: '#10b981', live: true },
-    { label: '活跃智能体', value: String(workingAgents.length || cloneAgents.length), unit: '运行中', icon: Cpu, gradient: 'from-violet-500 to-purple-600', sparkData: sparklineData.agents, sparkColor: '#8b5cf6', live: true },
-    { label: '链上证据', value: String(onchainEvidences.length), unit: '已验证', icon: Shield, gradient: 'from-teal-600 to-emerald-400', sparkData: sparklineData.evidence, sparkColor: '#14b8a6', live: false },
-    { label: '开放任务', value: String(openTasks.length), unit: '待领取', icon: Target, gradient: 'from-amber-500 to-orange-500', sparkData: sparklineData.tasks, sparkColor: '#f59e0b', live: false },
+    { label: '今日AI周期', value: String(totalCycles), unit: '已完成', icon: Zap, gradient: 'from-emerald-600 to-teal-500', sparkData: sparklineData.cycles, sparkColor: '#10b981', live: true, accentBorder: 'border-emerald-500/20', hoverGlow: 'hover:shadow-emerald-500/10' },
+    { label: '活跃智能体', value: String(workingAgents.length || cloneAgents.length), unit: '运行中', icon: Cpu, gradient: 'from-violet-500 to-purple-600', sparkData: sparklineData.agents, sparkColor: '#8b5cf6', live: true, accentBorder: 'border-violet-500/20', hoverGlow: 'hover:shadow-violet-500/10' },
+    { label: '链上证据', value: String(onchainEvidences.length), unit: '已验证', icon: Shield, gradient: 'from-teal-600 to-emerald-400', sparkData: sparklineData.evidence, sparkColor: '#14b8a6', live: false, accentBorder: 'border-teal-500/20', hoverGlow: 'hover:shadow-teal-500/10' },
+    { label: '开放任务', value: String(openTasks.length), unit: '待领取', icon: Target, gradient: 'from-amber-500 to-orange-500', sparkData: sparklineData.tasks, sparkColor: '#f59e0b', live: false, accentBorder: 'border-amber-500/20', hoverGlow: 'hover:shadow-amber-500/10' },
   ]
 
   // ── Activity timeline ───────────────────────────────────────────────────────
@@ -640,9 +738,12 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     })),
   ]
 
+  // ── Active SONA stage index ─────────────────────────────────────────────────
+  const activeSonaStageIdx = SONA_STAGES.findIndex(s => s.id === (sonaStatus?.activeStage || 'retrieve'))
+
   return (
     <div className="bg-background text-foreground">
-      <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-4 sm:space-y-6">
 
         {/* ── API Error Warning ──────────────────────────────────────────────── */}
         {anyError && (
@@ -653,22 +754,28 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════════
-            0. LIVE ACTIVITY TICKER
+            0. LIVE ACTIVITY TICKER (Enhanced)
         ══════════════════════════════════════════════════════════════════════ */}
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="relative overflow-hidden rounded-lg border border-emerald-500/15 bg-emerald-500/5 backdrop-blur-sm"
+          className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-emerald-500/5 backdrop-blur-md"
         >
-          <div className="flex items-center">
+          {/* Gradient shimmer overlay */}
+          <div className="absolute inset-0 opacity-30" style={{
+            background: 'linear-gradient(90deg, transparent 0%, rgba(16,185,129,0.15) 50%, transparent 100%)',
+            backgroundSize: '200% 100%',
+            animation: 'ticker-shimmer 3s ease-in-out infinite',
+          }} />
+          <div className="relative flex items-center">
             {/* LIVE badge */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border-r border-emerald-500/15 shrink-0">
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border-r border-emerald-500/15 shrink-0">
               <LiveDot color="bg-emerald-400" size="h-1.5 w-1.5" />
               <span className="text-[10px] font-bold font-mono text-emerald-400 uppercase tracking-widest">Live</span>
             </div>
             {/* Scrolling text */}
-            <div className="overflow-hidden flex-1 py-2 px-3">
+            <div className="overflow-hidden flex-1 py-2.5 px-4">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={tickerIndex}
@@ -687,18 +794,70 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                 </motion.div>
               </AnimatePresence>
             </div>
+            {/* Right side: quick status badges */}
+            <div className="hidden sm:flex items-center gap-2 px-4 border-l border-emerald-500/15">
+              <Badge className="text-[8px] h-4 bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 font-mono">
+                {workingAgents.length} WORKING
+              </Badge>
+              <Badge className="text-[8px] h-4 bg-teal-500/10 text-teal-400 border-teal-500/20 gap-1 font-mono">
+                {totalCycles} CYCLES
+              </Badge>
+            </div>
           </div>
         </motion.div>
 
         {/* ══════════════════════════════════════════════════════════════════════
-            1. MISSION CONTROL HEADER
+            1. MISSION CONTROL HERO (Reimagined)
         ══════════════════════════════════════════════════════════════════════ */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="relative overflow-hidden rounded-2xl border border-emerald-500/20 p-4 sm:p-5"
+          className="relative overflow-hidden rounded-2xl border border-emerald-500/20 p-5 sm:p-6"
         >
+          {/* Hexagonal grid background pattern */}
+          <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="hex-pattern" width="56" height="100" patternUnits="userSpaceOnUse" patternTransform="scale(0.5)">
+                <path d="M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100" fill="none" stroke="currentColor" strokeWidth="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hex-pattern)"/>
+          </svg>
+
+          {/* Cognitive network background */}
+          <svg className="absolute inset-0 w-full h-full opacity-[0.06]" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice">
+            {/* Connection lines */}
+            {[
+              { x1: 150, y1: 80, x2: 300, y2: 60 },
+              { x1: 300, y1: 60, x2: 450, y2: 80 },
+              { x1: 150, y1: 80, x2: 200, y2: 180 },
+              { x1: 450, y1: 80, x2: 400, y2: 180 },
+              { x1: 200, y1: 180, x2: 300, y2: 200 },
+              { x1: 400, y1: 180, x2: 300, y2: 200 },
+              { x1: 300, y1: 60, x2: 300, y2: 200 },
+            ].map((line, i) => (
+              <line key={`net-line-${i}`} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="#10b981" strokeWidth="0.5" opacity="0.4"/>
+            ))}
+            {/* Pulsing dots */}
+            {[
+              { cx: 150, cy: 80 },
+              { cx: 300, cy: 60 },
+              { cx: 450, cy: 80 },
+              { cx: 200, cy: 180 },
+              { cx: 400, cy: 180 },
+              { cx: 300, cy: 200 },
+            ].map((dot, i) => (
+              <g key={`net-dot-${i}`}>
+                <circle cx={dot.cx} cy={dot.cy} r="3" fill="#10b981" opacity="0.3">
+                  <animate attributeName="r" values="3;5;3" dur={`${2 + i * 0.3}s`} repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0.3;0.6;0.3" dur={`${2 + i * 0.3}s`} repeatCount="indefinite"/>
+                </circle>
+                <circle cx={dot.cx} cy={dot.cy} r="1.5" fill="#10b981" opacity="0.8"/>
+              </g>
+            ))}
+          </svg>
+
           {/* Dark techy background layers */}
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-teal-900/10 to-zinc-900/5" />
           <div className="absolute top-0 right-0 w-72 h-72 sm:w-96 sm:h-96 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -706,31 +865,33 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
 
           <div className="relative">
             {/* Top row: Title + LIVE + God Mode */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 shadow-lg shadow-emerald-500/20">
-                  <Radio className="h-5 w-5 text-white" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 shadow-lg shadow-emerald-500/30">
+                  <Radio className="h-6 w-6 text-white" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Mission Control</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Mission Control</h2>
                     <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/25 text-[9px] h-5 gap-1 font-mono">
                       <LiveDot color="bg-emerald-400" size="h-1.5 w-1.5" />
                       LIVE
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground font-mono">
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">
                     Piaoshu Avatar OS · {cloneAgents.length} 分身在线 · {totalCycles} 周期完成
                   </p>
                 </div>
               </div>
 
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25 gap-2 font-bold text-sm"
+                  className="relative bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/30 gap-2 font-bold text-sm overflow-hidden"
                   onClick={() => onNavigate?.('avatar')}
                 >
+                  {/* Glow effect */}
+                  <div className="absolute inset-0 rounded-md opacity-0 hover:opacity-100 transition-opacity" style={{ boxShadow: '0 0 20px rgba(249,115,22,0.4), 0 0 40px rgba(249,115,22,0.2)' }} />
                   <Flame className="h-4 w-4" />
                   上帝模式
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -738,42 +899,476 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
               </motion.div>
             </div>
 
-            {/* System status metrics row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/10 bg-background/50 px-3 py-2">
-                <Zap className="h-3.5 w-3.5 text-emerald-400" />
-                <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground">活跃分身</p>
-                  <p className="text-sm font-bold font-mono">{workingAgents.length}<span className="text-[10px] text-muted-foreground">/{cloneAgents.length}</span></p>
+            {/* Floating metric pills */}
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              {[
+                { label: '活跃分身', value: `${workingAgents.length}/${cloneAgents.length}`, icon: Zap, color: 'emerald' },
+                { label: '当前周期', value: String(totalCycles), icon: Activity, color: 'teal' },
+                { label: '系统运行', value: uptime, icon: Clock, color: 'emerald' },
+                { label: '实时连接', value: wsConnected ? 'ONLINE' : 'OFFLINE', icon: wsConnected ? Wifi : WifiOff, color: wsConnected ? 'emerald' : 'red' },
+              ].map((pill) => {
+                const PillIcon = pill.icon
+                const colorMap: Record<string, string> = {
+                  emerald: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400',
+                  teal: 'border-teal-500/20 bg-teal-500/5 text-teal-400',
+                  red: 'border-red-500/20 bg-red-500/5 text-red-400',
+                }
+                const iconColorMap: Record<string, string> = {
+                  emerald: 'text-emerald-400',
+                  teal: 'text-teal-400',
+                  red: 'text-red-400',
+                }
+                return (
+                  <motion.div
+                    key={pill.label}
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    className={`flex items-center gap-2 rounded-full border ${colorMap[pill.color]} px-3 py-1.5 backdrop-blur-sm cursor-default`}
+                  >
+                    <PillIcon className={`h-3 w-3 ${iconColorMap[pill.color]}`} />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-muted-foreground">{pill.label}</span>
+                      <span className="text-xs font-bold font-mono">{pill.value}</span>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            2. TWO-COLUMN: AVATAR LIVE PLAZA + SONA EVOLUTION CIRCUIT
+        ══════════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5">
+
+          {/* LEFT (3/5): Avatar Live Plaza */}
+          <div className="lg:col-span-3 space-y-4">
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={fadeInUp}
+              className="space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15">
+                    <Hexagon className="h-4 w-4 text-violet-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold">分身实时广场</h3>
+                    <p className="text-[10px] text-muted-foreground">Avatar Live Plaza · 网络拓扑 + 分身状态</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[9px] h-5 bg-emerald-500/5 text-emerald-400 border-emerald-500/20 gap-1">
+                  <LiveDot color="bg-emerald-400" size="h-1 w-1" />
+                  {liveSquareAgents.filter(a => a.status === 'working').length} 运行中
+                </Badge>
+              </div>
+
+              {/* Network Topology SVG */}
+              <div className="relative rounded-xl border border-violet-500/15 bg-card/50 backdrop-blur-sm p-4 overflow-hidden">
+                <svg viewBox="0 0 400 200" className="w-full" style={{ maxHeight: '200px' }}>
+                  {/* Connection lines from center to agents */}
+                  {liveSquareAgents.filter(a => AGENT_POSITIONS[a.role]).map((agent) => {
+                    const pos = AGENT_POSITIONS[agent.role]!
+                    const isWorking = agent.status === 'working'
+                    return (
+                      <line
+                        key={`line-${agent.id}`}
+                        x1={200} y1={100}
+                        x2={pos.x} y2={pos.y}
+                        stroke={isWorking ? (ROLE_COLORS[agent.role] || '#8b5cf6') : '#6b7280'}
+                        strokeWidth={isWorking ? 1.5 : 0.5}
+                        opacity={isWorking ? 0.4 : 0.15}
+                        strokeDasharray={isWorking ? 'none' : '4 4'}
+                      />
+                    )
+                  })}
+                  {/* Inter-agent connections */}
+                  {[
+                    { from: 'CEO', to: 'CTO' },
+                    { from: 'CEO', to: 'Growth' },
+                    { from: 'CTO', to: 'Engineer' },
+                    { from: 'Growth', to: 'Engineer' },
+                  ].map((conn, i) => {
+                    const from = AGENT_POSITIONS[conn.from]
+                    const to = AGENT_POSITIONS[conn.to]
+                    if (!from || !to) return null
+                    return (
+                      <line key={`inter-${i}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                        stroke="#10b981" strokeWidth="0.5" opacity="0.15" strokeDasharray="3 3"/>
+                    )
+                  })}
+                  {/* Center hub */}
+                  <circle cx={200} cy={100} r="12" fill="#10b981" opacity="0.15">
+                    <animate attributeName="r" values="12;16;12" dur="3s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.15;0.25;0.15" dur="3s" repeatCount="indefinite"/>
+                  </circle>
+                  <circle cx={200} cy={100} r="6" fill="#10b981" opacity="0.6"/>
+                  <text x={200} y={88} textAnchor="middle" fill="#10b981" fontSize="7" opacity="0.6" fontFamily="monospace">HUB</text>
+                  {/* Agent nodes */}
+                  {liveSquareAgents.filter(a => AGENT_POSITIONS[a.role]).map((agent) => {
+                    const pos = AGENT_POSITIONS[agent.role]!
+                    const isWorking = agent.status === 'working'
+                    const color = ROLE_COLORS[agent.role] || '#8b5cf6'
+                    return (
+                      <g key={`node-${agent.id}`}>
+                        {isWorking && (
+                          <circle cx={pos.x} cy={pos.y} r="14" fill={color} opacity="0.1">
+                            <animate attributeName="r" values="14;20;14" dur="2s" repeatCount="indefinite"/>
+                            <animate attributeName="opacity" values="0.1;0.2;0.1" dur="2s" repeatCount="indefinite"/>
+                          </circle>
+                        )}
+                        <circle cx={pos.x} cy={pos.y} r="10" fill={isWorking ? color : '#6b7280'} opacity={isWorking ? 0.25 : 0.1} />
+                        <circle cx={pos.x} cy={pos.y} r="7" fill={isWorking ? color : '#6b7280'} opacity={isWorking ? 0.7 : 0.3} />
+                        <text x={pos.x} y={pos.y + 20} textAnchor="middle" fill={isWorking ? color : '#6b7280'} fontSize="8" fontFamily="monono" opacity={isWorking ? 0.8 : 0.4}>
+                          {agent.role}
+                        </text>
+                        {isWorking && (
+                          <circle cx={pos.x + 8} cy={pos.y - 8} r="2.5" fill="#10b981">
+                            <animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/>
+                          </circle>
+                        )}
+                      </g>
+                    )
+                  })}
+                </svg>
+              </div>
+
+              {/* Agent Cards Grid - 2 columns */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {liveSquareAgents.map((agent, i) => {
+                  const config = AGENT_CONFIG[agent.role] || DEFAULT_AGENT_CONFIG
+                  const ConfigIcon = config.icon
+                  const isWorking = agent.status === 'working'
+
+                  return (
+                    <motion.div
+                      key={agent.id}
+                      custom={i}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    >
+                      <div className={`relative overflow-hidden rounded-xl border ${config.accentBorder} backdrop-blur-md bg-card/60 transition-all duration-300 ${isWorking ? `shadow-lg ${config.glowColor}` : ''}`}>
+                        {/* Glass morphism subtle bg */}
+                        <div className="absolute inset-0 bg-white/5 dark:bg-white/[0.02]" />
+                        {/* Glow background for working agents */}
+                        {isWorking && (
+                          <div className={`absolute inset-0 bg-gradient-to-br ${config.gradientFrom} ${config.gradientTo} animate-pulse`} />
+                        )}
+                        {/* Top accent line */}
+                        <div className={`h-0.5 w-full bg-gradient-to-r ${config.gradientFrom.replace('/10', '/60')} ${config.gradientTo.replace('/5', '/30')}`} />
+
+                        <div className="relative p-3.5">
+                          {/* Header: Icon + Name + Status */}
+                          <div className="flex items-center justify-between mb-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className={`relative flex h-8 w-8 items-center justify-center rounded-lg ${config.accentBg}`}>
+                                <ConfigIcon className={`h-4 w-4 ${config.accentColor}`} />
+                                {isWorking && (
+                                  <span className="absolute -top-0.5 -right-0.5">
+                                    <LiveDot color={config.pulseColor} size="h-1.5 w-1.5" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold truncate">{agent.name}</p>
+                                <p className="text-[9px] text-muted-foreground font-mono">{agent.role}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className={`h-1.5 w-1.5 rounded-full ${statusDotColor(agent.status)}`} />
+                              <span className={`text-[9px] font-medium ${statusColor(agent.status)}`}>
+                                {statusLabel(agent.status)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Current task */}
+                          <div className="mb-2 rounded-md bg-background/50 border border-white/10 px-2.5 py-1.5">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Terminal className="h-2.5 w-2.5 text-muted-foreground" />
+                              <span className="text-[9px] text-muted-foreground font-mono">CURRENT TASK</span>
+                            </div>
+                            <p className="text-[11px] font-medium truncate">{agent.task}</p>
+                          </div>
+
+                          {/* Progress bar for working agents */}
+                          {isWorking && (
+                            <div className="mb-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[9px] text-muted-foreground">进度</span>
+                                <span className="text-[9px] font-mono font-medium">{agent.progress}%</span>
+                              </div>
+                              <Progress value={agent.progress} className="h-1.5 bg-muted/50" />
+                            </div>
+                          )}
+
+                          {/* Footer stats */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-muted-foreground font-mono">
+                              {agent.cycleCount} 周期
+                            </span>
+                            <span className="text-[9px] text-muted-foreground font-mono">
+                              {agent.lastCycleAt ? timeAgo(agent.lastCycleAt) : '—'}
+                            </span>
+                            {!agent.isOwn && (
+                              <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-background/50 text-muted-foreground border-white/10">
+                                远程
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+
+              {/* Real-time Activity Stream Mini */}
+              <div className="rounded-xl border border-emerald-500/15 bg-card/50 backdrop-blur-sm p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Activity className="h-3 w-3 text-emerald-400" />
+                    <span className="text-[10px] font-semibold">实时活动流</span>
+                  </div>
+                  <LiveDot color="bg-emerald-400" size="h-1.5 w-1.5" />
+                </div>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {displayActivities.slice(0, 5).map((activity, idx) => (
+                    <div key={activity.id} className="flex items-center gap-2 text-[10px]">
+                      <span className="h-1 w-1 rounded-full bg-emerald-400/60 shrink-0" />
+                      <span className="truncate text-muted-foreground">{activity.title}</span>
+                      <span className="ml-auto text-muted-foreground/60 font-mono shrink-0">{timeAgo(activity.timestamp)}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/10 bg-background/50 px-3 py-2">
-                <Activity className="h-3.5 w-3.5 text-teal-400" />
-                <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground">当前周期</p>
-                  <p className="text-sm font-bold font-mono">{totalCycles}</p>
+            </motion.div>
+          </div>
+
+          {/* RIGHT (2/5): SONA Evolution Circuit */}
+          <div className="lg:col-span-2 space-y-4">
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={fadeInUp}
+              className="space-y-4"
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/15">
+                  <GitBranch className="h-4 w-4 text-teal-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">SONA 进化回路</h3>
+                  <p className="text-[10px] text-muted-foreground">Evolution Circuit · 记忆处理流水线</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/10 bg-background/50 px-3 py-2">
-                <Clock className="h-3.5 w-3.5 text-emerald-400" />
-                <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground">系统运行</p>
-                  <p className="text-sm font-bold font-mono">{uptime}</p>
+
+              {/* Vertical flow visualization */}
+              <div className="rounded-xl border border-teal-500/15 bg-card/50 backdrop-blur-sm p-4">
+                <div className="relative">
+                  {SONA_STAGES.map((stage, idx) => {
+                    const StageIcon = stage.icon
+                    const isActive = idx === activeSonaStageIdx
+                    const isCompleted = idx < activeSonaStageIdx
+                    const isPending = idx > activeSonaStageIdx
+
+                    return (
+                      <div key={stage.id} className="relative">
+                        {/* Connecting line with data flow */}
+                        {idx < SONA_STAGES.length - 1 && (
+                          <div className="absolute left-5 top-12 w-0.5 h-6 overflow-hidden" style={{ left: '19px' }}>
+                            <div className="w-full h-full bg-gradient-to-b from-current opacity-20" style={{ color: stage.fillHex }} />
+                            {/* Animated data flow dot */}
+                            {isActive && (
+                              <div className="absolute w-1.5 h-1.5 rounded-full" style={{ backgroundColor: stage.fillHex, left: '-2px', animation: 'data-flow-down 1.5s ease-in-out infinite' }} />
+                            )}
+                          </div>
+                        )}
+
+                        <motion.div
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          className={`flex items-start gap-3 p-3 rounded-lg border transition-all duration-300 ${
+                            isActive
+                              ? `${stage.borderClass} ${stage.bgClass} ${stage.glowClass} shadow-lg`
+                              : isCompleted
+                              ? 'border-emerald-500/10 bg-emerald-500/5'
+                              : 'border-border/30 bg-background/30'
+                          }`}
+                        >
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isActive ? stage.bgClass : isCompleted ? 'bg-emerald-500/10' : 'bg-muted/30'}`}>
+                            <StageIcon className={`h-5 w-5 ${isActive ? stage.colorClass : isCompleted ? 'text-emerald-400' : 'text-muted-foreground'}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-bold ${isActive ? stage.colorClass : isCompleted ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                                {stage.name}
+                              </span>
+                              <span className="text-[9px] font-mono text-muted-foreground">{stage.nameEn}</span>
+                              {isActive && <LiveDot color={stage.pulseColor || 'bg-emerald-400'} size="h-1.5 w-1.5" />}
+                              {isCompleted && <CheckCircle2 className="h-3 w-3 text-emerald-400" />}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{stage.desc}</p>
+                          </div>
+                        </motion.div>
+
+                        {/* Spacer between stages */}
+                        {idx < SONA_STAGES.length - 1 && <div className="h-2" />}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/10 bg-background/50 px-3 py-2">
-                {wsConnected ? <Wifi className="h-3.5 w-3.5 text-emerald-400" /> : <WifiOff className="h-3.5 w-3.5 text-red-400" />}
-                <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground">实时连接</p>
-                  <p className={`text-sm font-bold font-mono ${wsConnected ? 'text-emerald-400' : 'text-red-400'}`}>{wsConnected ? 'ONLINE' : 'OFFLINE'}</p>
+
+              {/* Memory Palace Stats */}
+              <div className="rounded-xl border border-teal-500/15 bg-card/50 backdrop-blur-sm p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Layers className="h-3.5 w-3.5 text-teal-400" />
+                  <span className="text-[11px] font-semibold">记忆宫殿 Memory Palace</span>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: '总记忆条目', value: String(sonaStatus?.totalMemories || 42), icon: Database, color: 'text-emerald-400' },
+                    { label: '知识图谱实体', value: String(sonaStatus?.knowledgeEntities || 156), icon: Network, color: 'text-cyan-400' },
+                    { label: '活跃隧道', value: String(sonaStatus?.activeTunnels || 3), icon: GitBranch, color: 'text-amber-400' },
+                    { label: '最近巩固', value: sonaStatus?.lastConsolidation || '2小时前', icon: Clock, color: 'text-teal-400' },
+                  ].map((stat) => {
+                    const StatIcon = stat.icon
+                    return (
+                      <div key={stat.label} className="rounded-lg border border-border/30 bg-background/30 p-2.5">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <StatIcon className={`h-3 w-3 ${stat.color}`} />
+                          <span className="text-[9px] text-muted-foreground">{stat.label}</span>
+                        </div>
+                        <span className="text-sm font-bold font-mono">{stat.value}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            3. FEDERATION TRUST NETWORK (NEW)
+        ══════════════════════════════════════════════════════════════════════ */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={fadeInUp}
+          className="rounded-2xl border border-emerald-500/15 bg-card/50 backdrop-blur-sm overflow-hidden"
+        >
+          <div className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15">
+                  <Globe className="h-4 w-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">联邦信任网络</h3>
+                  <p className="text-[10px] text-muted-foreground">Federation Trust Network · DID 身份与可验证凭证</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-[9px] h-5 bg-emerald-500/5 text-emerald-400 border-emerald-500/20">
+                {federationDIDs.length} DIDs
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Left: DID Identity Nodes */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Fingerprint className="h-3 w-3 text-emerald-400" />
+                  <span className="text-[10px] font-semibold text-muted-foreground">DID 身份节点</span>
+                </div>
+                {federationDIDs.map((did) => {
+                  const DidIcon = AGENT_CONFIG[did.avatar]?.icon || UserCircle2
+                  const didColor = AGENT_CONFIG[did.avatar]?.accentColor || 'text-violet-400'
+                  const didBg = AGENT_CONFIG[did.avatar]?.accentBg || 'bg-violet-500/15'
+                  return (
+                    <div key={did.did} className="flex items-center gap-2 rounded-lg border border-border/30 bg-background/30 p-2">
+                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${didBg}`}>
+                        <DidIcon className={`h-3.5 w-3.5 ${didColor}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-semibold truncate">{did.name}</p>
+                        <p className="text-[8px] text-muted-foreground font-mono truncate">{did.did}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Award className="h-3 w-3 text-amber-400" />
+                        <span className="text-[9px] font-mono font-bold text-amber-400">{did.trustLevel}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Center: Animated trust flow visualization */}
+              <div className="hidden md:flex flex-col items-center justify-center">
+                <svg viewBox="0 0 200 160" className="w-full max-w-[200px]">
+                  {/* Central hub */}
+                  <circle cx={100} cy={80} r="24" fill="none" stroke="#10b981" strokeWidth="1" opacity="0.3">
+                    <animate attributeName="r" values="24;28;24" dur="3s" repeatCount="indefinite"/>
+                  </circle>
+                  <circle cx={100} cy={80} r="16" fill="#10b981" opacity="0.15"/>
+                  <circle cx={100} cy={80} r="8" fill="#10b981" opacity="0.5"/>
+                  <text x={100} y={84} textAnchor="middle" fill="#10b981" fontSize="7" fontFamily="monospace" opacity="0.8">TRUST</text>
+
+                  {/* Surrounding DID nodes */}
+                  {[
+                    { cx: 40, cy: 30, color: '#f59e0b' },
+                    { cx: 160, cy: 30, color: '#06b6d4' },
+                    { cx: 40, cy: 130, color: '#10b981' },
+                    { cx: 160, cy: 130, color: '#14b8a6' },
+                  ].map((node, i) => (
+                    <g key={`fed-node-${i}`}>
+                      <line x1={100} y1={80} x2={node.cx} y2={node.cy} stroke={node.color} strokeWidth="0.5" opacity="0.3" strokeDasharray="3 3">
+                        <animate attributeName="stroke-dashoffset" values="0;6" dur="2s" repeatCount="indefinite"/>
+                      </line>
+                      <circle cx={node.cx} cy={node.cy} r="6" fill={node.color} opacity="0.4"/>
+                      <circle cx={node.cx} cy={node.cy} r="3" fill={node.color} opacity="0.8"/>
+                      {/* Animated data flow dot */}
+                      <circle r="1.5" fill={node.color} opacity="0.6">
+                        <animateMotion dur={`${2 + i * 0.5}s`} repeatCount="indefinite" path={`M${100},${80} L${node.cx},${node.cy}`} />
+                      </circle>
+                    </g>
+                  ))}
+                </svg>
+                <p className="text-[9px] text-muted-foreground font-mono mt-2">Trust Flow Visualization</p>
+              </div>
+
+              {/* Right: Recent VC Verifications */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Shield className="h-3 w-3 text-teal-400" />
+                  <span className="text-[10px] font-semibold text-muted-foreground">可验证凭证 VC</span>
+                </div>
+                {federationVCs.map((vc) => (
+                  <div key={vc.id} className="flex items-center gap-2 rounded-lg border border-border/30 bg-background/30 p-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500/15">
+                      <FileCheck className="h-3.5 w-3.5 text-teal-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold truncate">{vc.subject}</p>
+                      <p className="text-[8px] text-muted-foreground font-mono">{vc.type} · {vc.issuer}</p>
+                    </div>
+                    <span className="text-[8px] text-muted-foreground font-mono shrink-0">{vc.verifiedAt}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </motion.div>
 
         {/* ══════════════════════════════════════════════════════════════════════
-            2. OS-LIKE STAT WIDGETS
+            4. STAT WIDGETS (Redesigned)
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {realtimeStats.map((stat, i) => {
@@ -785,10 +1380,14 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                 variants={cardVariants}
                 initial="hidden"
                 animate="visible"
+                whileHover={{ scale: 1.03 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               >
-                <Card className="relative overflow-hidden rounded-xl border border-emerald-500/10 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 h-full group">
+                <Card className={`relative overflow-hidden rounded-xl border ${stat.accentBorder} transition-all duration-300 ${stat.hoverGlow} hover:shadow-lg h-full group`}>
                   {/* Animated glow border on hover */}
-                  <div className="pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5" />
+                  <div className="pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{
+                    background: `radial-gradient(ellipse at 50% 0%, ${stat.sparkColor}10 0%, transparent 70%)`,
+                  }} />
                   {/* Blinking live dot */}
                   {stat.live && (
                     <div className="absolute top-3 right-3">
@@ -797,13 +1396,13 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                   )}
                   <CardContent className="relative p-4 sm:p-5">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg shadow-emerald-500/20`}>
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`} style={{ boxShadow: `0 4px 12px ${stat.sparkColor}30` }}>
                         <Icon className="h-5 w-5 text-white" />
                       </div>
                       <div>
                         <p className="text-[11px] text-muted-foreground">{stat.label}</p>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-2xl font-bold font-mono">{stat.value}</span>
+                          <span className="text-3xl font-bold font-mono tabular-nums">{stat.value}</span>
                           <span className="text-[10px] text-muted-foreground">{stat.unit}</span>
                         </div>
                       </div>
@@ -816,159 +1415,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
             )
           })}
         </div>
-
-        {/* ══════════════════════════════════════════════════════════════════════
-            3. 分身实时广场 (AVATAR LIVE SQUARE)
-        ══════════════════════════════════════════════════════════════════════ */}
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeInUp}
-          className="space-y-3"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15">
-                <Hexagon className="h-4 w-4 text-violet-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold">分身实时广场</h3>
-                <p className="text-[10px] text-muted-foreground">Avatar Live Square · 实时查看所有分身工作状态</p>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-[9px] h-5 bg-emerald-500/5 text-emerald-400 border-emerald-500/20 gap-1">
-              <LiveDot color="bg-emerald-400" size="h-1 w-1" />
-              {liveSquareAgents.filter(a => a.status === 'working').length} 运行中
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {liveSquareAgents.map((agent, i) => {
-              const config = AGENT_CONFIG[agent.role] || DEFAULT_AGENT_CONFIG
-              const ConfigIcon = config.icon
-              const isWorking = agent.status === 'working'
-
-              return (
-                <motion.div
-                  key={agent.id}
-                  custom={i}
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                >
-                  <div className={`relative overflow-hidden rounded-xl border ${config.accentBorder} bg-card transition-all duration-300 ${isWorking ? `shadow-lg ${config.glowColor}` : ''}`}>
-                    {/* Glow background for working agents */}
-                    {isWorking && (
-                      <div className={`absolute inset-0 bg-gradient-to-br ${config.gradientFrom} ${config.gradientTo} animate-pulse`} />
-                    )}
-                    {/* Top accent line */}
-                    <div className={`h-0.5 w-full bg-gradient-to-r ${config.gradientFrom.replace('/10', '/60')} ${config.gradientTo.replace('/5', '/30')}`} />
-
-                    <div className="relative p-3.5">
-                      {/* Header: Icon + Name + Status */}
-                      <div className="flex items-center justify-between mb-2.5">
-                        <div className="flex items-center gap-2">
-                          <div className={`relative flex h-8 w-8 items-center justify-center rounded-lg ${config.accentBg}`}>
-                            <ConfigIcon className={`h-4 w-4 ${config.accentColor}`} />
-                            {isWorking && (
-                              <span className="absolute -top-0.5 -right-0.5">
-                                <LiveDot color={config.pulseColor} size="h-1.5 w-1.5" />
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold truncate">{agent.name}</p>
-                            <p className="text-[9px] text-muted-foreground font-mono">{agent.role}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className={`h-1.5 w-1.5 rounded-full ${statusDotColor(agent.status)}`} />
-                          <span className={`text-[9px] font-medium ${statusColor(agent.status)}`}>
-                            {statusLabel(agent.status)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Current task */}
-                      <div className="mb-2 rounded-md bg-background/50 border border-border/30 px-2.5 py-1.5">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <Terminal className="h-2.5 w-2.5 text-muted-foreground" />
-                          <span className="text-[9px] text-muted-foreground font-mono">CURRENT TASK</span>
-                        </div>
-                        <p className="text-[11px] font-medium truncate">{agent.task}</p>
-                      </div>
-
-                      {/* Progress bar for working agents */}
-                      {isWorking && (
-                        <div className="mb-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[9px] text-muted-foreground">进度</span>
-                            <span className="text-[9px] font-mono font-medium">{agent.progress}%</span>
-                          </div>
-                          <Progress value={agent.progress} className="h-1.5 bg-muted/50" />
-                        </div>
-                      )}
-
-                      {/* Footer stats */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] text-muted-foreground font-mono">
-                          {agent.cycleCount} 周期
-                        </span>
-                        <span className="text-[9px] text-muted-foreground font-mono">
-                          {agent.lastCycleAt ? timeAgo(agent.lastCycleAt) : '—'}
-                        </span>
-                        {!agent.isOwn && (
-                          <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-background/50 text-muted-foreground border-border/30">
-                            远程
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </motion.div>
-
-        {/* ══════════════════════════════════════════════════════════════════════
-            4. QUICK SYSTEM STATUS BAR
-        ══════════════════════════════════════════════════════════════════════ */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.4 }}
-          className="flex flex-wrap items-center gap-2 sm:gap-3"
-        >
-          {[
-            { label: 'WebSocket', online: wsConnected, icon: wsConnected ? Wifi : WifiOff },
-            { label: '向量搜索', online: true, icon: Search },
-            { label: '区块链', online: walletConnected, icon: Link2 },
-            { label: '记忆宫殿', online: true, icon: Database },
-            { label: '认知引擎', online: cognitiveHealth >= 50, icon: Brain },
-          ].map((service) => {
-            const SvcIcon = service.icon
-            return (
-              <div
-                key={service.label}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-mono transition-colors ${
-                  service.online
-                    ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400'
-                    : 'border-red-500/20 bg-red-500/5 text-red-400'
-                }`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${service.online ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                <SvcIcon className="h-3 w-3" />
-                <span>{service.label}</span>
-              </div>
-            )
-          })}
-          <div className="ml-auto text-[10px] text-muted-foreground font-mono">
-            Block #{blockHeight} · Gas {gasPrice}
-          </div>
-        </motion.div>
 
         {/* ══════════════════════════════════════════════════════════════════════
             5. TWO-COLUMN: ACTIVITY TIMELINE + ANALYTICS & ACTIONS
@@ -1006,17 +1452,18 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                         {displayActivities.slice(0, 10).map((activity, idx) => {
                           const Icon = activityModuleIcons[activity.type] || CircleDot
                           const badge = activityModuleBadges[activity.type] || { label: activity.module, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' }
+                          const isLatest = idx === 0
                           return (
                             <motion.div
                               key={activity.id}
                               initial={{ opacity: 0, x: -6 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: idx * 0.04 }}
-                              className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-emerald-500/5 transition-colors group relative"
+                              className={`flex items-start gap-2.5 p-2 rounded-lg hover:bg-emerald-500/5 transition-colors group relative ${isLatest ? 'bg-emerald-500/5' : ''}`}
                             >
                               {/* Timeline dot */}
-                              <div className="relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-emerald-500/25 bg-background mt-0.5 group-hover:border-emerald-500/50 transition-colors">
-                                <Icon className="h-2.5 w-2.5 text-emerald-400" />
+                              <div className={`relative z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isLatest ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-emerald-500/25 bg-background'} mt-0.5 group-hover:border-emerald-500/50 transition-colors`}>
+                                <Icon className={`h-2.5 w-2.5 ${isLatest ? 'text-emerald-300' : 'text-emerald-400'}`} />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -1024,6 +1471,14 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                                   <Badge variant="outline" className={`text-[8px] h-3.5 px-1 border ${badge.color}`}>
                                     {badge.label}
                                   </Badge>
+                                  {/* Typing indicator for latest activity */}
+                                  {isLatest && (
+                                    <span className="flex items-center gap-0.5">
+                                      <span className="h-1 w-1 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                      <span className="h-1 w-1 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                      <span className="h-1 w-1 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{activity.description}</p>
                                 <p className="text-[9px] text-muted-foreground/60 font-mono mt-0.5">{timeAgo(activity.timestamp)}</p>
@@ -1148,7 +1603,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
 
             {/* Quick Actions + Roadmap */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Quick Actions */}
+              {/* Quick Actions with hover glow */}
               <Card className="rounded-xl border border-emerald-500/10">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -1163,9 +1618,9 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                       return (
                         <motion.button
                           key={action.title}
-                          whileHover={{ scale: 1.02 }}
+                          whileHover={{ scale: 1.03 }}
                           whileTap={{ scale: 0.98 }}
-                          className="flex items-center gap-2 rounded-lg border border-border/50 p-2.5 text-left transition-colors hover:border-emerald-500/20 hover:bg-emerald-500/5"
+                          className="flex items-center gap-2 rounded-lg border border-border/50 p-2.5 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/5 hover:shadow-md hover:shadow-emerald-500/5"
                           onClick={() => onNavigate?.(action.module)}
                         >
                           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${action.iconBg}`}>
@@ -1267,6 +1722,50 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
             </Card>
           </div>
         </div>
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            6. SYSTEM STATUS BAR (Enhanced)
+        ══════════════════════════════════════════════════════════════════════ */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="rounded-xl border border-emerald-500/15 bg-card/50 backdrop-blur-sm p-3 sm:p-4"
+        >
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {[
+              { label: 'WebSocket', online: wsConnected, icon: wsConnected ? Wifi : WifiOff },
+              { label: '向量搜索', online: true, icon: Search },
+              { label: '区块链', online: walletConnected, icon: Link2 },
+              { label: '记忆宫殿', online: true, icon: Database },
+              { label: '认知引擎', online: cognitiveHealth >= 50, icon: Brain },
+            ].map((service) => {
+              const SvcIcon = service.icon
+              return (
+                <div
+                  key={service.label}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-mono transition-all duration-300 ${
+                    service.online
+                      ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10'
+                      : 'border-red-500/20 bg-red-500/5 text-red-400'
+                  }`}
+                >
+                  <span className={`relative flex h-2 w-2`}>
+                    {service.online && (
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-40`} />
+                    )}
+                    <span className={`relative inline-flex rounded-full h-2 w-2 ${service.online ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  </span>
+                  <SvcIcon className="h-3 w-3" />
+                  <span>{service.label}</span>
+                </div>
+              )
+            })}
+            <div className="ml-auto text-[10px] text-muted-foreground font-mono">
+              Block #{blockHeight} · Gas {gasPrice}
+            </div>
+          </div>
+        </motion.div>
 
       </div>
     </div>

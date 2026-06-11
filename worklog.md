@@ -2384,3 +2384,136 @@ Stage Summary:
 - Footer and System Status redesigned as OS-style widgets
 - Colors preserved: emerald/teal primary, violet for avatar module
 - All 17 modules accessible via sidebar navigation
+
+---
+Task ID: 1
+Agent: full-stack-developer
+Task: Complete Dashboard UI/UX Redesign - Transform from Admin Panel to Polsia-inspired Live Product Dashboard
+
+Work Log:
+- Completely rewrote `/home/z/my-project/src/components/piaoshu/dashboard.tsx` JSX return section (lines ~643-1274)
+- Preserved ALL data hooks, type definitions, fallback data constants, helper functions, motion variants, and data processing logic
+- Added new Lucide icon imports: Eye, FlaskConical, Globe, Fingerprint, GitBranch, Award, Layers, Circle
+- Added SONA_STAGES constant for memory processing pipeline visualization
+- Added FALLBACK_DIDS and FALLBACK_VCS for Federation Trust Network fallback data
+- Added AGENT_POSITIONS and ROLE_COLORS for SVG network topology positions
+- Added useSonaStatus hook (useEffect + useState fetching from /api/memory/sona/status)
+- Added useFederationDIDs hook (useEffect + useState fetching from /api/federation/dids)
+- Both APIs confirmed working (200 status) from dev log
+- Added CSS keyframe animations to globals.css: ticker-shimmer, data-flow-down, pulse-glow, float-up
+
+Section-by-section transformation:
+
+**Section 0: LIVE ACTIVITY TICKER (Enhanced)**
+- Premium full-width feel with rounded-xl, gradient shimmer animation overlay
+- Right-side quick status badges showing WORKING count and CYCLES count (desktop only)
+- Existing ticker data and animation logic preserved
+
+**Section 1: MISSION CONTROL HERO (Reimagined)**
+- Hexagonal grid SVG pattern background (subtle, 3% opacity)
+- Cognitive network SVG visualization with pulsing dots and connection lines
+- Larger hero (12x12 icon, text-2xl/3xl title)
+- Floating metric pills instead of grid-in-card metrics (rounded-full, hover scale)
+- "上帝模式" button with glow effect overlay
+- Color-coded pills: emerald for agents, teal for cycles, emerald for uptime, red/emerald for WS
+
+**Section 2: TWO-COLUMN LAYOUT - AVATAR LIVE PLAZA + SONA EVOLUTION**
+
+LEFT (3/5): Avatar Live Plaza (Enhanced)
+- SVG network topology visualization at top with:
+  - Central HUB node with animated pulse
+  - Agent nodes as colored circles positioned by role
+  - Connection lines (solid for working, dashed for idle)
+  - Inter-agent connections (dashed)
+  - Working agents pulse, idle agents dim
+- Agent cards in 2-column grid with glass morphism effect (backdrop-blur-md bg-card/60 bg-white/5)
+- Glass border (border-white/10) on task display area
+- Real-time Activity Stream mini below cards
+
+RIGHT (2/5): SONA Evolution Circuit (NEW)
+- Vertical flow visualization: RETRIEVE → JUDGE → DISTILL → CONSOLIDATE
+- Each stage node has icon, Chinese name + English, description
+- Active stage has colored glow and LiveDot
+- Completed stages have CheckCircle2
+- Connecting lines between stages with data-flow animation dots
+- Memory Palace stats card below circuit: total memories, knowledge entities, active tunnels, last consolidation
+
+**Section 3: FEDERATION TRUST NETWORK (NEW)**
+- Horizontal card with 3-column grid (DID nodes | Trust visualization | VC verifications)
+- Left: DID identity nodes with avatar icons, DID addresses, trust levels
+- Center: Animated SVG trust flow visualization (4 DID nodes orbiting TRUST hub with animateMotion)
+- Right: Recent VC verifications list with type, issuer, subject
+- Uses real data from /api/federation/dids API (fallback to FALLBACK_DIDS/FALLBACK_VCS)
+
+**Section 4: STAT WIDGETS (Redesigned)**
+- Each widget has unique accent border color matching its scheme
+- Hover glow with per-widget color (hover:shadow-emerald/violet/teal/amber-500/10)
+- Larger numbers (text-3xl, tabular-nums)
+- Radial gradient glow overlay on hover
+- Spring animation on hover (whileHover: scale 1.03)
+- Preserved sparklines and 7D TREND label
+
+**Section 5: ACTIVITY TIMELINE + ANALYTICS**
+- Latest activity highlighted with bg-emerald-500/5
+- Typing indicator animation (3 bouncing dots) on latest activity item
+- Quick Actions with hover glow (hover:shadow-md hover:shadow-emerald-500/5)
+- All existing charts, roadmap, engine health preserved
+
+**Section 6: SYSTEM STATUS BAR (Enhanced)**
+- Wrapped in rounded-xl card with backdrop-blur-sm
+- Each service has ping animation on online status (animate-ping)
+- Hover effect (hover:bg-emerald-500/10 for online services)
+- More visual flair with pulsing connection indicators
+
+Quality:
+- Zero lint errors (bun run lint passes)
+- All existing functionality preserved
+- Responsive (mobile-first with sm/md/lg breakpoints)
+- Dark/light theme support maintained
+- Framer-motion animations throughout
+- Bilingual text (Chinese primary, English secondary)
+- Dev server compiles and serves successfully
+
+Stage Summary:
+- Dashboard transformed from admin panel to Polsia-inspired live product dashboard
+- 2 new API integrations (SONA status + Federation DIDs)
+- SVG network topology and trust flow visualizations
+- SONA Evolution Circuit with 4-stage memory processing pipeline
+- Federation Trust Network with DID identity nodes and VC verifications
+- Glass morphism effects, animated backgrounds, typing indicators
+- All existing data hooks and logic preserved intact
+- Zero lint errors, all APIs responding (200)
+
+---
+Task ID: 1
+Agent: main
+Task: Dashboard UI/UX Redesign - Transform from Admin Panel to Polsia-inspired Live Product Dashboard
+
+Work Log:
+- Read and analyzed current dashboard.tsx (1275 lines) and page.tsx structure
+- Identified key problems: UI looks like backend admin panel, lacks product feel and real-time dynamism
+- Delegated comprehensive dashboard rewrite to full-stack-developer subagent
+- Subagent rewrote the JSX return section while preserving all data hooks, types, and logic
+- Added new CSS animations to globals.css (ticker-shimmer, data-flow-down, pulse-glow, float-up)
+- Verified lint passes with no errors
+- Verified build succeeds
+- Verified page renders with HTTP 200, 155KB content
+- Agent Browser confirmed all new sections render correctly:
+  - 分身实时广场 (Avatar Live Square) with SVG network topology
+  - SONA 进化回路 (RETRIEVE→JUDGE→DISTILL→CONSOLIDATE)
+  - 联邦信任网络 (Federation Trust Network with DIDs)
+  - Enhanced Mission Control hero with hexagonal grid and cognitive network SVG
+  - Enhanced Live Activity Ticker with shimmer animation
+  - Redesigned stat widgets with unique accent colors and hover glow
+- Verified SONA API endpoint returns correct 4-stage circuit data
+- Verified Federation API endpoint returns DID and VC data
+
+Stage Summary:
+- Dashboard completely redesigned from admin-panel style to Polsia-inspired live product dashboard
+- New SONA Evolution Circuit visualization integrated (RETRIEVE→JUDGE→DISTILL→CONSOLIDATE)
+- New Federation Trust Network visualization integrated (DID+VC cross-avatar trust)
+- Avatar Live Square enhanced with SVG network topology view
+- Mission Control hero reimagined with animated background and floating metric pills
+- All existing colors preserved (emerald/teal/violet/amber/cyan)
+- File: /home/z/my-project/src/components/piaoshu/dashboard.tsx (now 1773 lines)
+- File: /home/z/my-project/src/app/globals.css (added 4 keyframe animations)
