@@ -8,15 +8,24 @@ export const authOptions = {
     CredentialsProvider({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        email: { label: 'Email or Username', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await db.user.findUnique({
+        // Support login by email or username (name field)
+        // First try email lookup
+        let user = await db.user.findUnique({
           where: { email: credentials.email },
         })
+
+        // If not found by email, try by name (username)
+        if (!user) {
+          user = await db.user.findFirst({
+            where: { name: credentials.email },
+          })
+        }
 
         if (!user) return null
 

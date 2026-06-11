@@ -29,7 +29,7 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
   const [isLoading, setIsLoading] = useState(false)
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState('')
+  const [loginIdentifier, setLoginIdentifier] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
 
   // Register form state
@@ -38,26 +38,26 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
   const [registerPassword, setRegisterPassword] = useState('')
 
   const handleLogin = async () => {
-    if (!loginEmail || !loginPassword) {
-      toast.error('请填写邮箱和密码')
+    if (!loginIdentifier || !loginPassword) {
+      toast.error('请填写用户名/邮箱和密码')
       return
     }
 
     setIsLoading(true)
     try {
       const result = await signIn('credentials', {
-        email: loginEmail,
+        email: loginIdentifier,
         password: loginPassword,
         redirect: false,
       })
 
       if (result?.error) {
-        toast.error('登录失败：邮箱或密码错误')
+        toast.error('登录失败：用户名/邮箱或密码错误')
       } else {
         toast.success('登录成功，欢迎回来！')
         onOpenChange(false)
         // Reset form
-        setLoginEmail('')
+        setLoginIdentifier('')
         setLoginPassword('')
       }
     } catch {
@@ -142,7 +142,7 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
               <div className="flex items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 p-1.5 shadow-lg shadow-violet-500/20">
                 <Zap className="h-4 w-4 text-white" />
               </div>
-              飘叔 Founder OS
+              飘叔 Avatar OS
             </DialogTitle>
             <DialogDescription className="text-xs mt-1">
               登录以解锁完整的AI分身系统和协作能力
@@ -183,16 +183,16 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
             <TabsContent value="login" className="space-y-4 mt-0">
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="login-email" className="text-xs">邮箱</Label>
+                  <Label htmlFor="login-identifier" className="text-xs">用户名 / 邮箱</Label>
                   <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
+                    id="login-identifier"
+                    type="text"
+                    placeholder="输入用户名或邮箱"
+                    value={loginIdentifier}
+                    onChange={(e) => setLoginIdentifier(e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, 'login')}
                     className="h-9 text-sm"
-                    autoComplete="email"
+                    autoComplete="username"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -218,6 +218,14 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
                 {isLoading ? '登录中...' : '登录'}
               </Button>
+
+              {/* Admin account hint */}
+              <div className="rounded-lg border border-dashed border-emerald-200 dark:border-emerald-800 bg-emerald-500/5 p-3 space-y-1">
+                <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">超级管理员</p>
+                <p className="text-[10px] text-muted-foreground font-mono">
+                  Piaoshu001 / Gai169999$
+                </p>
+              </div>
 
               {/* Demo account hint */}
               <div className="rounded-lg border border-dashed border-violet-200 dark:border-violet-800 bg-violet-500/5 p-3 space-y-1">

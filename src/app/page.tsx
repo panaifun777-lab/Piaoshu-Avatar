@@ -49,6 +49,7 @@ import { SettingsPanel } from '@/components/piaoshu/settings-panel'
 import { NotificationCenter } from '@/components/piaoshu/notification-center'
 import { ModuleErrorBoundary } from '@/components/piaoshu/error-boundary'
 import { TopLoadingBar } from '@/components/piaoshu/top-loading-bar'
+import { LandingPage } from '@/components/piaoshu/landing-page'
 
 // Lazy-load heavy module views to reduce initial bundle size
 const AvatarCloneView = dynamic(
@@ -189,9 +190,10 @@ interface SidebarContentProps {
   onNavigate: (module: ActiveModule) => void
   onToggleTheme: () => void
   onMobileClose?: () => void
+  onOpenSettings?: () => void
 }
 
-function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavigate, onToggleTheme, onMobileClose }: SidebarContentProps) {
+function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavigate, onToggleTheme, onMobileClose, onOpenSettings }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Logo & Brand */}
@@ -310,7 +312,18 @@ function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavi
       )}
 
       {/* Bottom Actions */}
-      <div className="p-3">
+      <div className="p-3 space-y-1">
+        {onOpenSettings && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-center"
+            onClick={onOpenSettings}
+          >
+            <Settings2 className="h-4 w-4" />
+            {!sidebarCollapsed && <span className="ml-2 text-xs">设置</span>}
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -382,11 +395,39 @@ export default function Home() {
   const mounted = useMounted()
   const { connected, lastEvent } = useWebSocket()
   const lastToastRef = useRef<string | null>(null)
-  const { data: session } = useSession()
-  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const { data: session, status } = useSession()
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
   const [isModuleLoading, setIsModuleLoading] = useState(false)
   const [, startTransition] = useTransition()
+  const adminSetupRef = useRef(false)
+
+  // Setup super admin on first load
+  useEffect(() => {
+    if (adminSetupRef.current) return
+    adminSetupRef.current = true
+    fetch('/api/auth/setup-admin', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.message === 'Super admin created successfully') {
+          console.log('Super admin created:', data.data)
+        }
+      })
+      .catch(() => {
+        // Silently fail - admin might already exist
+      })
+  }, [])
+
+  // Check URL for auth=login param — use lazy init to avoid set-state-in-effect
+  const [authModalOpen, setAuthModalOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('auth') === 'login') {
+        window.history.replaceState({}, '', '/')
+        return true
+      }
+    }
+    return false
+  })
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
@@ -529,6 +570,32 @@ export default function Home() {
     }
   }
 
+  // Show landing page when not authenticated
+  const isAuthenticated = status === 'authenticated' && !!session?.user
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 h-12 w-12 animate-pulse">
+            <span className="text-2xl">🧬</span>
+          </div>
+          <span className="text-xs text-gray-500 font-mono animate-pulse">Loading Piaoshu Avatar OS...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LandingPage onLogin={() => setAuthModalOpen(true)} />
+        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+      </>
+    )
+  }
+
+  // Dashboard view for authenticated users
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Loading Bar */}
@@ -549,6 +616,7 @@ export default function Home() {
             mounted={mounted}
             onNavigate={handleNavigate}
             onToggleTheme={toggleTheme}
+            onOpenSettings={() => setSettingsPanelOpen(true)}
           />
           <div className="p-2 border-t">
             <Button
@@ -590,6 +658,7 @@ export default function Home() {
               onNavigate={handleNavigate}
               onToggleTheme={toggleTheme}
               onMobileClose={() => setMobileMenuOpen(false)}
+              onOpenSettings={() => setSettingsPanelOpen(true)}
             />
           </aside>
         )}

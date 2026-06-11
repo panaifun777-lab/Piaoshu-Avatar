@@ -1530,3 +1530,68 @@ export function useSeedFederation() {
     },
   })
 }
+
+// ===== Distributed Storage =====
+export function useStorageConfig() {
+  return useQuery({
+    queryKey: ['storageConfig'],
+    queryFn: () => apiFetch<{ success: boolean; data: { ipfsNodeUrl: string; ipfsGatewayUrl: string; arweaveGatewayUrl: string; arweaveWalletAddress: string; strategy: string; autoPin: boolean; replicationCount: number } }>('/api/storage/config'),
+  })
+}
+
+export function useUpdateStorageConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { ipfsNodeUrl?: string; ipfsGatewayUrl?: string; arweaveGatewayUrl?: string; arweaveWalletAddress?: string; strategy?: string; autoPin?: boolean; replicationCount?: number }) =>
+      apiFetch('/api/storage/config', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['storageConfig'] }),
+  })
+}
+
+export function useStorageUpload() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { content: string; storageType?: string; fileName?: string; metadata?: Record<string, string> }) =>
+      apiFetch<{ success: boolean; data: { id: string; cid: string; gatewayUrl: string; storageType: string; fileName: string; size: number; timestamp: string; arweaveTxId?: string; arweaveGatewayUrl?: string } }>('/api/storage/upload', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['storageUploads'] }),
+  })
+}
+
+export function useStorageUploads() {
+  return useQuery({
+    queryKey: ['storageUploads'],
+    queryFn: () => apiFetch<{ success: boolean; data: { uploads: unknown[]; total: number } }>('/api/storage/upload'),
+  })
+}
+
+export function useStorageStatus() {
+  return useQuery({
+    queryKey: ['storageStatus'],
+    queryFn: () => apiFetch<{ success: boolean; data: { ipfs: { connected: boolean; nodeVersion: string; peers: number; repoSize: string; pinCount: number; pinnedItems: unknown[]; bandwidth: { inbound: string; outbound: string } }; arweave: { connected: boolean; networkHeight: number; walletBalance: string; estimatedCostPerMB: string; totalUploads: number; totalSpent: string; recentUploads: unknown[] }; overall: { health: string; uptime: string; totalPins: number; totalArweaveUploads: number; totalStorageUsed: string; replicationFactor: number; lastSyncAt: string; dataFlow: { pendingPins: number; pendingArweave: number; anchorQueue: number; completedAnchors: number } } } }>('/api/storage/status'),
+    refetchInterval: 30000,
+  })
+}
+
+// ===== Knowledge Seeding =====
+export function useSeedKnowledge() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data?: { userId?: string; cloneId?: string; force?: boolean }) =>
+      apiFetch('/api/seed/knowledge', { method: 'POST', body: JSON.stringify(data || {}) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['memory-palace'] })
+      qc.invalidateQueries({ queryKey: ['memory-drawers'] })
+      qc.invalidateQueries({ queryKey: ['avatarClone'] })
+      qc.invalidateQueries({ queryKey: ['cloneSkills'] })
+    },
+  })
+}
+
+export function useKnowledgeSeedStatus(cloneId?: string) {
+  return useQuery({
+    queryKey: ['knowledgeSeedStatus', cloneId],
+    queryFn: () => apiFetch<{ ok: boolean; data: { seeded: boolean; cloneId: string; stats: { wings: number; entities: number; triples: number; skills: number; tunnels: number; drawers: number } } }>(
+      cloneId ? `/api/seed/knowledge?cloneId=${cloneId}` : '/api/seed/knowledge'
+    ),
+  })
+}

@@ -47,10 +47,12 @@ import {
   EyeOff,
   Sparkles,
   Plug,
+  HardDrive,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSoulConfig, useUpdateSoulConfig, useChatTest } from '@/lib/api-hooks'
 import { Input } from '@/components/ui/input'
+import { StorageSettings } from '@/components/piaoshu/storage-settings'
 
 // Default SOUL.md content
 const DEFAULT_SOUL_CONTENT = `# 飘叔 · SOUL.md
@@ -784,16 +786,20 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
 
         <div className="flex-1 flex flex-col min-h-0 px-4 pb-4 pt-2">
           <Tabs defaultValue="soul" className="flex flex-col flex-1 min-h-0">
-            <TabsList className="w-full grid grid-cols-3 mb-4">
-              <TabsTrigger value="soul" className="gap-1.5 text-xs">
+            <TabsList className="w-full grid grid-cols-4 mb-4">
+              <TabsTrigger value="soul" className="gap-1 text-[11px]">
                 <User className="h-3.5 w-3.5" />
                 人格设定
               </TabsTrigger>
-              <TabsTrigger value="system" className="gap-1.5 text-xs">
+              <TabsTrigger value="storage" className="gap-1 text-[11px]">
+                <HardDrive className="h-3.5 w-3.5" />
+                分布式存储
+              </TabsTrigger>
+              <TabsTrigger value="system" className="gap-1 text-[11px]">
                 <Settings className="h-3.5 w-3.5" />
                 系统配置
               </TabsTrigger>
-              <TabsTrigger value="about" className="gap-1.5 text-xs">
+              <TabsTrigger value="about" className="gap-1 text-[11px]">
                 <Info className="h-3.5 w-3.5" />
                 关于
               </TabsTrigger>
@@ -801,6 +807,9 @@ export function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
 
             <TabsContent value="soul" className="flex-1 min-h-0 flex flex-col mt-0">
               <SoulEditorTab />
+            </TabsContent>
+            <TabsContent value="storage" className="flex-1 min-h-0 flex flex-col mt-0">
+              <StorageSettings />
             </TabsContent>
             <TabsContent value="system" className="flex-1 min-h-0 flex flex-col mt-0">
               <SystemConfigTab />

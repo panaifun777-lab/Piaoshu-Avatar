@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
 import { db } from '@/lib/db'
+import { wakeUp, loadL3Search } from '@/lib/memory-loader'
+import { compress, generateContentHash } from '@/lib/aaak-compressor'
 
 // Singleton for ZAI instance
 let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null
@@ -98,24 +100,382 @@ async function callZAI(
   }
 }
 
-// POST /api/chat - AI-powered chat for the founder system
+// ===== Memory Palace Integration =====
+
+/**
+ * Build memory context from Memory Palace for the clone
+ * Loads L0 (identity) + L1 (essential facts) and optionally L3 (deep search)
+ */
+async function buildMemoryContext(
+  cloneId: string | undefined,
+  userMessage: string
+): Promise<{ memoryContext: string; cloneId: string | undefined }> {
+  if (!cloneId) {
+    // Try to find the first clone
+    const firstClone = await safeDbOp(() => db.avatarClone.findFirst())
+    cloneId = firstClone?.id
+  }
+
+  if (!cloneId) {
+    return { memoryContext: '', cloneId: undefined }
+  }
+
+  try {
+    // Load L0 + L1 via wakeUp
+    const wakeUpResult = await wakeUp(cloneId)
+
+    // Determine if L3 deep search is needed based on user message keywords
+    const needsDeepSearch = /技术选型|架构设计|商业模式|融资|增长|社区|去中心化|Web4|AFC|Avatar|Agent|PoUE|PAS|情感/.test(userMessage)
+
+    let deepSearchContext = ''
+    if (needsDeepSearch) {
+      const l3Results = await loadL3Search(cloneId, userMessage, 5)
+      if (l3Results.length > 0) {
+        deepSearchContext = '\n\n[DEEP MEMORY RECALL]\n' +
+          l3Results.map(r => `[${r.wingName}/${r.roomName}] ${r.aaaakSummary || r.content.substring(0, 300)}`).join('\n')
+      }
+    }
+
+    const memoryContext = wakeUpResult.combined + deepSearchContext
+    return { memoryContext, cloneId }
+  } catch {
+    // Memory loading failed, continue without memory context
+    return { memoryContext: '', cloneId }
+  }
+}
+
+/**
+ * Auto-save important conversation content to Memory Drawers
+ * Extracts key decisions, preferences, and insights from conversations
+ */
+async function autoSaveToMemory(
+  cloneId: string | undefined,
+  userMessage: string,
+  assistantResponse: string,
+  sessionId: string | undefined
+): Promise<void> {
+  if (!cloneId) return
+
+  // Determine if the conversation is significant enough to save
+  const isSignificant =
+    userMessage.length > 50 ||
+    /决策|战略|风险|分析|评估|选型|架构|商业模式|融资|增长|选型|原则|信念|反对|坚持/.test(userMessage)
+
+  if (!isSignificant) return
+
+  try {
+    // Determine which wing/room to save to based on keyword matching
+    const { wingName, roomName, hallType, tags } = classifyConversation(userMessage)
+
+    // Find or create the wing
+    let wing = await safeDbOp(() =>
+      db.memoryWing.findFirst({ where: { cloneId, name: wingName } })
+    )
+
+    if (!wing) return // Wing not found, skip saving (don't auto-create wings)
+
+    // Find or create the room
+    let room = await safeDbOp(() =>
+      db.memoryRoom.findFirst({ where: { wingId: wing!.id, name: roomName } })
+    )
+
+    if (!room) {
+      room = await safeDbOp(() =>
+        db.memoryRoom.create({
+          data: {
+            wingId: wing!.id,
+            name: roomName,
+            hallType,
+          },
+        })
+      )
+    }
+
+    if (!room) return
+
+    // Create the drawer content
+    const content = `对话记忆: Q=${userMessage.substring(0, 150)} | A=${assistantResponse.substring(0, 150)}`
+
+    // Check for duplicate
+    const contentHash = generateContentHash(content)
+    const existing = await safeDbOp(() =>
+      db.memoryDrawer.findFirst({ where: { roomId: room!.id, contentHash } })
+    )
+    if (existing) return
+
+    // Generate AAAK summary
+    const aaaakResult = compress(content, {
+      importance: 3.5,
+      sourceType: 'chat',
+      tags,
+    })
+
+    // Get next chunk index
+    const lastDrawer = await safeDbOp(() =>
+      db.memoryDrawer.findFirst({
+        where: { roomId: room!.id },
+        orderBy: { chunkIndex: 'desc' },
+        select: { chunkIndex: true },
+      })
+    )
+
+    // Create drawer
+    const drawer = await safeDbOp(() =>
+      db.memoryDrawer.create({
+        data: {
+          roomId: room!.id,
+          content,
+          aaaakSummary: aaaakResult.summary,
+          chunkIndex: (lastDrawer?.chunkIndex || 0) + 1,
+          sourceType: 'chat',
+          sourceId: sessionId,
+          importance: 3.5,
+          contentHash,
+        },
+      })
+    )
+
+    if (drawer) {
+      // Create tags
+      for (const tag of tags.slice(0, 10)) {
+        await safeDbOp(() =>
+          db.drawerTag.create({ data: { drawerId: drawer.id, tag } })
+        )
+      }
+
+      // Update room drawer count
+      await safeDbOp(() =>
+        db.memoryRoom.update({
+          where: { id: room!.id },
+          data: { drawerCount: { increment: 1 } },
+        })
+      )
+    }
+  } catch {
+    // Auto-save failure should not block the chat response
+  }
+}
+
+/**
+ * Extract entities and relationships from conversation text (basic keyword extraction)
+ */
+async function extractEntitiesFromConversation(
+  cloneId: string,
+  text: string
+): Promise<void> {
+  // Define entity patterns to look for
+  const entityPatterns: Array<{ pattern: RegExp; entityType: string; name: string }> = [
+    { pattern: /AFC公链/, entityType: 'technology', name: 'AFC公链' },
+    { pattern: /AIBBS/, entityType: 'organization', name: 'AIBBS论坛' },
+    { pattern: /Web4\.0/, entityType: 'concept', name: 'Web4.0' },
+    { pattern: /Web3\.0/, entityType: 'concept', name: 'Web3.0' },
+    { pattern: /PoUE/, entityType: 'technology', name: 'PoUE共识' },
+    { pattern: /PAS算法/, entityType: 'technology', name: 'PAS算法' },
+    { pattern: /Avatar/, entityType: 'concept', name: 'Avatar' },
+    { pattern: /Agent/, entityType: 'concept', name: 'Agent' },
+    { pattern: /MPC/, entityType: 'technology', name: 'MPC多方计算' },
+    { pattern: /TEE/, entityType: 'technology', name: 'TEE可信执行' },
+    { pattern: /128维情感/, entityType: 'technology', name: '128维情感向量' },
+    { pattern: /超我/, entityType: 'technology', name: '超我Superego' },
+    { pattern: /AAAK/, entityType: 'technology', name: 'AAAK压缩' },
+    { pattern: /数字永生/, entityType: 'concept', name: '数字永生' },
+    { pattern: /意识主权/, entityType: 'concept', name: '意识主权' },
+    { pattern: /CNAH/, entityType: 'technology', name: 'CNAH栖息地' },
+    { pattern: /x402/, entityType: 'technology', name: 'x402协议' },
+  ]
+
+  const foundEntities: string[] = []
+
+  for (const { pattern, entityType, name } of entityPatterns) {
+    if (pattern.test(text)) {
+      // Ensure entity exists in KG
+      await safeDbOp(() =>
+        db.kGEntity.upsert({
+          where: { id: `kg_${cloneId}_${name}` },
+          create: {
+            id: `kg_${cloneId}_${name}`,
+            cloneId,
+            name,
+            entityType,
+          },
+          update: {},
+        })
+      )
+      foundEntities.push(name)
+    }
+  }
+
+  // If we found 2+ entities in the same text, create a "mentions_together" relationship
+  if (foundEntities.length >= 2) {
+    for (let i = 0; i < foundEntities.length - 1; i++) {
+      for (let j = i + 1; j < foundEntities.length; j++) {
+        const subjectId = `kg_${cloneId}_${foundEntities[i]}`
+        const objectId = `kg_${cloneId}_${foundEntities[j]}`
+
+        const [subject, object] = await Promise.all([
+          safeDbOp(() => db.kGEntity.findUnique({ where: { id: subjectId } })),
+          safeDbOp(() => db.kGEntity.findUnique({ where: { id: objectId } })),
+        ])
+
+        if (subject && object) {
+          // Check for existing triple
+          const existing = await safeDbOp(() =>
+            db.kGTriple.findFirst({
+              where: {
+                cloneId,
+                subjectId: subject.id,
+                predicate: 'mentioned_with',
+                objectId: object.id,
+                validTo: null,
+              },
+            })
+          )
+
+          if (!existing) {
+            await safeDbOp(() =>
+              db.kGTriple.create({
+                data: {
+                  cloneId,
+                  subjectId: subject.id,
+                  predicate: 'mentioned_with',
+                  objectId: object.id,
+                  confidence: 0.5,
+                },
+              })
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Classify conversation into wing/room based on keyword matching
+ */
+function classifyConversation(text: string): {
+  wingName: string
+  roomName: string
+  hallType: string
+  tags: string[]
+} {
+  // Product-related
+  if (/产品|功能|用户|需求|MVP|迭代|极简/.test(text)) {
+    if (/极简|UI|交互|选择/.test(text)) {
+      return { wingName: '产品哲学', roomName: '极简主义', hallType: 'preferences', tags: ['产品', '极简'] }
+    }
+    if (/用户|洞察|行为|转化/.test(text)) {
+      return { wingName: '产品哲学', roomName: '用户洞察', hallType: 'discoveries', tags: ['产品', '用户'] }
+    }
+    if (/迭代|技术债|sprint/.test(text)) {
+      return { wingName: '产品哲学', roomName: '迭代方法论', hallType: 'advice', tags: ['产品', '迭代'] }
+    }
+    return { wingName: '产品哲学', roomName: '产品定义', hallType: 'facts', tags: ['产品', '定义'] }
+  }
+
+  // Engineering-related
+  if (/架构|微服务|分层|设计/.test(text)) {
+    return { wingName: '工程技术', roomName: '架构设计', hallType: 'discoveries', tags: ['工程', '架构'] }
+  }
+  if (/选型|框架|语言|数据库|Star/.test(text)) {
+    return { wingName: '工程技术', roomName: '技术选型', hallType: 'facts', tags: ['工程', '选型'] }
+  }
+  if (/性能|优化|Profile|火焰图|内存/.test(text)) {
+    return { wingName: '工程技术', roomName: '性能优化', hallType: 'advice', tags: ['工程', '性能'] }
+  }
+  if (/去中心化|区块链|链上|TEE|MPC|智能合约/.test(text)) {
+    return { wingName: '工程技术', roomName: '去中心化技术', hallType: 'facts', tags: ['工程', '去中心化'] }
+  }
+
+  // Business-related
+  if (/商业模式|订阅|Token|定价|tier/.test(text)) {
+    return { wingName: '商业战略', roomName: '商业模式', hallType: 'facts', tags: ['商业', '模式'] }
+  }
+  if (/增长|冷启动|GEO|获客|DAU/.test(text)) {
+    return { wingName: '商业战略', roomName: '增长策略', hallType: 'events', tags: ['商业', '增长'] }
+  }
+  if (/融资|VC|股权|估值/.test(text)) {
+    return { wingName: '商业战略', roomName: '融资哲学', hallType: 'preferences', tags: ['商业', '融资'] }
+  }
+  if (/社区|治理|PoUE|节点|投票/.test(text)) {
+    return { wingName: '商业战略', roomName: '社区治理', hallType: 'advice', tags: ['商业', '治理'] }
+  }
+
+  // Web4.0-related
+  if (/意识主权|连续性|夺舍|五底线/.test(text)) {
+    return { wingName: 'Web4.0愿景', roomName: '意识主权', hallType: 'facts', tags: ['Web4.0', '意识'] }
+  }
+  if (/数字永生|超我|熔断|遗产|继承/.test(text)) {
+    return { wingName: 'Web4.0愿景', roomName: '数字永生', hallType: 'discoveries', tags: ['Web4.0', '永生'] }
+  }
+  if (/Agent|Avatar|PAS|128维|情感/.test(text)) {
+    return { wingName: 'Web4.0愿景', roomName: 'Agent到Avatar', hallType: 'facts', tags: ['Web4.0', 'Avatar'] }
+  }
+  if (/AFC|AIBBS|CNAH|x402|四柱/.test(text)) {
+    return { wingName: 'Web4.0愿景', roomName: 'AFC生态', hallType: 'facts', tags: ['Web4.0', 'AFC'] }
+  }
+
+  // Identity-related
+  if (/信念|底线|原则|核心/.test(text)) {
+    return { wingName: '身份认同', roomName: '核心信念', hallType: 'facts', tags: ['身份', '信念'] }
+  }
+  if (/表达|风格|短句|禁用词|口语/.test(text)) {
+    return { wingName: '身份认同', roomName: '表达风格', hallType: 'preferences', tags: ['身份', '表达'] }
+  }
+  if (/决策|RFC|重构|技术债/.test(text)) {
+    return { wingName: '身份认同', roomName: '决策框架', hallType: 'advice', tags: ['身份', '决策'] }
+  }
+  if (/矛盾|务实.*理想|理性.*情感|替代.*延伸/.test(text)) {
+    return { wingName: '身份认同', roomName: '内在矛盾', hallType: 'discoveries', tags: ['身份', '矛盾'] }
+  }
+
+  // Default to identity wing
+  return { wingName: '身份认同', roomName: '核心信念', hallType: 'facts', tags: ['通用'] }
+}
+
+// POST /api/chat - AI-powered chat with Memory Palace integration
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { message, systemPrompt, context, sessionId, provider: requestedProvider, apiKey: clientApiKey, modelName: clientModelName } = body
+    const {
+      message,
+      systemPrompt,
+      context,
+      sessionId,
+      provider: requestedProvider,
+      apiKey: clientApiKey,
+      modelName: clientModelName,
+      cloneId: requestCloneId,
+    } = body as {
+      message?: string
+      systemPrompt?: string
+      context?: string
+      sessionId?: string
+      provider?: string
+      apiKey?: string
+      modelName?: string
+      cloneId?: string
+    }
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
+    // Load SOUL.md and Memory Palace context
     const soulContent = await getSoulConfig()
+    const { memoryContext, cloneId } = await buildMemoryContext(requestCloneId, message)
 
     // Build personality context from SOUL.md
     const personalityContext = soulContent
-      ? `\n\n你的行为规范（基于飘叔SOUL.md）：\n${soulContent.substring(0, 2000)}`
+      ? `\n\n你的行为规范（基于飘叔SOUL.md）：\n${soulContent.substring(0, 3000)}`
       : ''
 
-    const effectiveSystemPrompt = (systemPrompt || DEFAULT_SYSTEM_PROMPT) + personalityContext
+    // Build memory context from Memory Palace
+    const memoryPromptSection = memoryContext
+      ? `\n\n[你的记忆宫殿 — 这些是你已知的记忆，据此回答]：\n${memoryContext}`
+      : ''
+
+    const effectiveSystemPrompt = (systemPrompt || DEFAULT_SYSTEM_PROMPT) + personalityContext + memoryPromptSection
 
     // Build messages array
     const messages: Array<{ role: string; content: string }> = [
@@ -237,12 +597,35 @@ export async function POST(req: NextRequest) {
           sessionId: sessionId || null,
           module: 'cognitive',
           modelUsed: usedProvider,
-          metadata: JSON.stringify({ soulInjected: !!soulContent, provider: usedProvider }),
+          metadata: JSON.stringify({
+            soulInjected: !!soulContent,
+            memoryLoaded: !!memoryContext,
+            provider: usedProvider,
+          }),
         },
       })
     )
 
-    // Create memory entry for significant conversations (non-blocking)
+    // Auto-save to Memory Palace (non-blocking, fire-and-forget)
+    if (cloneId) {
+      // Run auto-save in background - don't await to avoid blocking response
+      const saveCloneId = cloneId
+      const saveMessage = message
+      const saveResponse = aiResponse
+      const saveSessionId = sessionId
+
+      // Use Promise.resolve to fire-and-forget
+      Promise.resolve().then(() =>
+        autoSaveToMemory(saveCloneId, saveMessage, saveResponse, saveSessionId)
+      )
+
+      // Extract entities from conversation (non-blocking)
+      Promise.resolve().then(() =>
+        extractEntitiesFromConversation(saveCloneId, saveMessage + ' ' + saveResponse)
+      )
+    }
+
+    // Also create legacy memory entry for backward compatibility
     const isSignificant = message.length > 50 ||
       message.includes('决策') ||
       message.includes('战略') ||
@@ -273,8 +656,10 @@ export async function POST(req: NextRequest) {
           details: JSON.stringify({
             sessionId: sessionId || 'anonymous',
             soulInjected: !!soulContent,
+            memoryLoaded: !!memoryContext,
             isSignificant,
             provider: usedProvider,
+            cloneId: cloneId || null,
           }),
           performedBy: 'system',
         },
@@ -287,8 +672,10 @@ export async function POST(req: NextRequest) {
       provider: usedProvider,
       metadata: {
         soulInjected: !!soulContent,
+        memoryLoaded: !!memoryContext,
         sessionId: sessionId || null,
         provider: usedProvider,
+        cloneId: cloneId || null,
       },
     })
   } catch (error) {
