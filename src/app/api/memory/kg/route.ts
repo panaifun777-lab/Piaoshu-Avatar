@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     if (!cloneId) {
       return NextResponse.json(
-        { success: false, error: 'cloneId is required' },
+        { ok: false, error: 'cloneId is required' },
         { status: 400 }
       )
     }
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
     if (!entity && (entityId || entityName)) {
       return NextResponse.json(
-        { success: false, error: 'Entity not found' },
+        { ok: false, error: 'Entity not found' },
         { status: 404 }
       )
     }
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
     }))
 
     return NextResponse.json({
-      success: true,
+      ok: true,
       data: {
         entity: entity ? {
           id: entity.id,
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Failed to query knowledge graph:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to query knowledge graph' },
+      { ok: false, error: 'Failed to query knowledge graph' },
       { status: 500 }
     )
   }
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
 
     if (!cloneId || !subjectName || !predicate || !objectName) {
       return NextResponse.json(
-        { success: false, error: 'cloneId, subjectName, predicate, and objectName are required' },
+        { ok: false, error: 'cloneId, subjectName, predicate, and objectName are required' },
         { status: 400 }
       )
     }
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
       if (existingTriple.objectId === object.id) {
         // Same fact already exists — return it
         return NextResponse.json({
-          success: true,
+          ok: true,
           data: {
             triple: existingTriple,
             status: 'duplicate',
@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        success: true,
+        ok: true,
         data: {
           triple,
           status: existingTriple ? 'contradiction_resolved' : 'created',
@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Failed to add KG triple:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to add KG triple' },
+      { ok: false, error: 'Failed to add KG triple' },
       { status: 500 }
     )
   }

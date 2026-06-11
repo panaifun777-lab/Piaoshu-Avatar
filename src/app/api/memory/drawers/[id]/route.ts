@@ -24,7 +24,7 @@ export async function GET(
 
     if (!drawer) {
       return NextResponse.json(
-        { success: false, error: 'Drawer not found' },
+        { ok: false, error: 'Drawer not found' },
         { status: 404 }
       )
     }
@@ -38,11 +38,11 @@ export async function GET(
       },
     })
 
-    return NextResponse.json({ success: true, data: drawer })
+    return NextResponse.json({ ok: true, data: drawer })
   } catch (error) {
     console.error('Failed to fetch drawer:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch drawer' },
+      { ok: false, error: 'Failed to fetch drawer' },
       { status: 500 }
     )
   }
@@ -60,7 +60,7 @@ export async function PATCH(
     const drawer = await db.memoryDrawer.findUnique({ where: { id } })
     if (!drawer) {
       return NextResponse.json(
-        { success: false, error: 'Drawer not found' },
+        { ok: false, error: 'Drawer not found' },
         { status: 404 }
       )
     }
@@ -111,11 +111,11 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json({ success: true, data: updated })
+    return NextResponse.json({ ok: true, data: updated })
   } catch (error) {
     console.error('Failed to update drawer:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to update drawer' },
+      { ok: false, error: 'Failed to update drawer' },
       { status: 500 }
     )
   }
@@ -132,7 +132,7 @@ export async function DELETE(
     const drawer = await db.memoryDrawer.findUnique({ where: { id } })
     if (!drawer) {
       return NextResponse.json(
-        { success: false, error: 'Drawer not found' },
+        { ok: false, error: 'Drawer not found' },
         { status: 404 }
       )
     }
@@ -157,11 +157,11 @@ export async function DELETE(
       },
     })
 
-    return NextResponse.json({ success: true, data: { deleted: true } })
+    return NextResponse.json({ ok: true, data: { deleted: true } })
   } catch (error) {
     console.error('Failed to delete drawer:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to delete drawer' },
+      { ok: false, error: 'Failed to delete drawer' },
       { status: 500 }
     )
   }

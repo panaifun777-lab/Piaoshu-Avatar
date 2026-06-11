@@ -3,13 +3,116 @@
 
 import { db } from '@/lib/db'
 
-interface TunnelCandidate {
+export interface TunnelCandidate {
   roomAId: string
   roomBId: string
   sharedTheme: string
   strength: number
   wingA: string
   wingB: string
+}
+
+/**
+ * discoverTunnels (rooms overload) — Compare rooms and find shared themes
+ * Accepts a pre-loaded rooms array instead of querying DB by cloneId.
+ * Uses tag overlap and name similarity heuristics to find cross-wing tunnels.
+ *
+ * Each room object should have: { id, name, wingId, wing: { name }, drawers: { tags: { tag } }[] }
+ */
+export function discoverTunnelsFromRooms(rooms: Array<{
+  id: string
+  name: string
+  wingId: string
+  drawerCount?: number
+  wing?: { name: string }
+  drawers?: Array<{ tags?: Array<{ tag: string }> }>
+  tags?: string[]
+}>): Array<{ roomAId: string; roomBId: string; sharedTheme: string; strength: number }> {
+  // Build room → tag set mapping
+  const roomTagMap = new Map<string, Set<string>>()
+  for (const room of rooms) {
+    const tags = new Set<string>()
+    // From nested drawer tags
+    if (room.drawers) {
+      for (const drawer of room.drawers) {
+        if (drawer.tags) {
+          for (const t of drawer.tags) {
+            tags.add(t.tag)
+          }
+        }
+      }
+    }
+    // From direct tags array
+    if (room.tags) {
+      for (const t of room.tags) {
+        tags.add(t)
+      }
+    }
+    roomTagMap.set(room.id, tags)
+  }
+
+  const seenPairs = new Set<string>()
+  const tunnels: Array<{ roomAId: string; roomBId: string; sharedTheme: string; strength: number }> = []
+
+  function addTunnel(
+    roomA: typeof rooms[0],
+    roomB: typeof rooms[0],
+    theme: string
+  ) {
+    if (roomA.wingId === roomB.wingId) return // Only cross-wing tunnels
+    const pairKey = [roomA.id, roomB.id].sort().join('::')
+    if (seenPairs.has(pairKey)) return
+    seenPairs.add(pairKey)
+    const strength = Math.max(1, (roomA.drawerCount || 0) + (roomB.drawerCount || 0))
+    tunnels.push({
+      roomAId: roomA.id,
+      roomBId: roomB.id,
+      sharedTheme: theme,
+      strength,
+    })
+  }
+
+  // 1. Name-similarity tunnels across different wings
+  for (let i = 0; i < rooms.length; i++) {
+    for (let j = i + 1; j < rooms.length; j++) {
+      if (rooms[i].wingId === rooms[j].wingId) continue
+
+      const nameA = rooms[i].name.toLowerCase()
+      const nameB = rooms[j].name.toLowerCase()
+
+      // Exact name match
+      if (nameA === nameB) {
+        addTunnel(rooms[i], rooms[j], rooms[i].name)
+        continue
+      }
+
+      // Name similarity: check if one name contains the other, or shared keywords
+      const wordsA = nameA.split(/[\s_\-\/]+/).filter(Boolean)
+      const wordsB = nameB.split(/[\s_\-\/]+/).filter(Boolean)
+      const sharedWords = wordsA.filter(w => wordsB.includes(w))
+      if (sharedWords.length >= 1 && sharedWords.length / Math.min(wordsA.length, wordsB.length) >= 0.5) {
+        addTunnel(rooms[i], rooms[j], sharedWords.join('+'))
+      }
+    }
+  }
+
+  // 2. Tag-based tunnels (rooms sharing ≥2 tags across different wings)
+  for (let i = 0; i < rooms.length; i++) {
+    for (let j = i + 1; j < rooms.length; j++) {
+      if (rooms[i].wingId === rooms[j].wingId) continue
+
+      const tagsA = roomTagMap.get(rooms[i].id)
+      const tagsB = roomTagMap.get(rooms[j].id)
+      if (!tagsA || !tagsB) continue
+
+      const shared = [...tagsA].filter(t => tagsB.has(t))
+      if (shared.length >= 2) {
+        addTunnel(rooms[i], rooms[j], shared.slice(0, 3).join('+'))
+      }
+    }
+  }
+
+  return tunnels
 }
 
 /**

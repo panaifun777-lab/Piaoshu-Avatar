@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { compress, generateContentHash } from '@/lib/aaak-compressor'
+import { compress, generateContentHash, compressAAAK, computeHash, isDuplicate } from '@/lib/aaak-compressor'
 
-// GET /api/memory/drawers — List drawers with optional filter and pagination
+// GET /api/memory/drawers — List drawers with optional filter, search, and pagination
 export async function GET(req: NextRequest) {
   try {
     const roomId = req.nextUrl.searchParams.get('roomId')
     const wingId = req.nextUrl.searchParams.get('wingId')
     const cloneId = req.nextUrl.searchParams.get('cloneId')
     const sourceType = req.nextUrl.searchParams.get('sourceType')
+    const search = req.nextUrl.searchParams.get('search')
     const page = parseInt(req.nextUrl.searchParams.get('page') || '1', 10)
     const limit = Math.min(parseInt(req.nextUrl.searchParams.get('limit') || '20', 10), 100)
     const validOnly = req.nextUrl.searchParams.get('validOnly') !== 'false'
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
     const where: Record<string, unknown> = {}
     if (validOnly) where.validTo = null
     if (sourceType) where.sourceType = sourceType
+    if (search) where.content = { contains: search }
 
     if (roomId) {
       where.roomId = roomId
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
       where.room = { wing: { cloneId } }
     } else {
       return NextResponse.json(
-        { success: false, error: 'roomId, wingId, or cloneId is required' },
+        { ok: false, error: 'roomId, wingId, or cloneId is required' },
         { status: 400 }
       )
     }
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest) {
     ])
 
     return NextResponse.json({
-      success: true,
+      ok: true,
       data: {
         drawers,
         pagination: {
@@ -65,7 +67,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Failed to fetch drawers:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch drawers' },
+      { ok: false, error: 'Failed to fetch drawers' },
       { status: 500 }
     )
   }
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     if (!roomId || !content) {
       return NextResponse.json(
-        { success: false, error: 'roomId and content are required' },
+        { ok: false, error: 'roomId and content are required' },
         { status: 400 }
       )
     }
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
     })
     if (!room) {
       return NextResponse.json(
-        { success: false, error: 'Room not found' },
+        { ok: false, error: 'Room not found' },
         { status: 404 }
       )
     }
@@ -104,7 +106,7 @@ export async function POST(req: NextRequest) {
     })
     if (existing) {
       return NextResponse.json(
-        { success: false, error: 'Duplicate content detected', data: { existingId: existing.id } },
+        { ok: false, error: 'Duplicate content detected', data: { existingId: existing.id } },
         { status: 409 }
       )
     }
@@ -173,7 +175,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        success: true,
+        ok: true,
         data: {
           drawer,
           aaaak: aaaakResult,
@@ -184,7 +186,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Failed to create drawer:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to create drawer' },
+      { ok: false, error: 'Failed to create drawer' },
       { status: 500 }
     )
   }

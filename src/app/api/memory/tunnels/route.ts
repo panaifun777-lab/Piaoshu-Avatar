@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     const cloneId = req.nextUrl.searchParams.get('cloneId')
     if (!cloneId) {
       return NextResponse.json(
-        { success: false, error: 'cloneId is required' },
+        { ok: false, error: 'cloneId is required' },
         { status: 400 }
       )
     }
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json({
-      success: true,
+      ok: true,
       data: {
         tunnels,
         autoDiscovered: newTunnels,
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Failed to fetch tunnels:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch tunnels' },
+      { ok: false, error: 'Failed to fetch tunnels' },
       { status: 500 }
     )
   }
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     if (!roomAId || !roomBId) {
       return NextResponse.json(
-        { success: false, error: 'roomAId and roomBId are required' },
+        { ok: false, error: 'roomAId and roomBId are required' },
         { status: 400 }
       )
     }
@@ -90,14 +90,14 @@ export async function POST(req: NextRequest) {
 
     if (!roomA || !roomB) {
       return NextResponse.json(
-        { success: false, error: 'Room not found' },
+        { ok: false, error: 'Room not found' },
         { status: 404 }
       )
     }
 
     if (roomA.wingId === roomB.wingId) {
       return NextResponse.json(
-        { success: false, error: 'Tunnels can only connect rooms in different wings' },
+        { ok: false, error: 'Tunnels can only connect rooms in different wings' },
         { status: 400 }
       )
     }
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       return NextResponse.json(
-        { success: false, error: 'Tunnel already exists', data: existing },
+        { ok: false, error: 'Tunnel already exists', data: existing },
         { status: 409 }
       )
     }
@@ -145,11 +145,11 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, data: tunnel }, { status: 201 })
+    return NextResponse.json({ ok: true, data: tunnel }, { status: 201 })
   } catch (error) {
     console.error('Failed to create tunnel:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to create tunnel' },
+      { ok: false, error: 'Failed to create tunnel' },
       { status: 500 }
     )
   }

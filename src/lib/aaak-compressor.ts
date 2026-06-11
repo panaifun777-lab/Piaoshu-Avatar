@@ -255,3 +255,28 @@ export function generateContentHash(content: string): string {
   return Math.abs(hash).toString(16).padStart(8, '0') +
     Math.abs(hash * 31).toString(16).padStart(8, '0')
 }
+
+/**
+ * compressAAAK — Extracts Actor, Action, Asset, Key-result from text
+ * Alias for compress() with AAAK-specific interface
+ * Returns compressed AAAK summary string
+ */
+export function compressAAAK(content: string): string {
+  const result = compress(content)
+  return result.summary
+}
+
+/**
+ * computeHash — Simple MD5-like hash for dedup
+ * Alias for generateContentHash with matching interface
+ */
+export function computeHash(content: string): string {
+  return generateContentHash(content)
+}
+
+/**
+ * isDuplicate — Check if a new content hash already exists in a list of existing hashes
+ */
+export function isDuplicate(newHash: string, existingHashes: string[]): boolean {
+  return existingHashes.includes(newHash)
+}

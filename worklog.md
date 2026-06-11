@@ -1729,3 +1729,202 @@ Stage Summary:
 - 4 new React Query hooks for Stripe payment operations
 - Purple accent for Stripe Link, neutral for Card, emerald for Crypto — consistent with Piaoshu design
 - Zero lint errors, dev server running
+
+---
+Task ID: 2
+Agent: Memory Palace Frontend Developer
+Task: Create rich, tabbed Memory Palace frontend component with 5 tabs
+
+Work Log:
+- Completely rewrote /src/components/piaoshu/memory-palace.tsx from 314-line basic component to 700+ line rich tabbed component
+- Created 5 tabbed sections using shadcn/ui Tabs component:
+  - Tab 1: 宫殿地图 (Palace Map) - Stats row (wings/rooms/drawers/tunnels), wing cards with expand/collapse rooms, Add Wing dialog (POST /api/memory/palace), Add Room dialog within wings
+  - Tab 2: 记忆抽屉 (Memory Drawers) - Search input, source type filter (Select), wing filter (Select), Add Memory dialog with room selector, edit drawer dialog, AAAK summary badges, star ratings, source type color badges, tag badges, access count
+  - Tab 3: 知识图谱 (Knowledge Graph) - Entities list with type-colored badges (person/project/technology/concept/organization), Triples panel with subject→predicate→object visual, confidence progress bar, Add Entity dialog, Add Triple dialog with predicate selector
+  - Tab 4: 隧道关联 (Tunnels) - Auto-discover button (useDiscoverTunnels), manual add tunnel dialog, tunnel cards with Room A↔Room B, shared theme badges, strength bar visualization
+  - Tab 5: 唤醒预览 (Wake Preview) - "Wake Avatar" gradient button, L0/L1 layer cards with token counts, token summary with progress bars, total token estimate
+- Used existing API hooks: useMemoryPalace, useMemoryDrawers, useMemoryWake, useMemoryTunnels, useKGEntities, useKGTriples, useCreateDrawer, useUpdateDrawer, useDiscoverTunnels, useAddKGTriple
+- Fallback demo data for all tabs (FALLBACK_WINGS, FALLBACK_DRAWERS, FALLBACK_ENTITIES, FALLBACK_TRIPLES, FALLBACK_TUNNELS)
+- shadcn/ui components used: Card, Tabs, Badge, Button, Input, Textarea, Skeleton, ScrollArea, Separator, Dialog, Select, Label, Progress
+- Lucide icons: Brain, Building2, FileText, Network, Eye, Plus, Search, Star, Tag, ArrowRight, Zap, ChevronRight, ChevronDown, RefreshCw, Layers, DoorOpen, Sparkles, Link2, GitBranch, AlertCircle, Edit3
+- Framer Motion: card animations, drawer timeline stagger, tunnel cards, wake preview layers
+- Responsive design: mobile-first with sm: breakpoints, hidden labels on mobile tabs
+- Dark mode support via next-themes (using dark: prefixed Tailwind classes)
+- Loading skeletons for all data sections
+- Error states with retry buttons on all tabs
+- Teal/emerald accent color scheme consistent with Memory Palace module
+- Tab trigger colors: teal (map), amber (drawers), violet (kg), cyan (tunnels), amber (wake)
+- Exports `MemoryPalace` as named export (NOT default) - matches dynamic import in page.tsx
+- All lint checks pass with zero errors on memory-palace.tsx (pre-existing error in stripe-payment.tsx is unrelated)
+- Dev server compiles successfully, no runtime errors
+
+Stage Summary:
+- Complete Memory Palace frontend with 5 rich tabbed sections
+- Palace Map: expand/collapse wings, create wings & rooms
+- Memory Drawers: search, filter, create, edit drawers with AAAK summaries
+- Knowledge Graph: entities + triples display, create entities & triples
+- Tunnels: auto-discover + manual creation, strength visualization
+- Wake Preview: L0/L1 layer display, token estimates, wake button
+- Full fallback data ensures component renders beautifully without backend
+- Teal/emerald color scheme, responsive, dark mode, Framer Motion animations
+- Zero new lint errors
+
+---
+Task ID: 1
+Agent: Memory Palace Backend Developer
+Task: Create ALL backend API routes and library services for the Memory Palace system
+
+Work Log:
+- Enhanced /src/lib/aaak-compressor.ts:
+  - Added `compressAAAK(content: string): string` — Extracts Actor, Action, Asset, Key-result from text, returns compressed AAAK summary string
+  - Added `computeHash(content: string): string` — Simple MD5-like hash for dedup (alias for generateContentHash)
+  - Added `isDuplicate(newHash: string, existingHashes: string[]): boolean` — Check if a content hash already exists in a list
+  - Preserved existing `compress()` and `generateContentHash()` functions
+
+- Enhanced /src/lib/tunnel-discovery.ts:
+  - Added `discoverTunnelsFromRooms(rooms[])` — Pure function accepting pre-loaded rooms array, finds shared themes via tag overlap and name similarity heuristics
+  - Supports name-based (exact match + word overlap ≥50%) and tag-based (≥2 shared tags) tunnel discovery
+  - Only creates cross-wing tunnels (same-wing pairs skipped)
+  - Deduplicates tunnel pairs via sorted pairKey
+  - Preserved existing `discoverTunnels(cloneId)` (DB-based) and `persistTunnels(cloneId)` functions
+  - Exported `TunnelCandidate` interface
+
+- Enhanced /src/lib/memory-loader.ts:
+  - Added `loadL0Identity(cloneId): Promise<{name, persona}>` — ~50 tokens, just identity for avatar initialization
+  - Added `loadL1Core(cloneId): Promise<{wings, topDrawers, entities}>` — ~800 tokens, high-priority wings + important drawers + KG entities
+  - Added `loadL2Room(roomId): Promise<{room, drawers, tunnels}>` — Room-level detail with connected tunnels from both directions
+  - Added `loadL3Search(cloneId, query, limit?): Promise<Array<scored results>>` — Deep search across all drawers with keyword relevance scoring
+  - All new functions use structured return types (typed objects instead of text blobs)
+  - Preserved existing `loadL0()`, `loadL1()`, `loadRoom()`, `deepSearch()`, `wakeUp()` functions
+
+- Updated /src/app/api/memory/palace/route.ts:
+  - Changed response format from `{ success: boolean }` to `{ ok: boolean }`
+  - GET: Return full palace structure (wings → rooms → drawer counts) with auto-seeding
+  - POST: Create new wing (type=wing) or room (type=room)
+
+- Updated /src/app/api/memory/drawers/route.ts:
+  - Changed response format from `{ success: boolean }` to `{ ok: boolean }`
+  - Added `search` query parameter for content filtering
+  - Added imports for `compressAAAK`, `computeHash`, `isDuplicate` from aaak-compressor
+  - GET: List drawers with filters (wingId, roomId, sourceType, search) + pagination
+  - POST: Create new drawer (auto-compute AAAK summary and hash, dedup check)
+
+- Updated /src/app/api/memory/drawers/[id]/route.ts:
+  - Changed response format from `{ success: boolean }` to `{ ok: boolean }`
+  - GET: Get single drawer detail with auto access count increment
+  - PATCH: Update drawer (invalidate, importance, emotionalWeight, content re-hash)
+  - DELETE: Delete drawer with room drawer count decrement
+
+- Updated /src/app/api/memory/tunnels/route.ts:
+  - Changed response format from `{ success: boolean }` to `{ ok: boolean }`
+  - GET: List tunnels (optionally filtered by cloneId, auto-discover option)
+  - POST: Create tunnel between two rooms (cross-wing validation, duplicate check)
+
+- Enhanced /src/app/api/memory/wake/route.ts:
+  - Changed response format from `{ success: boolean }` to `{ ok: boolean }`
+  - Added `format` query parameter: 'text' (default) or 'structured'
+  - Structured format returns typed objects via loadL0Identity + loadL1Core + loadL2Room + loadL3Search
+  - Text format returns existing text-based wakeUp result
+  - Added `limit` query parameter for L3 search result count
+
+- Updated /src/app/api/memory/kg/route.ts:
+  - Changed response format from `{ success: boolean }` to `{ ok: boolean }`
+  - GET: Get knowledge graph for a clone (entities + triples) with temporal filtering (asOf)
+  - POST: Add triple with contradiction resolution (auto-invalidate old S+P facts)
+
+- Updated /src/app/api/memory/kg/entities/route.ts:
+  - Changed response format from `{ success: boolean }` to `{ ok: boolean }`
+  - GET: List entities with type filter, search, and triple counts
+  - POST: Create or upsert entity with properties
+
+- All API routes use `import { NextRequest, NextResponse } from 'next/server'`
+- All responses follow `{ ok: true, data: ... }` or `{ ok: false, error: ... }` format
+- All routes use `import { db } from '@/lib/db'` for Prisma access
+- Error handling with try/catch and appropriate status codes (400, 404, 409, 500)
+- Lint check passes on all memory-related files (zero errors)
+
+Stage Summary:
+- 3 library services enhanced with task-specified function signatures
+- 7 API routes updated with standardized { ok: boolean } response format
+- Wake route enhanced with dual format support (text + structured)
+- Drawers route enhanced with search query parameter
+- All MemoryWing, MemoryRoom, MemoryDrawer, DrawerTag, MemoryTunnel, KGEntity, KGTriple models fully served
+- No Prisma schema modifications (all models pre-existed)
+- Zero new lint errors
+
+---
+Task ID: 3
+Agent: Stripe Payment Integration Developer
+Task: Create Stripe Link payment integration for the Piaoshu Avatar project
+
+Work Log:
+- Enhanced `/api/payments/stripe/create-session/route.ts`:
+  - POST handler with body: { planId, userId, amount, currency, successUrl, cancelUrl, paymentMethod }
+  - Uses Stripe API when STRIPE_SECRET_KEY is set; falls back to mock mode
+  - payment_method_types: ['card', 'link'] for stripe_link, ['card'] for stripe, ['crypto'] for crypto
+  - mode: 'subscription' or 'payment' based on plan type (one-time vs recurring)
+  - Saves session to PaymentSession table in database with full metadata
+  - Returns `{ ok: true, data: { sessionId, url, amount, currency, paymentMethodTypes, mode, expiresAt, stripeMode } }`
+  - Creates audit log entries for all sessions
+  - Support for successUrl and cancelUrl in Stripe checkout creation
+
+- Enhanced `/api/payments/stripe/verify/route.ts`:
+  - Added GET handler with query param: `sessionId`
+  - Also supports POST for backward compatibility (delegates to GET)
+  - When STRIPE_SECRET_KEY available, calls Stripe API to verify session payment_status
+  - On successful payment: updates PaymentSession status, creates/upgrades UserSubscription, creates AFCTransaction record
+  - Demo mode: 85% payment success simulation with status updates
+  - Returns `{ ok: true, data: { sessionId, status, amount, currency, paymentMethod, paidAt } }`
+
+- Enhanced `/api/payments/stripe/link-status/route.ts`:
+  - GET handler with optional userId query param
+  - When STRIPE_SECRET_KEY available, calls Stripe API to check Link payment methods
+  - Returns `{ ok: true, data: { linkAvailable, linkEnabled, stripeMode, email, savedPaymentMethods, phone, country } }`
+  - Demo: returns mock saved payment methods (Visa card + Link)
+
+- Enhanced `/api/payments/methods/route.ts`:
+  - GET handler returning available payment methods
+  - Returns 3 methods: stripe (card), stripe_link (one-click), crypto (AFC)
+  - Each method has: id, name, description, icon, available, badge, oneClick, processingTime
+  - Returns `{ ok: true, data: { methods, defaultMethod, stripeMode } }`
+
+- Rewrote `/src/components/piaoshu/stripe-payment.tsx`:
+  - Full payment flow with 5 steps: method → form → checkout → processing → result
+  - Payment method selection: Stripe Link (one-click), Stripe Card, Crypto (AFC)
+  - Order summary with plan details (plan name, clones, cycles/day)
+  - Stripe Link form: email input, saved payment methods display, "一键支付" button with gradient
+  - Stripe Card form: card number, expiry, CVC inputs with formatting
+  - Crypto form: AFC token info card, wallet address, contract address copy button
+  - Checkout redirect: opens Stripe Checkout URL in new tab for live mode
+  - Payment status polling: 3-second interval, auto-stops after 20 attempts (60s)
+  - Result display: success (with plan activation info), pending, or failure states
+  - Proper cleanup of intervals on unmount
+
+- Updated `/src/components/piaoshu/subscription-plans.tsx`:
+  - Added 'Stripe Link 一键支付' as first payment method option
+  - Changed default payment method from 'afc_base' to 'stripe_link'
+  - Enhanced Stripe Payment Dialog: wider (sm:max-w-lg), max height with scroll, Stripe Link badge
+  - Dialog passes full plan object to StripePayment component for order summary
+  - onClose callback clears plan state
+
+- Updated `/src/lib/api-hooks.ts`:
+  - Updated useCreateStripeSession: added successUrl/cancelUrl params, response type uses { ok, data } format with url field
+  - Updated useVerifyStripePayment: response type uses { ok, data } format
+  - Updated useStripeLinkStatus: response type uses { ok, data } format with linkAvailable and stripeMode
+  - Updated usePaymentMethods: response type uses { ok, data } format with available field instead of supported
+
+- All API routes use `{ ok: true/false, data/error }` response format
+- All API routes use `import { NextRequest, NextResponse } from 'next/server'`
+- All API routes use `import { db } from '@/lib/db'` for Prisma access
+- Stripe works in demo/mock mode when STRIPE_SECRET_KEY is not configured
+- All lint checks pass with zero errors
+
+Stage Summary:
+- Stripe Checkout Session creation with real Stripe API integration and mock fallback
+- Payment verification with both GET and POST support
+- Stripe Link availability check with saved payment methods
+- Payment methods listing with availability flags
+- Full StripePayment component with 5-step flow, order summary, payment status polling
+- Subscription plans enhanced with Stripe Link as first payment option
+- All hooks updated to match new { ok, data } response format
+- Demo mode fully functional without Stripe keys

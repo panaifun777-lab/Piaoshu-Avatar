@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
 // Generate a mock Stripe session ID
@@ -11,20 +11,88 @@ function generateSessionId(): string {
   return result
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { planId, userId, amount, currency = 'usd', paymentMethod = 'stripe' } = body
+    const {
+      planId,
+      userId,
+      amount,
+      currency = 'usd',
+      successUrl,
+      cancelUrl,
+      paymentMethod = 'stripe',
+    } = body
 
     if (!amount || amount <= 0) {
       return NextResponse.json(
-        { success: false, error: 'Invalid amount' },
+        { ok: false, error: 'Invalid amount' },
         { status: 400 }
       )
     }
 
-    // Generate mock Stripe Checkout Session
-    const sessionId = generateSessionId()
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+    const isLiveStripe = !!stripeSecretKey
+
+    let sessionId: string
+    let checkoutUrl: string
+
+    // Determine payment_method_types based on selected method
+    const paymentMethodTypes = paymentMethod === 'stripe_link'
+      ? ['card', 'link']
+      : paymentMethod === 'crypto'
+        ? ['crypto']
+        : ['card']
+
+    // Determine mode: subscription for recurring plans, payment for one-time
+    const isSubscription = !planId?.startsWith('pkg-') && !planId?.startsWith('monthly-')
+
+    if (isLiveStripe) {
+      // Real Stripe integration
+      try {
+        const stripe = await import('stripe')
+        const stripeClient = new stripe.default(stripeSecretKey)
+
+        const session = await stripeClient.checkout.sessions.create({
+          payment_method_types: paymentMethodTypes as ('card' | 'link')[],
+          mode: isSubscription ? 'subscription' : 'payment',
+          line_items: [
+            {
+              price_data: {
+                currency,
+                product_data: {
+                  name: `Piaoshu ${planId || 'Payment'}`,
+                  description: isSubscription ? 'Monthly subscription' : 'One-time payment',
+                },
+                unit_amount: Math.round(amount * 100), // Convert to cents
+                recurring: isSubscription ? { interval: 'month' } : undefined,
+              },
+              quantity: 1,
+            },
+          ],
+          success_url: successUrl || `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl || `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}?payment=cancelled`,
+          metadata: {
+            planId: planId || '',
+            userId: userId || '',
+            paymentMethod,
+          },
+        })
+
+        sessionId = session.id
+        checkoutUrl = session.url || ''
+      } catch (stripeError) {
+        console.error('Stripe API error:', stripeError)
+        return NextResponse.json(
+          { ok: false, error: 'Stripe API error: ' + (stripeError instanceof Error ? stripeError.message : 'Unknown error') },
+          { status: 500 }
+        )
+      }
+    } else {
+      // Demo/mock mode
+      sessionId = generateSessionId()
+      checkoutUrl = `https://checkout.stripe.com/c/pay/${sessionId}#test`
+    }
 
     // Create payment session in database
     const session = await db.paymentSession.create({
@@ -40,11 +108,10 @@ export async function POST(request: Request) {
           planId: planId || null,
           userId: userId || null,
           createdAt: new Date().toISOString(),
-          paymentMethodTypes: paymentMethod === 'stripe_link'
-            ? ['card', 'link']
-            : paymentMethod === 'crypto'
-              ? ['crypto']
-              : ['card'],
+          paymentMethodTypes,
+          isSubscription,
+          mode: isSubscription ? 'subscription' : 'payment',
+          stripeMode: isLiveStripe ? 'live' : 'test',
         }),
       },
     })
@@ -56,29 +123,29 @@ export async function POST(request: Request) {
         module: 'payments',
         entityType: 'PaymentSession',
         entityId: session.id,
-        details: JSON.stringify({ sessionId, amount, currency, paymentMethod }),
+        details: JSON.stringify({ sessionId, amount, currency, paymentMethod, paymentMethodTypes, isSubscription }),
         performedBy: userId || 'anonymous',
       },
     })
 
-    // Mock checkout URL
-    const checkoutUrl = `https://checkout.stripe.com/c/pay/${sessionId}#test`
-
     return NextResponse.json({
-      success: true,
+      ok: true,
       data: {
         sessionId,
-        checkoutUrl,
+        url: checkoutUrl,
         amount: Number(amount),
         currency,
         paymentMethod,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
+        paymentMethodTypes,
+        mode: isSubscription ? 'subscription' : 'payment',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        stripeMode: isLiveStripe ? 'live' : 'test',
       },
     })
   } catch (error) {
     console.error('Create session error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to create payment session' },
+      { ok: false, error: 'Failed to create payment session' },
       { status: 500 }
     )
   }

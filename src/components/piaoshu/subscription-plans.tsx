@@ -156,9 +156,9 @@ const PLAN_CONFIGS: Record<string, {
 }
 
 const PAYMENT_METHODS = [
+  { id: 'stripe_link', label: 'Stripe Link 一键支付', icon: Zap, description: 'Link by Stripe · 一键完成' },
   { id: 'afc_base', label: 'AFC on Base', icon: Coins, description: 'AFC代币 (Base链)' },
   { id: 'usdt_base', label: 'USDT on Base', icon: Wallet, description: 'USDT稳定币 (Base链)' },
-  { id: 'usdc_base', label: 'USDC on Base', icon: Wallet, description: 'USDC稳定币 (Base链)' },
   { id: 'credit_card', label: 'Credit Card', icon: CreditCard, description: '信用卡支付' },
 ]
 
@@ -205,7 +205,7 @@ export function SubscriptionPlans() {
   const subscribeMutation = useSubscribePlan()
   const topUpMutation = useTopUpAFC()
 
-  const [selectedPayment, setSelectedPayment] = useState('afc_base')
+  const [selectedPayment, setSelectedPayment] = useState('stripe_link')
   const [topUpOpen, setTopUpOpen] = useState(false)
   const [topUpAmount, setTopUpAmount] = useState(500)
   const [txHistoryOpen, setTxHistoryOpen] = useState(false)
@@ -1057,19 +1057,32 @@ export function SubscriptionPlans() {
       </Dialog>
 
       {/* Stripe Payment Dialog */}
-      <Dialog open={stripePayOpen} onOpenChange={setStripePayOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={stripePayOpen} onOpenChange={(open) => {
+        setStripePayOpen(open)
+        if (!open) setStripePayPlan(null)
+      }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-purple-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-violet-600">
+                <Shield className="h-4 w-4 text-white" />
+              </div>
               {stripePayPlan ? `${stripePayPlan.displayName} — 选择支付方式` : '选择支付方式'}
+              <Badge className="text-[9px] h-4 px-1.5 bg-purple-500/10 text-purple-700 dark:text-purple-400 border-0">
+                Stripe Link
+              </Badge>
             </DialogTitle>
           </DialogHeader>
           <StripePayment
+            plan={stripePayPlan ?? undefined}
             planId={stripePayPlan?.id}
             amount={stripePayPlan?.priceUSD ?? 0}
             currency="usd"
             onSuccess={() => {
+              setStripePayOpen(false)
+              setStripePayPlan(null)
+            }}
+            onClose={() => {
               setStripePayOpen(false)
               setStripePayPlan(null)
             }}

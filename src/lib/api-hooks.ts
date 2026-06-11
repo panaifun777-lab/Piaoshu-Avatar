@@ -1226,8 +1226,8 @@ export function useDiscoverTunnels() {
 export function useCreateStripeSession() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { planId?: string; userId?: string; amount: number; currency?: string; paymentMethod?: string }) =>
-      apiFetch<{ success: boolean; data: { sessionId: string; checkoutUrl: string; amount: number; currency: string; expiresAt: string } }>(
+    mutationFn: (data: { planId?: string; userId?: string; amount: number; currency?: string; paymentMethod?: string; successUrl?: string; cancelUrl?: string }) =>
+      apiFetch<{ ok: boolean; data: { sessionId: string; url: string; amount: number; currency: string; paymentMethodTypes: string[]; mode: string; expiresAt: string; stripeMode: string } }>(
         '/api/payments/stripe/create-session',
         { method: 'POST', body: JSON.stringify(data) }
       ),
@@ -1242,7 +1242,7 @@ export function useVerifyStripePayment() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: { sessionId: string }) =>
-      apiFetch<{ success: boolean; data: { sessionId: string; status: string; amount: number; currency: string; paymentMethod: string; paidAt?: string } }>(
+      apiFetch<{ ok: boolean; data: { sessionId: string; status: string; amount: number; currency: string; paymentMethod: string; paidAt?: string } }>(
         '/api/payments/stripe/verify',
         { method: 'POST', body: JSON.stringify(data) }
       ),
@@ -1257,7 +1257,7 @@ export function useVerifyStripePayment() {
 export function useStripeLinkStatus(userId?: string) {
   return useQuery({
     queryKey: ['stripeLinkStatus', userId],
-    queryFn: () => apiFetch<{ success: boolean; data: { linkEnabled: boolean; email: string | null; savedPaymentMethods: Array<{ id: string; type: string; last4?: string; brand?: string; email?: string; isDefault: boolean }>; phone: string | null; country: string } }>(
+    queryFn: () => apiFetch<{ ok: boolean; data: { linkAvailable: boolean; linkEnabled: boolean; stripeMode: string; email: string | null; savedPaymentMethods: Array<{ id: string; type: string; last4?: string; brand?: string; email?: string; isDefault: boolean }>; phone: string | null; country: string } }>(
       userId ? `/api/payments/stripe/link-status?userId=${userId}` : '/api/payments/stripe/link-status'
     ),
     enabled: !!userId,
@@ -1267,7 +1267,7 @@ export function useStripeLinkStatus(userId?: string) {
 export function usePaymentMethods() {
   return useQuery({
     queryKey: ['paymentMethods'],
-    queryFn: () => apiFetch<{ success: boolean; data: { methods: Array<{ id: string; name: string; label: string; description: string; icon: string; badge: string | null; badgeColor: string | null; supported: boolean; oneClick: boolean; currencies: string[]; processingTime: string }>; defaultMethod: string } }>(
+    queryFn: () => apiFetch<{ ok: boolean; data: { methods: Array<{ id: string; name: string; description: string; icon: string; available: boolean; badge?: string; badgeColor?: string; oneClick: boolean; processingTime: string }>; defaultMethod: string; stripeMode: string } }>(
       '/api/payments/methods'
     ),
   })

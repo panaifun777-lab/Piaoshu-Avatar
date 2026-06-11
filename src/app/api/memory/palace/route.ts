@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     const cloneId = req.nextUrl.searchParams.get('cloneId')
     if (!cloneId) {
       return NextResponse.json(
-        { success: false, error: 'cloneId is required' },
+        { ok: false, error: 'cloneId is required' },
         { status: 400 }
       )
     }
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json({
-      success: true,
+      ok: true,
       data: {
         wings,
         stats: {
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Failed to fetch memory palace:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch memory palace' },
+      { ok: false, error: 'Failed to fetch memory palace' },
       { status: 500 }
     )
   }
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     if (!cloneId) {
       return NextResponse.json(
-        { success: false, error: 'cloneId is required' },
+        { ok: false, error: 'cloneId is required' },
         { status: 400 }
       )
     }
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       const { name, wingType, description, priority } = body
       if (!name) {
         return NextResponse.json(
-          { success: false, error: 'name is required for wing' },
+          { ok: false, error: 'name is required for wing' },
           { status: 400 }
         )
       }
@@ -122,20 +122,20 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      return NextResponse.json({ success: true, data: wing }, { status: 201 })
+      return NextResponse.json({ ok: true, data: wing }, { status: 201 })
     }
 
     if (type === 'room') {
       if (!wingId) {
         return NextResponse.json(
-          { success: false, error: 'wingId is required for room' },
+          { ok: false, error: 'wingId is required for room' },
           { status: 400 }
         )
       }
       const { name, hallType } = body
       if (!name) {
         return NextResponse.json(
-          { success: false, error: 'name is required for room' },
+          { ok: false, error: 'name is required for room' },
           { status: 400 }
         )
       }
@@ -159,17 +159,17 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      return NextResponse.json({ success: true, data: room }, { status: 201 })
+      return NextResponse.json({ ok: true, data: room }, { status: 201 })
     }
 
     return NextResponse.json(
-      { success: false, error: 'type must be "wing" or "room"' },
+      { ok: false, error: 'type must be "wing" or "room"' },
       { status: 400 }
     )
   } catch (error) {
     console.error('Failed to create palace element:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to create palace element' },
+      { ok: false, error: 'Failed to create palace element' },
       { status: 500 }
     )
   }

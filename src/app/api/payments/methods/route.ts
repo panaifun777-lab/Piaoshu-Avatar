@@ -2,59 +2,57 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+    const isLiveStripe = !!stripeSecretKey
+
     const paymentMethods = [
       {
-        id: 'stripe_link',
-        name: 'Stripe Link',
-        label: '一键支付',
-        description: '保存付款信息，下次一键完成',
-        icon: 'zap',
-        badge: 'Link by Stripe',
-        badgeColor: '#635BFF',
-        supported: true,
-        oneClick: true,
-        currencies: ['usd', 'eur', 'gbp', 'jpy', 'cny'],
-        processingTime: '< 1s',
-      },
-      {
-        id: 'stripe_card',
+        id: 'stripe',
         name: 'Stripe Card',
-        label: '信用卡支付',
-        description: 'Visa/Mastercard/AMEX',
+        description: 'Visa / Mastercard / AMEX 安全支付',
         icon: 'credit-card',
-        badge: null,
-        badgeColor: null,
-        supported: true,
+        available: true,
+        badge: isLiveStripe ? 'Live' : 'Test',
+        badgeColor: isLiveStripe ? '#10b981' : '#f59e0b',
         oneClick: false,
-        currencies: ['usd', 'eur', 'gbp', 'jpy', 'cny'],
         processingTime: '1-3s',
       },
       {
+        id: 'stripe_link',
+        name: 'Stripe Link 一键支付',
+        description: '保存付款信息，下次一键完成 · Link by Stripe',
+        icon: 'zap',
+        available: true,
+        badge: 'Link by Stripe',
+        badgeColor: '#635BFF',
+        oneClick: true,
+        processingTime: '< 1s',
+      },
+      {
         id: 'crypto',
-        name: 'Crypto (AFC)',
-        label: '链上支付',
-        description: 'AFC Token 结算',
+        name: 'Crypto (AFC Token)',
+        description: 'AFC Token 链上结算 · Base Sepolia',
         icon: 'wallet',
+        available: true,
         badge: 'Base Sepolia',
         badgeColor: '#10b981',
-        supported: true,
         oneClick: false,
-        currencies: ['afc'],
         processingTime: '~15s',
       },
     ]
 
     return NextResponse.json({
-      success: true,
+      ok: true,
       data: {
         methods: paymentMethods,
         defaultMethod: 'stripe_link',
+        stripeMode: isLiveStripe ? 'live' : 'test',
       },
     })
   } catch (error) {
     console.error('Payment methods error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to list payment methods' },
+      { ok: false, error: 'Failed to list payment methods' },
       { status: 500 }
     )
   }

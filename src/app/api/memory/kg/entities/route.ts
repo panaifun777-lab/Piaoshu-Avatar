@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
     if (!cloneId) {
       return NextResponse.json(
-        { success: false, error: 'cloneId is required' },
+        { ok: false, error: 'cloneId is required' },
         { status: 400 }
       )
     }
@@ -45,13 +45,13 @@ export async function GET(req: NextRequest) {
     }))
 
     return NextResponse.json({
-      success: true,
+      ok: true,
       data: formatted,
     })
   } catch (error) {
     console.error('Failed to fetch KG entities:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch KG entities' },
+      { ok: false, error: 'Failed to fetch KG entities' },
       { status: 500 }
     )
   }
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     if (!cloneId || !name) {
       return NextResponse.json(
-        { success: false, error: 'cloneId and name are required' },
+        { ok: false, error: 'cloneId and name are required' },
         { status: 400 }
       )
     }
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({
-        success: true,
+        ok: true,
         data: { ...existing, status: 'existing' },
       })
     }
@@ -106,13 +106,13 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json(
-      { success: true, data: { ...entity, status: 'created' } },
+      { ok: true, data: { ...entity, status: 'created' } },
       { status: 201 }
     )
   } catch (error) {
     console.error('Failed to create KG entity:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to create KG entity' },
+      { ok: false, error: 'Failed to create KG entity' },
       { status: 500 }
     )
   }
