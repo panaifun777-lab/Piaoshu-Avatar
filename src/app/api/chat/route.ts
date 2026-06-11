@@ -21,6 +21,15 @@ async function getSoulConfig(): Promise<string> {
   }
 }
 
+// Safe DB operation wrapper - returns null on failure (e.g., Vercel serverless without DB)
+async function safeDbOp<T>(op: () => Promise<T>): Promise<T | null> {
+  try {
+    return await op()
+  } catch {
+    return null
+  }
+}
+
 // Default system prompt for piaoshu founder system
 const DEFAULT_SYSTEM_PROMPT = `你是飘叔(Piaoshu)AI分身操作系统的AI共生体。你的角色是：
 1. 作为创始人的数字分身，帮助分析战略决策
@@ -128,20 +137,22 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Load recent chat history for this session to provide continuity
+    // Load recent chat history for this session to provide continuity (graceful on DB failure)
     if (sessionId) {
-      const recentMessages = await db.chatMessage.findMany({
-        where: { sessionId },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      })
-      // Reverse to get chronological order and add to messages
-      const historyMessages = recentMessages.reverse().map((msg) => ({
-        role: msg.role === 'assistant' ? 'assistant' : 'user',
-        content: msg.content,
-      }))
-      // Insert history after system prompt but before the new message
-      messages.push(...historyMessages)
+      const recentMessages = await safeDbOp(() =>
+        db.chatMessage.findMany({
+          where: { sessionId },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        })
+      )
+      if (recentMessages && recentMessages.length > 0) {
+        const historyMessages = recentMessages.reverse().map((msg) => ({
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content,
+        }))
+        messages.push(...historyMessages)
+      }
     }
 
     messages.push({
@@ -204,63 +215,71 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Empty AI response' }, { status: 500 })
     }
 
-    // Save user message to database
-    await db.chatMessage.create({
-      data: {
-        role: 'user',
-        content: message,
-        sessionId: sessionId || null,
-        module: 'cognitive',
-        metadata: context ? JSON.stringify({ context }) : null,
-      },
-    })
+    // Save user message to database (non-blocking, graceful failure)
+    await safeDbOp(() =>
+      db.chatMessage.create({
+        data: {
+          role: 'user',
+          content: message,
+          sessionId: sessionId || null,
+          module: 'cognitive',
+          metadata: context ? JSON.stringify({ context }) : null,
+        },
+      })
+    )
 
-    // Save assistant response to database
-    await db.chatMessage.create({
-      data: {
-        role: 'assistant',
-        content: aiResponse,
-        sessionId: sessionId || null,
-        module: 'cognitive',
-        modelUsed: usedProvider,
-        metadata: JSON.stringify({ soulInjected: !!soulContent, provider: usedProvider }),
-      },
-    })
+    // Save assistant response to database (non-blocking, graceful failure)
+    await safeDbOp(() =>
+      db.chatMessage.create({
+        data: {
+          role: 'assistant',
+          content: aiResponse!,
+          sessionId: sessionId || null,
+          module: 'cognitive',
+          modelUsed: usedProvider,
+          metadata: JSON.stringify({ soulInjected: !!soulContent, provider: usedProvider }),
+        },
+      })
+    )
 
-    // Create memory entry for significant conversations
-    const isSignificant = message.length > 50 || 
-      message.includes('决策') || 
-      message.includes('战略') || 
+    // Create memory entry for significant conversations (non-blocking)
+    const isSignificant = message.length > 50 ||
+      message.includes('决策') ||
+      message.includes('战略') ||
       message.includes('风险') ||
       message.includes('分析') ||
       message.includes('评估')
 
     if (isSignificant) {
-      await db.memoryEntry.create({
-        data: {
-          sourceType: 'chat',
-          content: `对话: Q=${message.substring(0, 80)}... A=${aiResponse.substring(0, 80)}...`,
-          tags: '对话,创始人助手',
-          relevanceScore: 0.7,
-        },
-      })
+      await safeDbOp(() =>
+        db.memoryEntry.create({
+          data: {
+            sourceType: 'chat',
+            content: `对话: Q=${message.substring(0, 80)}... A=${aiResponse!.substring(0, 80)}...`,
+            tags: '对话,创始人助手',
+            relevanceScore: 0.7,
+          },
+        })
+      )
     }
 
-    // Create audit log for the chat interaction
-    await db.auditLog.create({
-      data: {
-        action: 'chat',
-        module: 'cognitive',
-        entityType: 'chatMessage',
-        details: JSON.stringify({
-          sessionId: sessionId || 'anonymous',
-          soulInjected: !!soulContent,
-          isSignificant,
-          provider: usedProvider,
-        }),
-        performedBy: 'system',
-      },
-    })
+    // Create audit log for the chat interaction (non-blocking)
+    await safeDbOp(() =>
+      db.auditLog.create({
+        data: {
+          action: 'chat',
+          module: 'cognitive',
+          entityType: 'chatMessage',
+          details: JSON.stringify({
+            sessionId: sessionId || 'anonymous',
+            soulInjected: !!soulContent,
+            isSignificant,
+            provider: usedProvider,
+          }),
+          performedBy: 'system',
+        },
+      })
+    )
 
     return NextResponse.json({
       success: true,
@@ -274,8 +293,9 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('Chat API error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI response'
     return NextResponse.json(
-      { error: 'Failed to get AI response' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
@@ -292,15 +312,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'sessionId is required' }, { status: 400 })
     }
 
-    const messages = await db.chatMessage.findMany({
-      where: { sessionId },
-      orderBy: { createdAt: 'asc' },
-      take: limit,
-    })
+    const messages = await safeDbOp(() =>
+      db.chatMessage.findMany({
+        where: { sessionId },
+        orderBy: { createdAt: 'asc' },
+        take: limit,
+      })
+    )
 
-    return NextResponse.json({ messages })
+    return NextResponse.json({ messages: messages || [] })
   } catch (error) {
     console.error('Failed to fetch chat history:', error)
-    return NextResponse.json({ error: 'Failed to fetch chat history' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch chat history', messages: [] }, { status: 500 })
   }
 }
