@@ -351,8 +351,7 @@ export default function Home() {
     // Close mobile sidebar on navigation
     setMobileMenuOpen(false)
     // Give a small window for the loading bar to show before module renders
-    const timer = setTimeout(() => setIsModuleLoading(false), 600)
-    return () => clearTimeout(timer)
+    setTimeout(() => setIsModuleLoading(false), 600)
   }, [activeModule])
 
   // Show toast on WebSocket events (with debounce to avoid spam)
@@ -495,7 +494,7 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* Mobile Menu Overlay */}
+        {/* Mobile Menu Overlay - only renders in DOM when open and on mobile */}
         {mobileMenuOpen && (
           <div
             className="fixed inset-0 z-40 bg-black/50 md:hidden"
@@ -503,31 +502,30 @@ export default function Home() {
           />
         )}
 
-        {/* Mobile Sidebar */}
-        <aside
-          className={cn(
-            "fixed inset-y-0 left-0 z-50 w-[280px] border-r bg-card transition-transform duration-300 md:hidden",
-            mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-          )}
-        >
-          <div className="flex items-center justify-between p-4 pb-2">
-            <span className="text-sm font-semibold">导航菜单</span>
-            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <Separator />
-          <SidebarContent
-            activeModule={activeModule}
-            sidebarCollapsed={false}
-            theme={resolvedTheme}
-            mounted={mounted}
-            onNavigate={handleNavigate}
-            onToggleTheme={toggleTheme}
-            onOpenSettings={() => setSettingsPanelOpen(true)}
-            onMobileClose={() => setMobileMenuOpen(false)}
-          />
-        </aside>
+        {/* Mobile Sidebar - only renders when menu is open, completely hidden on md+ */}
+        {mobileMenuOpen && (
+          <aside
+            className="fixed inset-y-0 left-0 z-50 w-[280px] border-r bg-card md:hidden"
+          >
+            <div className="flex items-center justify-between p-4 pb-2">
+              <span className="text-sm font-semibold">导航菜单</span>
+              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <Separator />
+            <SidebarContent
+              activeModule={activeModule}
+              sidebarCollapsed={false}
+              theme={resolvedTheme}
+              mounted={mounted}
+              onNavigate={handleNavigate}
+              onToggleTheme={toggleTheme}
+              onOpenSettings={() => setSettingsPanelOpen(true)}
+              onMobileClose={() => setMobileMenuOpen(false)}
+            />
+          </aside>
+        )}
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0">
