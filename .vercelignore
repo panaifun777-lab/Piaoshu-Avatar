@@ -1,0 +1,7 @@
+node_modules
+.next
+.git
+db/*.db
+db/*.db-journal
+mini-services
+dev.log

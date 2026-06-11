@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
+const isVercel = process.env.VERCEL === '1'
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Only use standalone output for non-Vercel deployments (Docker, etc.)
+  // Vercel handles its own deployment format
+  output: isVercel ? undefined : "standalone",
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
@@ -14,6 +18,7 @@ const nextConfig: NextConfig = {
     'localhost',
     '21.0.3.175',
   ],
+  serverExternalPackages: ['@libsql/client'],
 };
 
 export default nextConfig;
