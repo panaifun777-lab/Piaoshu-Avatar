@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { initVercelDb } from '@/lib/vercel-db-init'
 
 export const authOptions = {
   providers: [
@@ -13,6 +14,9 @@ export const authOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
+
+        // On Vercel, ensure DB tables exist before querying
+        if (process.env.VERCEL === '1') await initVercelDb()
 
         // Support login by email or username (name field)
         // First try email lookup
@@ -58,6 +62,10 @@ export const authOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET || 'piaoshu-founder-os-secret-key-v1',
+  // Auto-detect NEXTAUTH_URL on Vercel if not explicitly set
+  ...(process.env.VERCEL_URL && !process.env.NEXTAUTH_URL
+    ? {} // NextAuth auto-detects from request host on Vercel
+    : {}),
 }
 
 const handler = NextAuth(authOptions)

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { initVercelDb } from '@/lib/vercel-db-init'
 
 const ADMIN_EMAIL = 'piaoshu001@piaoshu.ai'
 const ADMIN_NAME = 'Piaoshu001'
@@ -8,6 +9,9 @@ const ADMIN_PASSWORD = 'Gai169999$'
 
 export async function POST() {
   try {
+    // On Vercel, ensure DB tables exist before seeding
+    if (process.env.VERCEL === '1') await initVercelDb()
+    
     // Check if admin already exists
     const existing = await db.user.findUnique({
       where: { email: ADMIN_EMAIL },

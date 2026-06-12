@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { initVercelDb } from '@/lib/vercel-db-init'
 
 export async function POST(req: NextRequest) {
   try {
+    // On Vercel, ensure DB tables exist
+    if (process.env.VERCEL === '1') await initVercelDb()
     const body = await req.json()
     const { email, password } = body
 

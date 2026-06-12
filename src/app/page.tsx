@@ -33,6 +33,7 @@ import {
   Quote,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { PiaoshuLogoSidebar } from '@/components/piaoshu/piaoshu-logo'
 import { useWebSocket, type WSEventType } from '@/lib/use-websocket'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -199,9 +200,7 @@ function SidebarContent({ activeModule, sidebarCollapsed, theme, mounted, onNavi
       {/* Logo & Brand */}
       <div className="p-4 pb-2">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 h-10 w-10">
-            <span className="text-xl" role="img" aria-label="Piaoshu Avatar Clone">🧬</span>
-          </div>
+          <PiaoshuLogoSidebar collapsed={false} />
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-base font-bold tracking-tight text-foreground truncate">飘叔 Piaoshu</span>
@@ -577,8 +576,8 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 h-12 w-12 animate-pulse">
-            <span className="text-2xl">🧬</span>
+          <div className="animate-pulse">
+            <PiaoshuLogoSidebar collapsed={false} />
           </div>
           <span className="text-xs text-gray-500 font-mono animate-pulse">Loading Piaoshu Avatar OS...</span>
         </div>

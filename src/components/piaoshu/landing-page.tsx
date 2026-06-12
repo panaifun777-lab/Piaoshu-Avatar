@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { PiaoshuLogo } from '@/components/piaoshu/piaoshu-logo'
 import {
   Brain,
   Shield,
@@ -355,7 +356,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 h-9 w-9">
-              <span className="text-lg" role="img" aria-label="Piaoshu">🧬</span>
+              <PiaoshuLogo size="sm" />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-bold tracking-tight">飘叔 Avatar OS</span>
@@ -956,9 +957,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 h-7 w-7">
-                <span className="text-sm">🧬</span>
-              </div>
+              <PiaoshuLogo size="sm" />
               <div>
                 <span className="text-xs font-semibold">飘叔 Avatar OS</span>
                 <span className="text-[9px] text-gray-600 font-mono ml-2">v0.1</span>
