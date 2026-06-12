@@ -53,16 +53,17 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
 
       if (result?.error) {
         toast.error('登录失败：用户名/邮箱或密码错误')
+        setIsLoading(false)
       } else {
         toast.success('登录成功，欢迎回来！')
         onOpenChange(false)
-        // Reset form
         setLoginIdentifier('')
         setLoginPassword('')
+        // Force page refresh to pick up new session (critical for Vercel)
+        setTimeout(() => window.location.reload(), 300)
       }
     } catch {
       toast.error('登录失败，请稍后重试')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -108,17 +109,17 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
       if (result?.error) {
         toast.success('注册成功！请手动登录')
         setActiveTab('login')
+        setIsLoading(false)
       } else {
         toast.success('注册成功，欢迎加入飘叔！')
         onOpenChange(false)
-        // Reset form
         setRegisterName('')
         setRegisterEmail('')
         setRegisterPassword('')
+        setTimeout(() => window.location.reload(), 300)
       }
     } catch {
       toast.error('注册失败，请稍后重试')
-    } finally {
       setIsLoading(false)
     }
   }
