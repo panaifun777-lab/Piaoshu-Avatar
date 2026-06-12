@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryProvider } from "@/lib/query-provider";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/components/providers/session-provider";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,7 +49,6 @@ export default function RootLayout({
           </AuthProvider>
         </QueryProvider>
         <Toaster />
-        <SpeedInsights />
       </body>
     </html>
   );
