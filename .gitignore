@@ -1,75 +1,77 @@
-# dependencies
-node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Sync .project/sourceTexts/ folder (source text files)
 
-# testing
-/coverage
+# Don't sync user-specific SQLite databases
+.project/*.sqlite
 
-# next.js
-/.next/
-/out/
+# Don't sync SQLite auxiliary files
+.project/*.sqlite-wal
+.project/*.sqlite-shm
 
-# production
-/build
+# Don't sync temporary files
+.project/.temp/**
 
-# misc
+# Don't sync user-specific files
+.project/complete_drafts.txt
+.project/localProjectSettings.json
+.project/localProjectSwap.json
+copilot-messages.log
+
+# Archive formats
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+
+# Windows executables and installers
+*.exe
+*.msi
+*.bat
+*.cmd
+*.com
+*.scr
+*.dll
+
+# macOS executables and disk images
+*.dmg
+*.pkg
+
+# Disk images and virtual machine files
+*.iso
+*.img
+*.vhd
+*.vmdk
+
+# System files
 .DS_Store
-*.pem
-*.log
-dev.log
-dev.out.log
+.project/attachments/files/**
 
-# env files
-.env*
-!.env.example
+# Environment (secrets)
+.env
+.env.local
+.env.*.local
 
-# vercel
-.vercel
+# Dependencies
+node_modules/
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Build output
+.next/
 
-# local dev
-local-*
-.claude
-.z-ai-config
-test
-prompt
-server.log
+# Database
+prisma/*.db
+prisma/*.db-journal
 
-# Skills directory (SDK, not project code)
-/skills/
+# IDE
+.vscode/
+.idea/
 
-# Database files
-db/*.db
-db/*.db-journal
+# Codex history
+.codex-history/
 
-# Agent context (work logs)
-agent-ctx/
-
-# Mini services node_modules
-mini-services/*/node_modules/
-
-# Upload temp files
-upload/*.zip
-upload/*.pptx
-
-# Screenshots (temp)
-screenshot*.png
-second-me-*.json
-polsia-*.json
-
-# Download
-download/
-
-# Verification screenshots
-verify-*.png
-screenshot-*.json
-mini-services/*/log.txt
+# OS
+Thumbs.db
