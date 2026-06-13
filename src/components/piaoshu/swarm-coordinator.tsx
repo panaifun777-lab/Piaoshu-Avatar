@@ -421,6 +421,15 @@ export function SwarmCoordinator() {
             {serviceOnline ? <Wifi className="h-3 w-3 mr-1" /> : <WifiOff className="h-3 w-3 mr-1" />}
             {serviceOnline ? '在线' : '离线'}
           </Badge>
+          <a
+            href="/swarm"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/30 transition-all text-xs font-mono text-cyan-400 no-underline"
+          >
+            <Zap className="h-3 w-3" />
+            终端模式
+          </a>
           {status && (
             <>
               <Badge variant="secondary" className="text-[10px] h-6 border-0">

@@ -1595,3 +1595,119 @@ export function useKnowledgeSeedStatus(cloneId?: string) {
     ),
   })
 }
+
+// ─── Queue & Task Scheduling Hooks ─────────────────────────
+
+export function useQueueStats() {
+  return useQuery({
+    queryKey: ['queue', 'stats'],
+    queryFn: () => fetch('/api/queue/stats').then(r => r.json()),
+    refetchInterval: 10000,
+  })
+}
+
+export function useScheduleTask() {
+  return useMutation({
+    mutationFn: (data: { type: string; payload: Record<string, unknown>; priority?: number; delay?: number }) =>
+      fetch('/api/queue/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then(r => r.json()),
+  })
+}
+
+// ===== Reflection Engine =====
+export function useReflectOnText() {
+  return useMutation({
+    mutationFn: (data: { conversation_text: string; user_id?: string }) =>
+      apiFetch<{
+        success: boolean
+        data: {
+          expression_dna_updates: { new_slangs: string[]; forbidden_phrases: string[]; tone_adjustments: string }
+          mental_model_updates: Array<{ heuristics: string; decision_rules: string[]; domain: string; confidence: number }>
+          knowledge_nodes: Array<{ entity: string; relation: string; notes: string }>
+          mood_summary: string
+          shadow_score: number
+        }
+        metadata: { provider: string; saved_memory_ids: string[]; knowledge_node_count: number; mental_model_count: number; shadow_score: number }
+      }>('/api/reflection/extract', { method: 'POST', body: JSON.stringify(data) }),
+  })
+}
+
+export function useUpdateSoul() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      updates: {
+        expression_dna_updates: { new_slangs: string[]; forbidden_phrases: string[]; tone_adjustments: string }
+        mental_model_updates: Array<{ heuristics: string; decision_rules: string[]; domain: string; confidence: number }>
+        knowledge_nodes: Array<{ entity: string; relation: string; notes: string }>
+        mood_summary: string
+        shadow_score: number
+      }
+    }) =>
+      apiFetch<{ success: boolean; updated_fields: string[]; new_version: number; previous_version: number; message: string }>(
+        '/api/reflection/update-soul',
+        { method: 'POST', body: JSON.stringify(data) }
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['soulConfig'] }),
+  })
+}
+
+// ===== Leaderboard =====
+
+export interface LeaderboardEntry {
+  rank: number
+  username: string
+  score: number
+}
+
+export interface LeaderboardResponse {
+  success: boolean
+  leaderboard: LeaderboardEntry[]
+  user?: { rank: number | null; score: number }
+  _fallback?: boolean
+}
+
+export function useLeaderboard(username?: string) {
+  return useQuery({
+    queryKey: ['leaderboard', username],
+    queryFn: () =>
+      apiFetch<LeaderboardResponse>(
+        username ? `/api/leaderboard?user=${encodeURIComponent(username)}` : '/api/leaderboard'
+      ),
+    refetchInterval: 30000,
+  })
+}
+
+export function useSubmitScore() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { username: string; text: string }) =>
+      apiFetch<{
+        success: boolean
+        username: string
+        score_increment: number
+        new_score: number
+        rank: number | null
+        breakdown?: { base: number; bonuses: Array<{ label: string; bonus: number }> }
+        _fallback?: boolean
+      }>('/api/leaderboard/score', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leaderboard'] }),
+  })
+}
+
+// ===== Shadow Test =====
+
+export function useShadowTest() {
+  return useMutation({
+    mutationFn: (data: { scenario: string; personality?: string }) =>
+      apiFetch<{
+        success: boolean
+        response: string
+        personality_used: string
+        mode?: string
+      }>('/api/shadow', { method: 'POST', body: JSON.stringify(data) }),
+  })
+}

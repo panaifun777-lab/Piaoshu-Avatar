@@ -1,17 +1,217 @@
 /**
  * Telegram Bot Mini-Service for Piaoshu Avatar OS
- * Periodic message pushing every 4 hours across 5 content categories
+ * Two-way interactive dialog: Shadow Test, Leaderboard, Daily Reflection, Voice, Auto-Reflection
  * Port: 3006 (health check HTTP server)
  */
 
-const BOT_TOKEN = "8894219175:AAG8Hje6ll_qKCFw2yt3MV_Afx43P_VKLeE";
+// ============================================================
+// Configuration
+// ============================================================
+
+const BOT_TOKEN = process.env.TG_BOT_TOKEN || "8894219175:***";
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const NEXT_API = process.env.NEXT_API_URL || "http://localhost:3000";
 const PUSH_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
 const PORT = 3006;
-const API_TIMEOUT_MS = 10000; // 10s timeout for TG API calls
+const API_TIMEOUT_MS = 15000;
+const REDIS_HOST = process.env.REDIS_HOST || "127.0.0.1";
+const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 // ============================================================
-// Message Templates - 5 Categories
+// Minimal Redis Client (RESP protocol over Bun TCP)
+// ============================================================
+
+type PendingRequest = {
+  resolve: (val: any) => void;
+  reject: (err: Error) => void;
+};
+
+class MiniRedis {
+  private socket: any = null;
+  private buffer = "";
+  private pending: PendingRequest[] = [];
+  private encoder = new TextEncoder();
+
+  async connect(host: string, port: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        const sock = Bun.connect({
+          hostname: host,
+          port,
+          socket: {
+            data: (_s: any, data: Uint8Array) => {
+              this.buffer += new TextDecoder().decode(data);
+              this.processBuffer();
+            },
+            open: (s: any) => {
+              // Store the socket from callback (primary path)
+              if (!this.socket || typeof this.socket.write !== "function") {
+                this.socket = s;
+              }
+              resolve();
+            },
+            close: (_s: any) => { this.socket = null; },
+            error: (_s: any, err: Error) => {
+              if (this.pending.length > 0) {
+                const p = this.pending.shift()!;
+                p.reject(err);
+              }
+            },
+          },
+        });
+        // Handle sync return (some Bun versions return socket directly)
+        if (sock && typeof (sock as any).write === "function") {
+          this.socket = sock;
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  isConnected(): boolean {
+    return this.socket !== null;
+  }
+
+  private write(data: string): void {
+    if (this.socket) {
+      this.socket.write(this.encoder.encode(data));
+    }
+  }
+
+  private sendCommand(args: string[]): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error("Redis not connected"));
+        return;
+      }
+      const cmd = `*${args.length}\r\n` + args.map(a => `$${a.length}\r\n${a}\r\n`).join("");
+      this.pending.push({ resolve, reject });
+      this.write(cmd);
+    });
+  }
+
+  private processBuffer(): void {
+    while (this.buffer.length > 0 && this.pending.length > 0) {
+      const firstChar = this.buffer[0];
+
+      if (firstChar === "+") {
+        // Simple string
+        const end = this.buffer.indexOf("\r\n");
+        if (end === -1) return;
+        const val = this.buffer.substring(1, end);
+        this.buffer = this.buffer.substring(end + 2);
+        this.pending.shift()!.resolve(val);
+      } else if (firstChar === "-") {
+        // Error
+        const end = this.buffer.indexOf("\r\n");
+        if (end === -1) return;
+        const err = this.buffer.substring(1, end);
+        this.buffer = this.buffer.substring(end + 2);
+        this.pending.shift()!.reject(new Error(err));
+      } else if (firstChar === ":") {
+        // Integer
+        const end = this.buffer.indexOf("\r\n");
+        if (end === -1) return;
+        const val = parseInt(this.buffer.substring(1, end));
+        this.buffer = this.buffer.substring(end + 2);
+        this.pending.shift()!.resolve(val);
+      } else if (firstChar === "$") {
+        // Bulk string
+        const end = this.buffer.indexOf("\r\n");
+        if (end === -1) return;
+        const len = parseInt(this.buffer.substring(1, end));
+        if (len === -1) {
+          this.buffer = this.buffer.substring(end + 2);
+          this.pending.shift()!.resolve(null);
+        } else {
+          const start = end + 2;
+          const dataEnd = start + len;
+          if (this.buffer.length < dataEnd + 2) return;
+          const val = this.buffer.substring(start, dataEnd);
+          this.buffer = this.buffer.substring(dataEnd + 2);
+          this.pending.shift()!.resolve(val);
+        }
+      } else if (firstChar === "*") {
+        // Array
+        const end = this.buffer.indexOf("\r\n");
+        if (end === -1) return;
+        const count = parseInt(this.buffer.substring(1, end));
+        this.buffer = this.buffer.substring(end + 2);
+        const result: any[] = [];
+        for (let i = 0; i < count; i++) {
+          if (this.buffer.length === 0) {
+            // Save partial state — put remaining back
+            this.buffer = `*${count - i}\r\n` + this.buffer;
+            this.pending.shift()!.resolve(result.concat([null]).slice(0, -1)); // partial
+            return;
+          }
+          const itemFirstChar = this.buffer[0];
+          if (itemFirstChar === "$") {
+            const itemEnd = this.buffer.indexOf("\r\n");
+            if (itemEnd === -1) { this.pending.shift()!.resolve(result); return; }
+            const itemLen = parseInt(this.buffer.substring(1, itemEnd));
+            if (itemLen === -1) {
+              this.buffer = this.buffer.substring(itemEnd + 2);
+              result.push(null);
+            } else {
+              const itemStart = itemEnd + 2;
+              if (this.buffer.length < itemStart + itemLen + 2) {
+                this.pending.shift()!.resolve(result);
+                return;
+              }
+              const val = this.buffer.substring(itemStart, itemStart + itemLen);
+              this.buffer = this.buffer.substring(itemStart + itemLen + 2);
+              result.push(val);
+            }
+          } else {
+            // Unexpected type inside array, skip
+            this.pending.shift()!.resolve(result);
+            return;
+          }
+        }
+        this.pending.shift()!.resolve(result);
+      } else {
+        // Unknown, discard
+        this.buffer = this.buffer.substring(1);
+      }
+    }
+  }
+
+  async ping(): Promise<string> {
+    return this.sendCommand(["PING"]);
+  }
+
+  async zadd(key: string, score: number, member: string): Promise<number> {
+    return this.sendCommand(["ZADD", key, String(score), member]);
+  }
+
+  async zrange(
+    key: string,
+    start: number,
+    stop: number,
+    withScores: boolean = false
+  ): Promise<string[]> {
+    const args = ["ZRANGE", key, String(start), String(stop)];
+    if (withScores) args.push("WITHSCORES");
+    return this.sendCommand(args);
+  }
+
+  async zcard(key: string): Promise<number> {
+    return this.sendCommand(["ZCARD", key]);
+  }
+
+  async close(): Promise<void> {
+    if (this.socket) {
+      this.socket.end();
+      this.socket = null;
+    }
+  }
+}
+
+// ============================================================
+// Message Templates — 5 Categories (preserved from v1)
 // ============================================================
 
 const MESSAGES: Record<string, string[]> = {
@@ -82,7 +282,6 @@ const MESSAGES: Record<string, string[]> = {
   ]
 };
 
-// Category display names and emojis
 const CATEGORY_META: Record<string, { name: string; emoji: string }> = {
   web4: { name: "Web4.0洞察", emoji: "🌐" },
   ai_clone: { name: "AI分身技术", emoji: "🤖" },
@@ -92,6 +291,23 @@ const CATEGORY_META: Record<string, { name: string; emoji: string }> = {
 };
 
 const CATEGORY_KEYS = Object.keys(MESSAGES);
+
+// ============================================================
+// Reflection Prompts (rotating)
+// ============================================================
+
+const REFLECTION_PROMPTS: string[] = [
+  "本尊，今天有没有遇到让你想骂人的事？跟我说说，我帮你复盘。",
+  "今天哪个决策让你犹豫了？把纠结的过程倒出来，我陪你推演一遍。",
+  "你今天有没有发现什么反直觉的现象？反常的东西往往藏着机会。",
+  "今天跟谁说话让你最累？为什么？——有时候累是因为你在乎。",
+  "你今天做的最得意的一件事是什么？不用谦虚，对自己要诚实。",
+  "如果今天重新来过，你会改哪个选择？为什么？",
+  "今天有没有什么事让你觉得自己被误解了？把话说完，我听着。",
+  "你今天学到了什么新东西？哪怕是一个小技巧也行。补丁式升级也是升级。",
+  "你今天有没有碰到让你觉得'这世界真魔幻'的事？",
+  "回顾今天，有没有什么事你不做会后悔，做了又觉得不值？这种矛盾值得深挖。",
+];
 
 // ============================================================
 // State
@@ -106,6 +322,19 @@ let pushCount = 0;
 let startTime = new Date();
 let botUsername = "AvatarOS_Bot";
 let tgApiAvailable = false;
+let reflectionPromptIndex = 0;
+let lastDailyReflectionDate = ""; // Track which date we last sent daily reflection
+
+// Shadow test state: per-user pending rating (chatId -> scenario)
+let pendingRate: Map<number, string> = new Map();
+
+// Redis client
+let redis: MiniRedis | null = null;
+let redisAvailable = false;
+
+// Cached SOUL.md content
+let soulCache: string | null = null;
+let soulCacheTime = 0;
 
 // Initialize message indices
 for (const key of CATEGORY_KEYS) {
@@ -113,7 +342,49 @@ for (const key of CATEGORY_KEYS) {
 }
 
 // ============================================================
-// Telegram Bot API Helpers (with timeout and error resilience)
+// Next.js API Helpers
+// ============================================================
+
+async function nextApi(path: string, body?: any): Promise<any> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    const res = await fetch(`${NEXT_API}${path}`, {
+      method: body ? "POST" : "GET",
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return await res.json();
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      console.warn(`[Next API Timeout] ${path}`);
+    } else {
+      console.warn(`[Next API Error] ${path}:`, err?.message || err);
+    }
+    return null;
+  }
+}
+
+async function getSoulContent(): Promise<string> {
+  if (soulCache && (Date.now() - soulCacheTime) < 300000) {
+    return soulCache;
+  }
+  try {
+    const data = await nextApi("/api/cognitive/soul");
+    if (data?.success && data?.data?.content) {
+      soulCache = data.data.content;
+      soulCacheTime = Date.now();
+      return soulCache;
+    }
+  } catch { /* fallback below */ }
+  // Fallback: return default SOUL content piece
+  return `你是飘叔(Piaoshu)的数字分身。短句为主，结论先行，禁用赋能/闭环/抓手等黑话。高断言，不讨好。第一人称"我"。`;
+}
+
+// ============================================================
+// Telegram Bot API Helpers
 // ============================================================
 
 async function telegramAPI(method: string, body: Record<string, unknown>): Promise<any> {
@@ -146,12 +417,14 @@ async function telegramAPI(method: string, body: Record<string, unknown>): Promi
   }
 }
 
-async function sendMessage(chatId: number | string, text: string): Promise<any> {
-  return telegramAPI("sendMessage", {
+async function sendMessage(chatId: number | string, text: string, parseMode?: string): Promise<any> {
+  const body: Record<string, unknown> = {
     chat_id: chatId,
     text,
     disable_web_page_preview: true,
-  });
+  };
+  if (parseMode) body.parse_mode = parseMode;
+  return telegramAPI("sendMessage", body);
 }
 
 async function getBotInfo(): Promise<string> {
@@ -164,30 +437,43 @@ async function getBotInfo(): Promise<string> {
   return botUsername;
 }
 
+/** Download a file from Telegram and return as Buffer */
+async function downloadFile(fileId: string): Promise<Uint8Array | null> {
+  try {
+    const fileData = await telegramAPI("getFile", { file_id: fileId });
+    if (!fileData?.ok) return null;
+    const filePath = fileData.result.file_path;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const res = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  } catch (err) {
+    console.error("[Download] Failed to download file:", err);
+    return null;
+  }
+}
+
 // ============================================================
-// Message Selection & Rotation
+// Message Selection & Rotation (preserved)
 // ============================================================
 
 function getNextMessage(): { category: string; message: string; meta: { name: string; emoji: string } } {
   const categoryKey = CATEGORY_KEYS[currentCategoryIndex % CATEGORY_KEYS.length];
   const messages = MESSAGES[categoryKey];
   const msgIdx = currentMessageIndex[categoryKey] % messages.length;
-
   const message = messages[msgIdx];
-
-  // Advance indices
   currentMessageIndex[categoryKey] = msgIdx + 1;
   currentCategoryIndex = (currentCategoryIndex + 1) % CATEGORY_KEYS.length;
-
-  return {
-    category: categoryKey,
-    message,
-    meta: CATEGORY_META[categoryKey],
-  };
+  return { category: categoryKey, message, meta: CATEGORY_META[categoryKey] };
 }
 
 // ============================================================
-// Periodic Push
+// Periodic Push (preserved)
 // ============================================================
 
 async function pushToAll(): Promise<void> {
@@ -217,28 +503,302 @@ async function pushToAll(): Promise<void> {
 }
 
 // ============================================================
-// Command Handlers
+// Shadow Test (/shadow)
+// ============================================================
+
+async function handleShadow(chatId: number, scenario: string, from: any): Promise<void> {
+  if (!scenario.trim()) {
+    await sendMessage(chatId, "❓ 请在 /shadow 后输入场景描述。\n\n示例：\n/shadow 如果V神发推说以太坊升级延期，你替我回他");
+    return;
+  }
+
+  await sendMessage(chatId, "🧬 影子模式启动中…正在调用你的数字分身生成回复…");
+
+  try {
+    const soulContent = await getSoulContent();
+    const systemPrompt = `${soulContent}\n\n你现在要进行"影子测试"——假设你（飘叔的分身）面对以下场景。你需要生成一个回复，必须完全符合飘叔的语气、风格和价值观。\n\n核心规则：\n- 短句为主（15-20字/句），结论先行\n- 禁用：赋能、闭环、抓手、沉淀、对齐、颗粒度\n- 高断言，不讨好，不写开场白套话\n- 第一人称"我"回应\n- 写完直接停住，不收尾`;
+
+    const data = await nextApi("/api/chat", {
+      message: `场景：${scenario}\n\n请以飘叔身份生成回复：`,
+      systemPrompt,
+    });
+
+    if (data?.success && data?.response) {
+      pendingRate.set(chatId, scenario);
+      const response = `🧬 影子测试\n━━━━━━━━━━━━━━━\n\n🎭 场景:\n${scenario}\n\n💬 分身回复:\n${data.response}\n\n━━━━━━━━━━━━━━━\n你觉得像你吗？评分: /rate_yes 或 /rate_no`;
+      await sendMessage(chatId, response);
+    } else {
+      await sendMessage(chatId, "❌ 影子测试失败：AI分身暂时无法生成回复。请稍后再试。");
+    }
+  } catch (err) {
+    console.error("[Shadow] Error:", err);
+    await sendMessage(chatId, "❌ 影子测试出错，请稍后再试。");
+  }
+}
+
+async function handleRateYes(chatId: number): Promise<void> {
+  const scenario = pendingRate.get(chatId);
+  pendingRate.delete(chatId);
+  if (scenario) {
+    // Record the positive rating to Redis leaderboard
+    await recordRating(chatId, true);
+    await sendMessage(chatId, "✅ 收到！像就对了，影子质量 +1。继续测试？换个场景 /shadow <新场景>");
+  } else {
+    await sendMessage(chatId, "🤔 没有找到待评分的影子测试。先用 /shadow <场景> 生成一个吧。");
+  }
+}
+
+async function handleRateNo(chatId: number): Promise<void> {
+  const scenario = pendingRate.get(chatId);
+  pendingRate.delete(chatId);
+  if (scenario) {
+    await recordRating(chatId, false);
+    await sendMessage(chatId, "📝 收到，不像。说明SOUL.md还需要调优。换个姿势再试？/shadow <新场景>");
+  } else {
+    await sendMessage(chatId, "🤔 没有找到待评分的影子测试。先用 /shadow <场景> 生成一个吧。");
+  }
+}
+
+async function recordRating(chatId: number, positive: boolean): Promise<void> {
+  if (!redisAvailable || !redis) return;
+  try {
+    const score = positive ? 1 : -1;
+    await redis.zadd("leaderboard:global", score, `chat_${chatId}`);
+  } catch (err) {
+    console.warn("[Redis] Failed to record rating:", err);
+  }
+}
+
+// ============================================================
+// Leaderboard (/leaderboard)
+// ============================================================
+
+async function handleLeaderboard(chatId: number): Promise<void> {
+  if (!redisAvailable || !redis) {
+    await sendMessage(chatId,
+      "🏆 排行榜\n\n⚠️ Redis 未连接，排行榜暂不可用。\n\n等Redis上线后，这里会显示分身质量评分Top10。"
+    );
+    return;
+  }
+
+  try {
+    const results = await redis.zrange("leaderboard:global", 0, 9, true);
+    if (!results || results.length === 0) {
+      await sendMessage(chatId, "🏆 排行榜\n\n暂无数据。影子分身等你来测试！\n发送 /shadow <场景> 开始。");
+      return;
+    }
+
+    const medals = ["🥇", "🥈", "🥉"];
+    let board = "🏆 分身质量排行榜 Top10\n━━━━━━━━━━━━━━━\n\n";
+    for (let i = 0; i < results.length; i += 2) {
+      const member = results[i];
+      const score = results[i + 1];
+      const rank = Math.floor(i / 2) + 1;
+      const medal = medals[rank - 1] || `${rank}.`;
+      board += `${medal} ${member.replace("chat_", "用户")} — ${score}分\n`;
+    }
+    board += "\n━━━━━━━━━━━━━━━\n💡 /shadow 测试越多，排名越准";
+
+    await sendMessage(chatId, `\`\`\`\n${board}\n\`\`\``, "Markdown");
+  } catch (err) {
+    console.error("[Leaderboard] Error:", err);
+    await sendMessage(chatId, "🏆 排行榜\n\n⚠️ 查询失败，请稍后再试。");
+  }
+}
+
+// ============================================================
+// Reflection (/reflect)
+// ============================================================
+
+async function handleReflect(chatId: number, from: any): Promise<void> {
+  const name = from?.first_name || "本尊";
+  const prompt = REFLECTION_PROMPTS[reflectionPromptIndex % REFLECTION_PROMPTS.length];
+  reflectionPromptIndex++;
+
+  const now = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+  const timeAwarePrefix = getTimeAwarePrefix();
+
+  await sendMessage(chatId, `🌙 每日反思 — ${now}\n━━━━━━━━━━━━━━━\n\n${timeAwarePrefix}${name}，${prompt}\n\n━━━━━━━━━━━━━━━\n💬 直接回复你的想法，Hermes会帮你消化和提炼。`);
+}
+
+function getTimeAwarePrefix(): string {
+  const hour = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Shanghai",
+    hour: "numeric",
+    hour12: false,
+  });
+  const h = parseInt(hour);
+  if (h >= 6 && h < 12) return "☀️ 早上好，";
+  if (h >= 12 && h < 18) return "🌤 下午好，";
+  if (h >= 18 && h < 22) return "🌅 傍晚好，";
+  return "🌙 夜深了，";
+}
+
+// ============================================================
+// Voice Message Handling
+// ============================================================
+
+async function handleVoice(chatId: number, voice: any, from: any): Promise<void> {
+  await sendMessage(chatId, "🎙️ 收到语音消息，正在转写中…");
+
+  try {
+    const fileId = voice.file_id;
+    const audioData = await downloadFile(fileId);
+    if (!audioData) {
+      await sendMessage(chatId, "❌ 无法下载语音文件。请稍后再试或改用文字。");
+      return;
+    }
+
+    const transcription = await transcribeVoice(audioData);
+    if (!transcription) {
+      await sendMessage(chatId, "❌ 语音转写失败。请检查OpenAI API Key配置，或用文字发送。\n\n💡 提示：需在环境变量中设置 OPENAI_API_KEY");
+      return;
+    }
+
+    await sendMessage(chatId, `🎙️ 转写结果：\n\n"${transcription}"`);
+
+    // Treat as normal message text for further processing
+    if (transcription.trim()) {
+      await processUserMessage(chatId, transcription, from);
+    }
+  } catch (err) {
+    console.error("[Voice] Error:", err);
+    await sendMessage(chatId, "❌ 语音处理出错，请稍后再试。");
+  }
+}
+
+async function transcribeVoice(audioData: Uint8Array): Promise<string | null> {
+  // Try Next.js proxy first
+  try {
+    const proxyData = await nextApi("/api/whisper", { audioData: Buffer.from(audioData).toString("base64") });
+    if (proxyData?.success && proxyData?.text) {
+      return proxyData.text;
+    }
+  } catch { /* fall through to direct API */ }
+
+  // Try OpenAI Whisper API directly
+  if (!OPENAI_API_KEY) {
+    console.warn("[Whisper] No OPENAI_API_KEY set. Voice transcription unavailable.");
+    return null;
+  }
+
+  try {
+    const form = new FormData();
+    const blob = new Blob([audioData], { type: "audio/ogg" });
+    form.append("file", blob, "voice.ogg");
+    form.append("model", "whisper-1");
+    form.append("language", "zh");
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+      body: form,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      console.error("[Whisper] OpenAI API error:", res.status);
+      return null;
+    }
+
+    const data = await res.json();
+    return data.text || null;
+  } catch (err) {
+    console.error("[Whisper] Error:", err);
+    return null;
+  }
+}
+
+// ============================================================
+// Auto-Reflection Pipeline
+// ============================================================
+
+async function processUserMessage(chatId: number, text: string, from: any): Promise<void> {
+  // Acknowledge receipt
+  await sendMessage(chatId, "✨ 收到。Hermes 正在消化你的思考...");
+
+  // Forward to reflection extract API (fire-and-forget, non-blocking)
+  try {
+    const data = await nextApi("/api/reflection/extract", {
+      message: text,
+      chatId: String(chatId),
+      user: from?.first_name || "匿名",
+    });
+
+    if (data?.success) {
+      const insight = data.insight || data.summary;
+      if (insight) {
+        // If the API returns an insight, share it back
+        const name = from?.first_name || "本尊";
+        await sendMessage(chatId, `💎 Hermes 提炼：\n\n"${insight}"\n\n━━━━━━━━━━━━━━━\n继续聊？我一直在听。`);
+      }
+    }
+  } catch (err) {
+    console.error("[Reflection] Extract API error:", err);
+    // Non-blocking — don't bother the user with this error
+  }
+
+  // Also record to Redis leaderboard if available
+  if (redisAvailable && redis) {
+    try {
+      await redis.zadd("leaderboard:global", 0.5, `chat_${chatId}`);
+    } catch { /* ignore */ }
+  }
+}
+
+// ============================================================
+// Daily 10:30 PM Reflection Trigger
+// ============================================================
+
+function checkDailyReflection(): void {
+  const now = new Date();
+  const shanghaiTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+  const dateStr = shanghaiTime.toISOString().split("T")[0];
+  const hour = shanghaiTime.getHours();
+  const minute = shanghaiTime.getMinutes();
+
+  if (hour === 22 && minute === 30 && dateStr !== lastDailyReflectionDate) {
+    lastDailyReflectionDate = dateStr;
+    console.log(`[Daily] Triggering 10:30 PM reflection for ${dateStr}`);
+
+    const prompt = REFLECTION_PROMPTS[reflectionPromptIndex % REFLECTION_PROMPTS.length];
+    reflectionPromptIndex++;
+    const timeAwarePrefix = getTimeAwarePrefix();
+
+    for (const chatId of subscribedChats) {
+      sendMessage(chatId,
+        `🌙 每日反思 — ${dateStr} 22:30\n━━━━━━━━━━━━━━━\n\n${timeAwarePrefix}，${prompt}\n\n━━━━━━━━━━━━━━━\n💬 直接回复你的想法，Hermes会帮你消化和提炼。`
+      ).catch(err => console.error(`[Daily] Failed to send to ${chatId}:`, err));
+    }
+  }
+}
+
+// ============================================================
+// Command Handlers (preserved + new)
 // ============================================================
 
 async function handleStart(chatId: number, from: any): Promise<void> {
   const name = from?.first_name || "朋友";
-  const welcome = `👋 你好，${name}！\n\n我是飘叔AI分身推送Bot 🤖\n\n我定期推送以下内容：\n🌐 Web4.0洞察与趋势\n🤖 AI分身技术更新\n🎓 飘叔专业见解\n📡 AI行业资讯\n🚀 产品动态(Mirrome.me / panai.fun)\n\n使用 /subscribe 订阅定时推送\n使用 /help 查看所有命令\n\n⚡ Powered by AvatarOS`;
+  const welcome = `👋 你好，${name}！\n\n我是飘叔AI分身互动Bot 🤖\n\n✨ 新功能上线 — 双向互动模式：\n🧬 /shadow — 影子分身测试（AI替你回复）\n🏆 /leaderboard — 分身质量排行榜\n🌙 /reflect — 每日反思引导\n🎙️ 支持语音消息（直接发语音）\n\n📢 定时推送：\n🌐 Web4.0洞察 | 🤖 AI分身技术 | 🎓 飘叔见解\n📡 AI资讯 | 🚀 产品动态\n\n使用 /subscribe 订阅定时推送\n使用 /help 查看所有命令\n\n⚡ Powered by AvatarOS`;
   await sendMessage(chatId, welcome);
 }
 
 async function handleHelp(chatId: number): Promise<void> {
-  const help = `📖 命令列表\n\n/start — 欢迎消息\n/help — 显示此帮助\n/subscribe — 订阅定时推送\n/pushnow — 立即推送一条消息\n/status — 查看Bot状态\n\n📢 推送内容分类：\n🌐 Web4.0洞察\n🤖 AI分身技术\n🎓 飘叔专业见解\n📡 AI资讯\n🚀 产品动态\n\n⏰ 推送频率：每4小时\n🔄 自动轮换分类，确保内容多样性\n\n⚡ Powered by AvatarOS`;
+  const help = `📖 命令列表\n\n🧬 影子分身模式：\n/shadow <场景> — AI分身替你生成回复\n/rate_yes — 评分：像，很像\n/rate_no — 评分：不像，需要调优\n\n🏆 排行榜：\n/leaderboard — 分身质量 Top10\n\n🌙 反思模式：\n/reflect — 获取每日反思问题\n直接回复文字 — Hermes自动消化提炼\n\n📢 信息推送：\n/start — 欢迎消息\n/help — 显示此帮助\n/subscribe — 订阅定时推送（每4小时）\n/pushnow — 立即推送一条消息\n/status — 查看Bot状态\n\n🎙️ 语音消息：\n直接发送语音 — 自动转写+消化\n\n📢 推送内容分类：\n🌐 Web4.0洞察\n🤖 AI分身技术\n🎓 飘叔专业见解\n📡 AI资讯\n🚀 产品动态\n\n⏰ 推送频率：每4小时\n🌙 每日反思：22:30 自动推送\n\n⚡ Powered by AvatarOS v2.0`;
   await sendMessage(chatId, help);
 }
 
 async function handleSubscribe(chatId: number, from: any): Promise<void> {
   if (subscribedChats.has(chatId)) {
-    await sendMessage(chatId, "✅ 你已经订阅了定时推送！\n\n无需重复订阅。使用 /status 查看下次推送时间。");
+    await sendMessage(chatId, "✅ 你已经订阅了定时推送！\n\n包括每日22:30反思提醒。\n使用 /status 查看下次推送时间。");
     return;
   }
   subscribedChats.add(chatId);
   const name = from?.first_name || "用户";
-  await sendMessage(chatId, `🎉 ${name}，订阅成功！\n\n你将每4小时收到一条精选推送，内容涵盖Web4.0、AI分身、飘叔见解、AI资讯和产品动态。\n\n使用 /status 查看下次推送时间。\n使用 /pushnow 立即获取一条推送。`);
+  await sendMessage(chatId, `🎉 ${name}，订阅成功！\n\n你将获得：\n• 每4小时一条精选推送\n• 每晚22:30反思提醒\n• 内容涵盖Web4.0、AI分身、飘叔见解等\n\n使用 /status 查看下次推送时间。\n使用 /pushnow 立即获取一条推送。`);
   console.log(`[Subscribe] Chat ${chatId} (${name}) subscribed. Total subscribers: ${subscribedChats.size}`);
 }
 
@@ -268,18 +828,13 @@ async function handleStatus(chatId: number): Promise<void> {
   const nextCategoryKey = CATEGORY_KEYS[currentCategoryIndex % CATEGORY_KEYS.length];
   const nextCategoryMeta = CATEGORY_META[nextCategoryKey];
 
-  const status = `📊 Bot 状态报告\n\n🤖 Bot: @${botUsername}\n📡 API: ${tgApiAvailable ? "✅ 连接" : "❌ 断开"}\n⏱️ 运行时间: ${hours}h ${minutes}m ${seconds}s\n📢 总推送次数: ${pushCount}\n👥 订阅者: ${subscribedChats.size}\n\n⏰ 上次推送: ${lastPush}\n⏰ 下次推送: ${nextPush}\n📂 下次分类: ${nextCategoryMeta.emoji} ${nextCategoryMeta.name}\n\n📂 内容分类轮换:\n${CATEGORY_KEYS.map((k, i) => {
-    const meta = CATEGORY_META[k];
-    const idx = currentCategoryIndex % CATEGORY_KEYS.length;
-    const marker = i === idx ? " ← 下一个" : "";
-    return `  ${meta.emoji} ${meta.name}${marker}`;
-  }).join("\n")}\n\n⚡ Powered by AvatarOS`;
+  const status = `📊 Bot 状态报告\n\n🤖 Bot: @${botUsername}\n📡 API: ${tgApiAvailable ? "✅ 连接" : "❌ 断开"}\n🗄️ Redis: ${redisAvailable ? "✅ 连接" : "⚠️ 未连接"}\n⏱️ 运行时间: ${hours}h ${minutes}m ${seconds}s\n📢 总推送次数: ${pushCount}\n👥 订阅者: ${subscribedChats.size}\n🌙 今日反思: ${lastDailyReflectionDate === new Date().toLocaleString("en-US", { timeZone: "Asia/Shanghai" }).split("T")[0] ? "✅ 已推送" : "⏰ 待推送 (22:30)"}\n\n⏰ 上次推送: ${lastPush}\n⏰ 下次推送: ${nextPush}\n📂 下次分类: ${nextCategoryMeta.emoji} ${nextCategoryMeta.name}\n\n⚡ Powered by AvatarOS v2.0`;
 
   await sendMessage(chatId, status);
 }
 
 // ============================================================
-// Update Polling (getUpdates) with timeout
+// Update Polling (getUpdates)
 // ============================================================
 
 let lastUpdateId = 0;
@@ -293,7 +848,7 @@ async function pollUpdates(): Promise<void> {
   try {
     const data = await telegramAPI("getUpdates", {
       offset: lastUpdateId + 1,
-      timeout: 5, // Short timeout for polling (5s long poll)
+      timeout: 5,
       allowed_updates: ["message"],
     });
 
@@ -307,13 +862,30 @@ async function pollUpdates(): Promise<void> {
           const text = msg.text || "";
           const from = msg.from;
 
-          console.log(`[Message] Chat ${chatId} (${from?.first_name || "unknown"}): ${text}`);
+          console.log(`[Message] Chat ${chatId} (${from?.first_name || "unknown"}): ${text || "[voice]"}`);
+
+          // Handle voice messages first
+          if (msg.voice) {
+            await handleVoice(chatId, msg.voice, from);
+            continue;
+          }
 
           // Handle commands
           if (text.startsWith("/start")) {
             await handleStart(chatId, from);
           } else if (text.startsWith("/help")) {
             await handleHelp(chatId);
+          } else if (text.startsWith("/shadow")) {
+            const scenario = text.replace(/^\/shadow\s*/, "").trim();
+            await handleShadow(chatId, scenario, from);
+          } else if (text.startsWith("/leaderboard") || text.startsWith("/lb")) {
+            await handleLeaderboard(chatId);
+          } else if (text.startsWith("/reflect")) {
+            await handleReflect(chatId, from);
+          } else if (text.startsWith("/rate_yes")) {
+            await handleRateYes(chatId);
+          } else if (text.startsWith("/rate_no")) {
+            await handleRateNo(chatId);
           } else if (text.startsWith("/subscribe")) {
             await handleSubscribe(chatId, from);
           } else if (text.startsWith("/pushnow")) {
@@ -321,7 +893,10 @@ async function pollUpdates(): Promise<void> {
           } else if (text.startsWith("/status")) {
             await handleStatus(chatId);
           } else if (text.startsWith("/")) {
-            await sendMessage(chatId, "❓ 未知命令。使用 /help 查看可用命令。");
+            await sendMessage(chatId, "❓ 未知命令。使用 /help 查看可用命令。\n\nv2.0 新增：/shadow /leaderboard /reflect /rate_yes /rate_no");
+          } else if (text.trim()) {
+            // Non-command plain text — auto-reflection
+            await processUserMessage(chatId, text, from);
           }
         }
       }
@@ -335,9 +910,7 @@ async function pollUpdates(): Promise<void> {
 
 function startPolling(): void {
   console.log("[Poll] Starting update polling (every 10s)...");
-  // Initial poll
   pollUpdates();
-  // Poll every 10 seconds
   pollTimer = setInterval(() => {
     pollUpdates().catch((err) => console.error("[Poll] Unhandled error:", err));
   }, 10000);
@@ -360,26 +933,26 @@ const server = Bun.serve({
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
 
-    // Health check
     if (url.pathname === "/health" || url.pathname === "/") {
       const uptime = Math.floor((Date.now() - startTime.getTime()) / 1000);
       return Response.json({
         status: "healthy",
+        version: "2.0.0",
         service: "tg-bot-service",
         bot: botUsername,
         tgApiAvailable,
+        redisAvailable,
         uptime,
         pushCount,
         subscribers: subscribedChats.size,
         lastPush: lastPushTime?.toISOString() || null,
         nextPush: nextPushTime?.toISOString() || null,
+        lastDailyReflection: lastDailyReflectionDate || null,
         currentCategory: CATEGORY_KEYS[currentCategoryIndex % CATEGORY_KEYS.length],
-        categories: CATEGORY_KEYS,
-        messageCount: Object.values(MESSAGES).reduce((sum, arr) => sum + arr.length, 0),
+        features: ["shadow", "leaderboard", "reflect", "voice", "daily_reflection", "auto_reflection", "push"],
       });
     }
 
-    // Manual push trigger
     if (url.pathname === "/api/push" && req.method === "POST") {
       try {
         await pushToAll();
@@ -389,7 +962,6 @@ const server = Bun.serve({
       }
     }
 
-    // Get subscribers
     if (url.pathname === "/api/subscribers") {
       return Response.json({
         count: subscribedChats.size,
@@ -397,7 +969,6 @@ const server = Bun.serve({
       });
     }
 
-    // Get messages catalog
     if (url.pathname === "/api/messages") {
       const catalog: Record<string, { name: string; emoji: string; count: number; currentIndex: number }> = {};
       for (const key of CATEGORY_KEYS) {
@@ -410,7 +981,6 @@ const server = Bun.serve({
       return Response.json(catalog);
     }
 
-    // 404
     return Response.json({ error: "Not found" }, { status: 404 });
   },
 });
@@ -418,15 +988,39 @@ const server = Bun.serve({
 console.log(`[HTTP] Health check server running on port ${PORT}`);
 
 // ============================================================
+// Initialize Redis
+// ============================================================
+
+async function initRedis(): Promise<void> {
+  try {
+    redis = new MiniRedis();
+    await redis.connect(REDIS_HOST, REDIS_PORT);
+    const pong = await redis.ping();
+    if (pong === "PONG") {
+      redisAvailable = true;
+      console.log(`[Redis] Connected to ${REDIS_HOST}:${REDIS_PORT}`);
+    }
+  } catch (err) {
+    console.warn(`[Redis] Could not connect to ${REDIS_HOST}:${REDIS_PORT} — leaderboard disabled`);
+    console.warn(`[Redis] Error:`, (err as Error)?.message || err);
+    redisAvailable = false;
+  }
+}
+
+// ============================================================
 // Initialize & Start
 // ============================================================
 
 async function main(): Promise<void> {
   console.log("=".repeat(60));
-  console.log("  🤖 Piaoshu Avatar OS - Telegram Bot Service");
+  console.log("  🤖 Piaoshu Avatar OS - Telegram Bot Service v2.0");
+  console.log("  Two-Way Interactive Mode");
   console.log("=".repeat(60));
 
-  // Try to get bot info (non-blocking, won't fail if API unavailable)
+  // Init Redis (optional)
+  await initRedis();
+
+  // Try to get bot info
   try {
     const username = await getBotInfo();
     console.log(`[Bot] Username: @${username}`);
@@ -435,10 +1029,17 @@ async function main(): Promise<void> {
     console.warn(`[Bot] Polling will continue retrying in background.`);
   }
 
-  // Start polling for updates (handles API failures gracefully)
+  // Preload SOUL.md cache
+  getSoulContent().then(content => {
+    console.log(`[SOUL] Loaded personality (${content.length} chars)`);
+  }).catch(() => {
+    console.warn("[SOUL] Could not preload SOUL.md — will use fallback");
+  });
+
+  // Start polling for updates
   startPolling();
 
-  // Calculate next push time (4 hours from now)
+  // Calculate next push time
   nextPushTime = new Date(Date.now() + PUSH_INTERVAL_MS);
 
   // Set up periodic push every 4 hours
@@ -450,37 +1051,49 @@ async function main(): Promise<void> {
     }
   }, PUSH_INTERVAL_MS);
 
-  console.log(`[Scheduler] Periodic push set: every ${PUSH_INTERVAL_MS / 1000 / 60 / 60} hours`);
+  // Set up daily reflection check (every 60 seconds)
+  setInterval(() => {
+    checkDailyReflection();
+  }, 60000);
+
+  console.log(`[Scheduler] Periodic push: every ${PUSH_INTERVAL_MS / 1000 / 60 / 60} hours`);
   console.log(`[Scheduler] Next push at: ${nextPushTime.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`);
+  console.log(`[Scheduler] Daily reflection check: every 60s, target 22:30 Asia/Shanghai`);
   console.log(`[Messages] Loaded ${Object.values(MESSAGES).reduce((sum, arr) => sum + arr.length, 0)} messages across ${CATEGORY_KEYS.length} categories`);
   console.log("=".repeat(60));
-  console.log("  ✅ Bot service started successfully!");
+  console.log("  ✅ Bot service v2.0 started successfully!");
   console.log("  📡 Health check: http://localhost:" + PORT + "/health");
-  console.log("  📋 Messages API: http://localhost:" + PORT + "/api/messages");
-  console.log("  📢 Push trigger:  POST http://localhost:" + PORT + "/api/push");
+  console.log("  🧬 Shadow Test: /shadow <scenario>");
+  console.log("  🏆 Leaderboard: /leaderboard");
+  console.log("  🌙 Reflect: /reflect");
+  console.log("  🎙️ Voice: send voice message");
+  console.log("  🌙 Daily: auto 22:30 reflection");
   console.log("=".repeat(60));
 }
 
-// Graceful shutdown
-process.on("SIGINT", () => {
+// ============================================================
+// Graceful Shutdown
+// ============================================================
+
+process.on("SIGINT", async () => {
   console.log("\n[Shutdown] Received SIGINT, shutting down...");
   stopPolling();
+  if (redis) await redis.close().catch(() => {});
   server.stop();
   process.exit(0);
 });
-process.on("SIGTERM", () => {
+process.on("SIGTERM", async () => {
   console.log("\n[Shutdown] Received SIGTERM, shutting down...");
   stopPolling();
+  if (redis) await redis.close().catch(() => {});
   server.stop();
   process.exit(0);
 });
 
-// Unhandled rejection protection
 process.on("unhandledRejection", (reason) => {
   console.error("[Unhandled Rejection]:", reason);
 });
 
 main().catch((err) => {
   console.error("[Fatal] Failed to start:", err);
-  // Don't exit — HTTP server is already running, service can work in degraded mode
 });

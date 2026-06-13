@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
     'localhost',
     '21.0.3.175',
   ],
-  serverExternalPackages: ['@libsql/client'],
+  serverExternalPackages: ['@libsql/client', 'bullmq', 'ioredis'],
 };
 
 export default nextConfig;
