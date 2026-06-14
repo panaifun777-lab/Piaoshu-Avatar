@@ -59,8 +59,10 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
         onOpenChange(false)
         setLoginIdentifier('')
         setLoginPassword('')
-        // Force page refresh to pick up new session (critical for Vercel)
-        setTimeout(() => window.location.reload(), 300)
+        // Force redirect to home — NextAuth will detect session and show admin dashboard
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 600)
       }
     } catch {
       toast.error('登录失败，请稍后重试')
@@ -116,7 +118,9 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
         setRegisterName('')
         setRegisterEmail('')
         setRegisterPassword('')
-        setTimeout(() => window.location.reload(), 300)
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 600)
       }
     } catch {
       toast.error('注册失败，请稍后重试')
