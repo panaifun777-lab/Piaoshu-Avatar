@@ -63,11 +63,15 @@ export function PiaoshuLogo({ size = 'md', className = '', showText = false }: P
       <video
         ref={videoRef}
         src="/avatar-logo.mp4"
+        type="video/mp4"
         autoPlay
         muted
         loop
         playsInline
+        disablePictureInPicture
+        controlsList="nodownload"
         preload="metadata"
+        onError={() => setHasError(true)}
         className="absolute inset-0 w-full h-full object-cover rounded-xl"
         aria-label="Piaoshu Avatar OS Logo"
       />
@@ -113,11 +117,15 @@ export function PiaoshuLogoSidebar({ collapsed = false }: { collapsed?: boolean 
       <video
         ref={videoRef}
         src="/avatar-logo.mp4"
+        type="video/mp4"
         autoPlay
         muted
         loop
         playsInline
+        disablePictureInPicture
+        controlsList="nodownload"
         preload="metadata"
+        onError={() => setHasError(true)}
         className="absolute inset-0 w-full h-full object-cover rounded-xl"
         aria-label="Piaoshu Avatar OS Logo"
       />
