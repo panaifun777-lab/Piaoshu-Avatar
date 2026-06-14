@@ -56,6 +56,10 @@ export function CommandPalette({ onNavigate, onToggleTheme }: CommandPaletteProp
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        // Don't trigger when user is typing in an input
+        const target = e.target as HTMLElement
+        const tag = target.tagName.toLowerCase()
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) return
         e.preventDefault()
         setOpen((prev) => !prev)
       }

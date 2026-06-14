@@ -141,41 +141,41 @@ const navGroups = [
     label: '核心',
     items: [
       { id: 'dashboard' as ActiveModule, label: '总控台', sublabel: 'Mission Control', icon: LayoutDashboard, color: 'text-emerald-500' },
-      { id: 'avatar' as ActiveModule, label: '分身系统', sublabel: 'Avatar Clone', icon: UserCircle2, color: 'text-violet-500' },
+      { id: 'avatar' as ActiveModule, label: '分身系统', sublabel: 'Avatar Clone', icon: UserCircle2, color: 'text-emerald-500' },
     ]
   },
   {
     label: '引擎',
     items: [
-      { id: 'cognitive' as ActiveModule, label: '认知引擎', sublabel: 'Cognitive Engine', icon: Brain, color: 'text-emerald-600' },
-      { id: 'memory' as ActiveModule, label: '记忆宫殿', sublabel: 'Memory Palace', icon: Brain, color: 'text-teal-500' },
-      { id: 'evidence' as ActiveModule, label: '可信证据链', sublabel: 'Evidence Chain', icon: Shield, color: 'text-teal-600' },
-      { id: 'federation' as ActiveModule, label: '联邦信任层', sublabel: 'Federation Trust', icon: ShieldCheck, color: 'text-emerald-600' },
+      { id: 'cognitive' as ActiveModule, label: '认知引擎', sublabel: 'Cognitive Engine', icon: Brain, color: 'text-emerald-500' },
+      { id: 'memory' as ActiveModule, label: '记忆宫殿', sublabel: 'Memory Palace', icon: Brain, color: 'text-emerald-500' },
+      { id: 'evidence' as ActiveModule, label: '可信证据链', sublabel: 'Evidence Chain', icon: Shield, color: 'text-emerald-500' },
+      { id: 'federation' as ActiveModule, label: '联邦信任层', sublabel: 'Federation Trust', icon: ShieldCheck, color: 'text-emerald-500' },
     ]
   },
   {
     label: '业务',
     items: [
-      { id: 'media' as ActiveModule, label: '媒体矩阵', sublabel: 'Media Matrix', icon: Radio, color: 'text-emerald-600' },
-      { id: 'bd' as ActiveModule, label: '合作管线', sublabel: 'BD Pipeline', icon: Handshake, color: 'text-amber-600' },
-      { id: 'geo' as ActiveModule, label: 'GEO优化', sublabel: 'GEO Center', icon: Search, color: 'text-teal-600' },
+      { id: 'media' as ActiveModule, label: '媒体矩阵', sublabel: 'Media Matrix', icon: Radio, color: 'text-emerald-500' },
+      { id: 'bd' as ActiveModule, label: '合作管线', sublabel: 'BD Pipeline', icon: Handshake, color: 'text-emerald-500' },
+      { id: 'geo' as ActiveModule, label: 'GEO优化', sublabel: 'GEO Center', icon: Search, color: 'text-emerald-500' },
       { id: 'email' as ActiveModule, label: '邮件跟踪', sublabel: 'Email Tracking', icon: Mail, color: 'text-emerald-500' },
     ]
   },
   {
     label: '协作',
     items: [
-      { id: 'collaboration' as ActiveModule, label: '流体调度', sublabel: 'Fluid Router', icon: Network, color: 'text-cyan-600' },
-      { id: 'swarm' as ActiveModule, label: '蜂群协作', sublabel: 'Swarm', icon: Network, color: 'text-cyan-500' },
-      { id: 'sandbox' as ActiveModule, label: '共生沙盒', sublabel: 'XDP Sandbox', icon: Box, color: 'text-amber-600' },
+      { id: 'collaboration' as ActiveModule, label: '流体调度', sublabel: 'Fluid Router', icon: Network, color: 'text-emerald-500' },
+      { id: 'swarm' as ActiveModule, label: '蜂群协作', sublabel: 'Swarm', icon: Network, color: 'text-emerald-500' },
+      { id: 'sandbox' as ActiveModule, label: '共生沙盒', sublabel: 'XDP Sandbox', icon: Box, color: 'text-emerald-500' },
     ]
   },
   {
     label: '规划',
     items: [
-      { id: 'roadmap' as ActiveModule, label: '路线图', sublabel: 'Roadmap', icon: Target, color: 'text-rose-500' },
-      { id: 'subscription' as ActiveModule, label: '订阅方案', sublabel: 'AFC Plans', icon: CreditCard, color: 'text-amber-500' },
-      { id: 'manifesto' as ActiveModule, label: '创始人致辞', sublabel: 'Manifesto', icon: Quote, color: 'text-amber-500' },
+      { id: 'roadmap' as ActiveModule, label: '路线图', sublabel: 'Roadmap', icon: Target, color: 'text-emerald-500' },
+      { id: 'subscription' as ActiveModule, label: '订阅方案', sublabel: 'AFC Plans', icon: CreditCard, color: 'text-emerald-500' },
+      { id: 'manifesto' as ActiveModule, label: '创始人致辞', sublabel: 'Manifesto', icon: Quote, color: 'text-emerald-500' },
     ]
   },
 ]
