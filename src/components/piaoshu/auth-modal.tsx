@@ -56,13 +56,12 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
         setIsLoading(false)
       } else {
         toast.success('登录成功，欢迎回来！')
+        setIsLoading(false)
         onOpenChange(false)
         setLoginIdentifier('')
         setLoginPassword('')
-        // Force redirect to home — NextAuth will detect session and show admin dashboard
-        setTimeout(() => {
-          window.location.href = '/'
-        }, 600)
+        // useSession() in page.tsx will auto-detect session and switch to admin dashboard
+        // NO redirect needed — SessionProvider handles re-render naturally
       }
     } catch {
       toast.error('登录失败，请稍后重试')
@@ -114,13 +113,12 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'login' }: AuthModa
         setIsLoading(false)
       } else {
         toast.success('注册成功，欢迎加入飘叔！')
+        setIsLoading(false)
         onOpenChange(false)
         setRegisterName('')
         setRegisterEmail('')
         setRegisterPassword('')
-        setTimeout(() => {
-          window.location.href = '/'
-        }, 600)
+        // SessionProvider auto-detects new session — no redirect needed
       }
     } catch {
       toast.error('注册失败，请稍后重试')
