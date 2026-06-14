@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "prisma generate && next build",
-  "installCommand": "npm install",
+  "buildCommand": "bun run build",
+  "installCommand": "bun install",
   "regions": ["hnd1"],
   "headers": [
     {
@@ -13,5 +13,17 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     }
-  ]
+  ],
+  "env": {
+    "DATABASE_URL": "@database-url",
+    "DIRECT_URL": "@direct-url",
+    "NEXTAUTH_SECRET": "@nextauth-secret",
+    "NEXTAUTH_URL": "https://piaoshu-avatar.vercel.app",
+    "DEEPSEEK_API_KEY": "@deepseek-api-key",
+    "REDIS_URL": "@redis-url",
+    "UPLOADTHING_TOKEN": "@uploadthing-token",
+    "STRIPE_SECRET_KEY": "@stripe-secret-key",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@stripe-publishable-key",
+    "TELEGRAM_BOT_TOKEN": "@telegram-bot-token"
+  }
 }

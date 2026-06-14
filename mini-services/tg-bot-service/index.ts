@@ -8,7 +8,7 @@
 // Configuration
 // ============================================================
 
-const BOT_TOKEN = process.env.TG_BOT_TOKEN || "8894219175:***";
+const BOT_TOKEN = process.env.TG_BOT_TOKEN || "8943479941:***";
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const NEXT_API = process.env.NEXT_API_URL || "http://localhost:3000";
 const PUSH_INTERVAL_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -17,6 +17,12 @@ const API_TIMEOUT_MS = 15000;
 const REDIS_HOST = process.env.REDIS_HOST || "127.0.0.1";
 const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379");
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+
+// === GFW Proxy (required for Telegram API in China) ===
+const PROXY_URL = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://127.0.0.1:7890";
+// Bun fetch respects these env vars, but set them explicitly for reliability
+if (!process.env.HTTPS_PROXY) process.env.HTTPS_PROXY = PROXY_URL;
+if (!process.env.HTTP_PROXY) process.env.HTTP_PROXY = PROXY_URL;
 
 // ============================================================
 // Minimal Redis Client (RESP protocol over Bun TCP)
@@ -981,11 +987,68 @@ const server = Bun.serve({
       return Response.json(catalog);
     }
 
+    // Admin: Sync bot commands + profile to Telegram
+    if (url.pathname === "/api/sync" && req.method === "POST") {
+      try {
+        const result = await syncBotProfile();
+        return Response.json(result);
+      } catch (err) {
+        return Response.json({ success: false, error: String(err) }, { status: 500 });
+      }
+    }
+
     return Response.json({ error: "Not found" }, { status: 404 });
   },
 });
 
 console.log(`[HTTP] Health check server running on port ${PORT}`);
+
+// ============================================================
+// Bot Profile Sync (setMyCommands + setMyName + setMyDescription)
+// ============================================================
+
+async function syncBotProfile(): Promise<{ success: boolean; message: string; commands?: number }> {
+  const commands = [
+    { command: "start", description: "🔩 唤醒飘叔分身" },
+    { command: "help", description: "📖 查看所有命令" },
+    { command: "status", description: "📊 分身状态 / Bot运行状态" },
+    { command: "subscribe", description: "📢 订阅定时推送 (每4h)" },
+    { command: "shadow", description: "🧬 影子测试: 分身会怎么回复？" },
+    { command: "leaderboard", description: "🏆 实时天梯榜 Top 10" },
+    { command: "reflect", description: "💎 每日复盘: 触发情感对话" },
+    { command: "rate_yes", description: "👍 影子回复像你" },
+    { command: "rate_no", description: "👎 影子回复不像你" },
+    { command: "pushnow", description: "⚡ 立即推送一条消息" },
+  ];
+
+  try {
+    // 1. Sync commands
+    const cmdRes = await telegramAPI("setMyCommands", {
+      commands,
+      scope: { type: "default" },
+    });
+    if (!cmdRes?.ok) console.warn("[Sync] Commands:", cmdRes?.description);
+    
+    // 2. Set name
+    await telegramAPI("setMyName", { name: "飘叔分身 · Avatar Hermes" });
+    
+    // 3. Set description
+    await telegramAPI("setMyDescription", {
+      description: "🔩 代码即法律，架构即人格。\n\n飘叔(Piaoshu)的AI分身 · Web4.0 Digital Twin OS\n/shadow 影子测试 | /leaderboard 天梯榜 | /reflect 每日复盘",
+    });
+    
+    // 4. Set short description  
+    await telegramAPI("setMyShortDescription", {
+      short_description: "🔩 飘叔分身 · 影子测试/天梯榜/每日复盘/定时推送",
+    });
+
+    console.log(`[Sync] Bot profile synced: ${commands.length} commands`);
+    return { success: true, message: "Bot profile synced", commands: commands.length };
+  } catch (err) {
+    console.error("[Sync] Failed:", err);
+    return { success: false, message: String(err) };
+  }
+}
 
 // ============================================================
 // Initialize Redis
@@ -1027,6 +1090,19 @@ async function main(): Promise<void> {
   } catch (err) {
     console.warn(`[Bot] Could not reach Telegram API. Bot will work in offline mode.`);
     console.warn(`[Bot] Polling will continue retrying in background.`);
+  }
+
+  // Sync bot commands + profile to Telegram
+  try {
+    console.log("[Sync] Syncing bot profile to Telegram...");
+    const syncResult = await syncBotProfile();
+    if (syncResult.success) {
+      console.log(`[Sync] ✅ Bot profile synced (${syncResult.commands} commands)`);
+    } else {
+      console.warn(`[Sync] ⚠️ Profile sync failed: ${syncResult.message}`);
+    }
+  } catch (err) {
+    console.warn("[Sync] ⚠️ Could not sync profile (TG API may be unreachable)");
   }
 
   // Preload SOUL.md cache

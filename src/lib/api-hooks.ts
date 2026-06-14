@@ -1711,3 +1711,50 @@ export function useShadowTest() {
       }>('/api/shadow', { method: 'POST', body: JSON.stringify(data) }),
   })
 }
+
+// ===== Sandbox Code Execution =====
+
+export interface SandboxExecuteInput {
+  code: string
+  language: 'python' | 'javascript' | 'bash'
+  timeout?: number
+}
+
+export interface SandboxExecuteOutput {
+  success: boolean
+  stdout: string
+  stderr: string
+  executionTime: number
+  artifacts?: { name: string; type: string; path?: string; content?: string }[]
+}
+
+export function useExecuteCode() {
+  return useMutation({
+    mutationFn: (data: SandboxExecuteInput) =>
+      apiFetch<{ success: boolean; execution: SandboxExecuteOutput; error?: string }>(
+        '/api/sandbox/execute',
+        { method: 'POST', body: JSON.stringify(data) }
+      ),
+  })
+}
+
+export interface SandboxStatusData {
+  provider: 'e2b' | 'local'
+  connected: boolean
+  activeSandboxes: number
+  uptimeMs: number
+  stats: {
+    totalExecutions: number
+    recentFailures24h: number
+    avgExecutionTimeMs: number
+  }
+}
+
+export function useSandboxStatus() {
+  return useQuery({
+    queryKey: ['sandboxStatus'],
+    queryFn: () =>
+      apiFetch<{ success: boolean; data: SandboxStatusData }>('/api/sandbox/status'),
+    refetchInterval: 15_000,
+  })
+}

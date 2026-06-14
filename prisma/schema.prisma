@@ -173,6 +173,19 @@ model SandboxInteraction {
   project SandboxProject @relation(fields: [projectId], references: [id])
 }
 
+// ===== 沙盒执行日志 =====
+model SandboxExecution {
+  id              String   @id @default(cuid())
+  code            String                           // 执行的代码 (truncated)
+  language        String   @default("python")      // python, javascript, bash
+  success         Boolean  @default(false)
+  stdout          String?                          // 标准输出
+  stderr          String?                          // 标准错误
+  executionTimeMs Int      @default(0)             // 执行耗时(ms)
+  sandboxProvider String   @default("local")       // e2b, local
+  createdAt       DateTime @default(now())
+}
+
 // ===== 90天路线图 =====
 model RoadmapPhase {
   id          String   @id @default(cuid())
@@ -907,4 +920,22 @@ model CrossAvatarMessage {
   content     String   // JSON: message payload
   status      String   @default("pending") // pending, delivered, acknowledged, failed
   createdAt   DateTime @default(now())
+}
+
+// ===== 去中心化存储记录 =====
+model StorageRecord {
+  id              String   @id @default(cuid())
+  fileName        String
+  fileSize        Int      @default(0)
+  mimeType        String?
+  contentHash     String                      // SHA256 hash of content
+  ipfsCid         String?                     // IPFS CID (real Pinata upload)
+  ipfsGatewayUrl  String?                     // IPFS gateway URL
+  arweaveTxId     String?                     // Arweave transaction ID
+  arweaveGatewayUrl String?                   // Arweave gateway URL
+  storageType     String   @default("ipfs")   // ipfs, arweave, dual, fallback
+  metadata        String?                     // JSON: user metadata
+  status          String   @default("uploaded") // uploaded, pinned, confirmed, failed
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

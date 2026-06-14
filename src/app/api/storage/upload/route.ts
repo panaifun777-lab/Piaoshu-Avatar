@@ -1,137 +1,215 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { StorageService } from '@/lib/storage'
+import { db } from '@/lib/db'
 
-// In-memory upload records (simulated — would be DB in production)
-interface UploadRecord {
-  id: string
-  cid: string
-  gatewayUrl: string
-  storageType: 'ipfs' | 'arweave' | 'dual'
-  fileName: string
-  size: number
-  metadata: Record<string, string>
-  timestamp: string
-  arweaveTxId?: string
-  arweaveGatewayUrl?: string
-}
-
-const uploadRecords: UploadRecord[] = []
-
-// Generate a realistic-looking CID (Content Identifier) for IPFS
-function generateMockCID(): string {
-  const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-  let cid = 'Qm'
-  for (let i = 0; i < 44; i++) {
-    cid += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return cid
-}
-
-// Generate a realistic-looking Arweave transaction ID
-function generateMockTxId(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
-  let txId = ''
-  for (let i = 0; i < 43; i++) {
-    txId += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return txId
-}
-
-function generateId(): string {
-  return `stor_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
-}
-
+// POST /api/storage/upload — Upload file to IPFS (+ Arweave if dual)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // Accept both FormData (file upload) and JSON (text content)
+    const contentType = request.headers.get('content-type') || ''
 
-    const content = body.content as string | undefined
-    const storageType = (body.storageType as string) || 'auto'
-    const metadata = (body.metadata as Record<string, string>) || {}
-    const fileName = body.fileName as string || 'unnamed'
+    let buffer: Buffer
+    let fileName: string
+    let mimeType: string | undefined
+    let metadata: Record<string, string> = {}
+    let storageType = 'ipfs'
 
-    if (!content) {
-      return NextResponse.json(
-        { success: false, error: 'Content is required' },
-        { status: 400 }
-      )
+    if (contentType.includes('multipart/form-data')) {
+      // FormData multipart upload
+      const formData = await request.formData()
+      const file = formData.get('file')
+
+      if (!file || !(file instanceof File)) {
+        return NextResponse.json(
+          { success: false, error: 'No file provided in FormData' },
+          { status: 400 },
+        )
+      }
+
+      buffer = Buffer.from(await file.arrayBuffer())
+      fileName = file.name || 'unnamed'
+      mimeType = file.type || undefined
+
+      const storageTypeField = formData.get('storageType')
+      if (storageTypeField) storageType = String(storageTypeField)
+
+      const metadataField = formData.get('metadata')
+      if (metadataField) {
+        try {
+          metadata = JSON.parse(String(metadataField))
+        } catch {
+          metadata = { raw: String(metadataField) }
+        }
+      }
+    } else {
+      // JSON content upload
+      const body = await request.json()
+      const content = body.content as string | undefined
+      fileName = body.fileName as string || 'unnamed'
+      storageType = (body.storageType as string) || 'ipfs'
+      metadata = (body.metadata as Record<string, string>) || {}
+
+      if (!content) {
+        return NextResponse.json(
+          { success: false, error: 'Content is required' },
+          { status: 400 },
+        )
+      }
+
+      buffer = Buffer.from(content, 'utf-8')
+      mimeType = body.mimeType || 'text/plain'
     }
 
-    const contentSize = new TextEncoder().encode(content).length
+    // Generate real SHA256 content hash
+    const contentHash = StorageService.contentHash(buffer)
 
     // Determine actual storage type
-    let actualType: 'ipfs' | 'arweave' | 'dual'
-    if (storageType === 'auto') {
-      // Auto-select: use dual for large content, IPFS for small
-      actualType = contentSize > 100000 ? 'dual' : 'ipfs'
-    } else if (storageType === 'ipfs') {
-      actualType = 'ipfs'
+    let actualType: 'ipfs' | 'arweave' | 'dual' | 'fallback' = 'ipfs'
+
+    if (storageType === 'dual' || storageType === 'both') {
+      actualType = 'dual'
     } else if (storageType === 'arweave') {
       actualType = 'arweave'
     } else {
-      actualType = 'dual'
+      actualType = 'ipfs'
     }
 
-    // Simulate upload latency
-    await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 700))
+    // If neither IPFS nor Arweave is configured, fallback
+    const ipfsConfigured = StorageService.isIPFSConfigured()
+    const arweaveConfigured = StorageService.isArweaveConfigured()
 
-    const record: UploadRecord = {
-      id: generateId(),
-      cid: '',
-      gatewayUrl: '',
-      storageType: actualType,
-      fileName,
-      size: contentSize,
-      metadata,
-      timestamp: new Date().toISOString(),
+    if (!ipfsConfigured && !arweaveConfigured) {
+      actualType = 'fallback'
+    } else if (actualType === 'ipfs' && !ipfsConfigured) {
+      actualType = 'fallback'
+    } else if (actualType === 'arweave' && !arweaveConfigured) {
+      actualType = 'fallback'
     }
 
-    if (actualType === 'ipfs' || actualType === 'dual') {
-      record.cid = generateMockCID()
-      record.gatewayUrl = `https://ipfs.io/ipfs/${record.cid}`
+    // Perform upload(s)
+    let ipfsCid: string | undefined
+    let ipfsGatewayUrl: string | undefined
+    let arweaveTxId: string | undefined
+    let arweaveGatewayUrl: string | undefined
+    let finalCid: string
+    let finalGatewayUrl: string
+
+    if (actualType === 'ipfs') {
+      const result = await StorageService.uploadToIPFS(buffer, fileName)
+      ipfsCid = result.cid
+      ipfsGatewayUrl = result.url
+      finalCid = result.cid
+      finalGatewayUrl = result.url
+    } else if (actualType === 'arweave') {
+      const arweaveTags = [
+        { name: 'File-Name', value: fileName },
+        { name: 'Content-Hash', value: contentHash },
+      ]
+      const result = await StorageService.uploadToArweave(buffer, arweaveTags)
+      arweaveTxId = result.txId
+      arweaveGatewayUrl = result.url
+      finalCid = result.txId
+      finalGatewayUrl = result.url
+    } else if (actualType === 'dual') {
+      const arweaveTags = [
+        { name: 'File-Name', value: fileName },
+        { name: 'Content-Hash', value: contentHash },
+      ]
+      const [ipfsResult, arweaveResult] = await Promise.all([
+        (ipfsConfigured
+          ? StorageService.uploadToIPFS(buffer, fileName)
+          : Promise.resolve({ cid: contentHash, url: `/api/storage/download?cid=sha256:${contentHash}` })),
+        (arweaveConfigured
+          ? StorageService.uploadToArweave(buffer, arweaveTags)
+          : Promise.resolve({ txId: contentHash, url: `/api/storage/download?txId=sha256:${contentHash}` })),
+      ])
+
+      ipfsCid = ipfsResult.cid
+      ipfsGatewayUrl = ipfsResult.url
+      arweaveTxId = arweaveResult.txId
+      arweaveGatewayUrl = arweaveResult.url
+      finalCid = ipfsCid
+      finalGatewayUrl = ipfsGatewayUrl
+    } else {
+      // Fallback only
+      const result = await StorageService.uploadToIPFS(buffer, fileName)
+      ipfsCid = result.cid
+      ipfsGatewayUrl = result.url
+      finalCid = result.cid
+      finalGatewayUrl = result.url
     }
 
-    if (actualType === 'arweave' || actualType === 'dual') {
-      record.arweaveTxId = generateMockTxId()
-      record.arweaveGatewayUrl = `https://arweave.net/${record.arweaveTxId}`
+    // Store metadata in PostgreSQL
+    let record = null
+    try {
+      record = await db.storageRecord.create({
+        data: {
+          fileName,
+          fileSize: buffer.length,
+          mimeType,
+          contentHash,
+          ipfsCid: ipfsCid || null,
+          ipfsGatewayUrl: ipfsGatewayUrl || null,
+          arweaveTxId: arweaveTxId || null,
+          arweaveGatewayUrl: arweaveGatewayUrl || null,
+          storageType: actualType,
+          metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+          status: 'uploaded',
+        },
+      })
+    } catch (dbError) {
+      console.warn('[Storage] DB record creation failed (DB may not be available):', dbError)
     }
-
-    // For dual, the main CID is IPFS, arweave is supplementary
-    if (actualType === 'arweave') {
-      record.cid = record.arweaveTxId || ''
-      record.gatewayUrl = record.arweaveGatewayUrl || ''
-    }
-
-    uploadRecords.push(record)
 
     return NextResponse.json({
       success: true,
       data: {
-        id: record.id,
-        cid: record.cid,
-        gatewayUrl: record.gatewayUrl,
-        storageType: record.storageType,
-        fileName: record.fileName,
-        size: record.size,
-        timestamp: record.timestamp,
-        arweaveTxId: record.arweaveTxId,
-        arweaveGatewayUrl: record.arweaveGatewayUrl,
+        id: record?.id || `stor_${Date.now()}`,
+        cid: finalCid,
+        gatewayUrl: finalGatewayUrl,
+        storageType: actualType,
+        fileName,
+        size: buffer.length,
+        contentHash,
+        timestamp: new Date().toISOString(),
+        arweaveTxId: arweaveTxId || undefined,
+        arweaveGatewayUrl: arweaveGatewayUrl || undefined,
+        ipfsCid: ipfsCid || undefined,
+        ipfsGatewayUrl: ipfsGatewayUrl || undefined,
       },
     })
-  } catch {
+  } catch (error) {
+    console.error('[Storage] Upload failed:', error)
     return NextResponse.json(
       { success: false, error: 'Upload failed' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
 
-// GET to list upload history
+// GET /api/storage/upload — List upload history
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    data: {
-      uploads: uploadRecords.slice(-50).reverse(),
-      total: uploadRecords.length,
-    },
-  })
+  try {
+    const records = await db.storageRecord.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        uploads: records,
+        total: records.length,
+      },
+    })
+  } catch {
+    // Fallback: return empty if DB not available
+    return NextResponse.json({
+      success: true,
+      data: {
+        uploads: [],
+        total: 0,
+      },
+    })
+  }
 }
