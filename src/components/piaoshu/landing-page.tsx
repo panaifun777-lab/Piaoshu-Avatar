@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSession } from 'next-auth/react'
 import { PiaoshuLogo } from '@/components/piaoshu/piaoshu-logo'
 import {
   Brain,
@@ -327,6 +328,12 @@ const itemVariants = {
 
 export function LandingPage({ onLogin }: LandingPageProps) {
   const [scrollY, setScrollY] = useState(0)
+  const { status: authStatus } = useSession()
+  const isLoggedIn = authStatus === 'authenticated'
+
+  const handleEnterDashboard = () => {
+    window.location.href = '/'
+  }
 
   const handleScroll = useCallback(() => {
     setScrollY(window.scrollY)
@@ -382,21 +389,34 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               <Send className="h-3 w-3" />
               Telegram 频道
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 text-xs h-8"
-              onClick={onLogin}
-            >
-              登录
-            </Button>
-            <Button
-              size="sm"
-              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white text-xs h-8 shadow-lg shadow-emerald-500/20"
-              onClick={onLogin}
-            >
-              开始体验
-            </Button>
+            {isLoggedIn ? (
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white text-xs h-8 shadow-lg shadow-emerald-500/20 gap-1"
+                onClick={handleEnterDashboard}
+              >
+                进入后台
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 text-xs h-8"
+                  onClick={onLogin}
+                >
+                  登录
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white text-xs h-8 shadow-lg shadow-emerald-500/20"
+                  onClick={onLogin}
+                >
+                  开始体验
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </motion.nav>
@@ -437,15 +457,26 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               </p>
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-8">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white shadow-xl shadow-emerald-500/20 px-8 gap-2 text-sm"
-                  onClick={onLogin}
-                >
-                  <Zap className="h-4 w-4" />
-                  登录系统
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                {isLoggedIn ? (
+                  <Button
+                    size="lg"
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white shadow-xl shadow-emerald-500/20 px-8 gap-2 text-sm"
+                    onClick={handleEnterDashboard}
+                  >
+                    进入后台
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white shadow-xl shadow-emerald-500/20 px-8 gap-2 text-sm"
+                    onClick={onLogin}
+                  >
+                    <Zap className="h-4 w-4" />
+                    登录系统
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="lg"
@@ -934,15 +965,26 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 登录后即可体验完整的AI分身系统，解锁认知引擎、记忆宫殿和数字分身等核心能力
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white shadow-xl shadow-emerald-500/20 px-10 gap-2 text-sm"
-                  onClick={onLogin}
-                >
-                  <Zap className="h-4 w-4" />
-                  登录系统
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                {isLoggedIn ? (
+                  <Button
+                    size="lg"
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white shadow-xl shadow-emerald-500/20 px-10 gap-2 text-sm"
+                    onClick={handleEnterDashboard}
+                  >
+                    进入后台
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white shadow-xl shadow-emerald-500/20 px-10 gap-2 text-sm"
+                    onClick={onLogin}
+                  >
+                    <Zap className="h-4 w-4" />
+                    登录系统
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               <p className="text-[10px] text-gray-600 mt-4">
                 管理员: Piaoshu001 · 演示: demo@piaoshu.ai
